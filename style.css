@@ -114,3 +114,5 @@ footer.foot{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 3
 .login form{padding:20px;display:flex;flex-direction:column;gap:12px}
 .err{background:var(--bad-bg);color:var(--bad);border-radius:6px;padding:8px 10px;font-size:.88rem}
 .loading{padding:40px;text-align:center;color:var(--muted)}
+.modal.wide{max-width:680px}
+.modal ul{display:flex;flex-direction:column;gap:2px}
