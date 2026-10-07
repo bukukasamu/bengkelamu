@@ -1,4 +1,4 @@
-# Aceh Mandiri Utama POS · versi 2.3.1
+# Aceh Mandiri Utama POS · versi 2.3.2
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
