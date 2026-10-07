@@ -1,6 +1,7 @@
 // Menu Beranda: ringkasan hari ini, grafik 7 hari, antrian bengkel, stok menipis.
 import { $, esc, rp, dkey, HARI, toast, errMsg } from './util.js';
-import { S, st, STATUS, views, actions, go } from './state.js';
+import { S, st, views, actions, go, can, mekanikAktif } from './state.js';
+import { AKTIF, statusPill, jenisBadge, mekanikNama, bebanMekanik } from './wo-common.js';
 import { trxIn, sums } from './stats.js';
 import { db, doc, writeBatch } from './firebase.js';
 import { SEED_PARTS } from './seed.js';
@@ -34,8 +35,9 @@ function renderBeranda() {
   const t = dkey(new Date()), s = sums(trxIn(t, t));
   const low = S.parts.filter(p => p.min > 0 && p.stok <= p.min);
   const woToday = S.wo.filter(w => w.tgl.slice(0, 10) === t);
-  const aktif = S.wo.filter(w => w.status !== 'Lunas');
-  const seedBox = S.parts.length ? '' : `<div class="panel"><h3>Database part masih kosong</h3><p style="margin:0">Upload data part dari Excel (ekspor DMS Yamaha atau template sendiri), atau isi 20 part contoh untuk mencoba.</p><div class="row"><button class="btn pri" type="button" data-act="import-open">Import dari Excel</button><button class="btn" type="button" data-act="seed">Isi 20 part contoh</button></div></div>`;
+  const aktif = S.wo.filter(w => AKTIF.includes(w.status));
+  const beban = bebanMekanik();
+  const seedBox = S.parts.length || !can('stok') ? '' : `<div class="panel"><h3>Database part masih kosong</h3><p style="margin:0">Upload data part dari Excel (ekspor DMS Yamaha atau template sendiri), atau isi 20 part contoh untuk mencoba.</p><div class="row">${can('stok') ? '<button class="btn pri" type="button" data-act="import-open">Import dari Excel</button>' : ''}<button class="btn" type="button" data-act="seed">Isi 20 part contoh</button></div></div>`;
   $('#view').innerHTML = `<div class="grid">${seedBox}
    <div class="tiles">
     <div class="tile"><span class="lbl">Omzet hari ini</span><span class="val">${rp(s.total)}</span><span class="sub">${s.n} transaksi</span></div>
@@ -44,9 +46,10 @@ function renderBeranda() {
     <div class="tile"><span class="lbl">Stok menipis</span><span class="val" style="color:${low.length ? 'var(--bad)' : 'inherit'}">${low.length} item</span><span class="sub">dari ${S.parts.length.toLocaleString('id-ID')} part</span></div>
    </div>
    <div class="panel"><div class="row spread"><h3>Omzet 7 hari terakhir</h3><div class="legend"><span><i style="background:var(--accent)"></i>Sparepart</span><span><i style="background:var(--jasa)"></i>Jasa servis</span></div></div>${chartSVG()}</div>
+   <div class="panel"><h3>Status mekanik</h3><div class="mek-list">${mekanikAktif().map(m => { const n = beban[m.id] || beban[m.nama] || 0; return `<div class="mek"><span>${esc(m.nama)}</span>${n ? `<span class="pill p-warn">${n} motor aktif</span>` : '<span class="pill p-good">Kosong</span>'}</div>`; }).join('') || '<div class="small muted">Belum ada data mekanik.</div>'}</div></div>
    <div class="grid g2">
-    <div class="panel"><div class="row spread"><h3>Antrian bengkel</h3><button class="btn sm" data-act="go-servis" type="button">Buka Servis</button></div>
-     ${aktif.length ? `<div class="tw"><table><thead><tr><th>Nopol</th><th>Motor</th><th>Mekanik</th><th>Status</th></tr></thead><tbody>${aktif.map(w => `<tr class="row-click" tabindex="0" data-act="open-wo" data-no="${esc(w.no)}"><td class="mono">${esc(w.nopol)}</td><td>${esc(w.tipe)}</td><td>${esc(w.mekanik || '–')}</td><td><span class="pill ${STATUS[w.status]}">${w.status}</span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada motor dalam antrian.</div>'}
+    <div class="panel"><div class="row spread"><h3>Antrian bengkel</h3>${can('registrasi') ? '<button class="btn sm" data-act="go-registrasi" type="button">Registrasi</button>' : ''}</div>
+     ${aktif.length ? `<div class="tw"><table><thead><tr><th>Nopol</th><th>Motor</th><th>Mekanik</th><th>Status</th></tr></thead><tbody>${aktif.map(w => `<tr><td class="mono">${esc(w.nopol)}<br>${jenisBadge(w)}</td><td>${esc(w.tipe)}</td><td>${esc(mekanikNama(w) || '–')}</td><td>${statusPill(w.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada motor dalam antrian.</div>'}
     </div>
     <div class="panel"><div class="row spread"><h3>Perlu dipesan ulang</h3><button class="btn sm" data-act="go-low" type="button">Lihat semua</button></div>
      ${low.length ? `<div class="tw"><table><thead><tr><th>Kode</th><th>Part</th><th class="r">Stok</th><th class="r">Min</th></tr></thead><tbody>${low.slice(0, 15).map(p => `<tr><td class="mono">${esc(p.kode)}</td><td>${esc(p.nama)}</td><td class="r"><span class="pill p-bad">${p.stok}</span></td><td class="r num">${p.min}</td></tr>`).join('')}</tbody></table></div>${low.length > 15 ? `<p class="small muted" style="margin:0">+${low.length - 15} part lainnya</p>` : ''}` : '<div class="empty">Semua stok aman.</div>'}
@@ -62,6 +65,6 @@ async function seedParts() {
 
 views.beranda = renderBeranda;
 actions['seed'] = seedParts;
-actions['go-servis'] = () => go('servis');
+actions['go-registrasi'] = () => go('registrasi');
 actions['go-stok'] = () => go('stok');
 actions['go-low'] = () => { st.stokLow = true; go('stok'); };

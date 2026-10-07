@@ -5,7 +5,7 @@ import { db, doc, collection, writeBatch, addDoc } from './firebase.js';
 import { parseSheet, planImport, LABEL } from './excel-parser.js';
 
 let XLSX = null;
-async function loadXLSX() {
+export async function loadXLSX() {
   if (!XLSX) XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
   return XLSX;
 }

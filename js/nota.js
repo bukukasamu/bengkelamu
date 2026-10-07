@@ -1,23 +1,28 @@
 // Nota penjualan / servis: tampilan dan cetak.
 import { $, esc, toast, modal } from './util.js';
-import { S, actions } from './state.js';
+import { S, st, actions } from './state.js';
+import { APP_NAME, APP_SUB } from './config.js';
 
 export function notaText(t) {
   const W = 38, line = '-'.repeat(W);
   const lr = (l, r) => { l = String(l); r = String(r); const sp = W - l.length - r.length; return sp > 0 ? l + ' '.repeat(sp) + r : l.slice(0, W - r.length - 1) + ' ' + r; };
   const n = x => Math.round(x).toLocaleString('id-ID');
   const c = s => ' '.repeat(Math.max(0, Math.floor((W - s.length) / 2))) + s;
-  const o = [c('ACEH MITRA UTAMA'), c('Sparepart & Bengkel Yamaha'), line,
+  const o = [c(APP_NAME.toUpperCase()), c(APP_SUB), line,
     lr('No', t.no), lr('Tanggal', t.tgl), lr('Pelanggan', (t.pelanggan || 'Umum').slice(0, 22))];
   if (t.nopol) o.push(lr('Nopol', t.nopol));
+  if (t.jenisServis && t.jenisServis !== 'Reguler') o.push(lr('Servis', t.jenisServis + (t.ksgKe ? ' ke-' + t.ksgKe : '') + (t.noKartu ? ' #' + t.noKartu : '')));
   if (t.mekanik) o.push(lr('Mekanik', t.mekanik));
   if (t.kasir) o.push(lr('Kasir', String(t.kasir).slice(0, 26)));
   o.push(line);
   t.items.forEach(x => { o.push(x.nama.slice(0, W)); o.push(lr('  ' + x.qty + ' x ' + n(x.harga), n(x.qty * x.harga))); });
-  if (t.jasa.length) { o.push('JASA:'); t.jasa.forEach(j => o.push(lr('  ' + j.nama, n(j.harga)))); }
-  o.push(line, lr('Subtotal', n(t.total + t.diskon)));
+  if ((t.jasa || []).length) { o.push('JASA:'); t.jasa.forEach(j => o.push(lr('  ' + j.nama, t.jenisServis === 'KSG' ? 'GRATIS' : n(j.harga)))); }
+  if ((t.biaya || []).length) { o.push('BIAYA LAIN:'); t.biaya.forEach(b => o.push(lr('  ' + b.ket, n(b.jumlah)))); }
+  o.push(line, lr('Subtotal', n(t.total + (t.diskon || 0))));
   if (t.diskon) o.push(lr('Diskon', '-' + n(t.diskon)));
-  o.push(lr('TOTAL', n(t.total)), lr('Bayar', n(t.bayar)), lr('Kembali', n(t.bayar - t.total)), line, c('Terima kasih'), c('Barang yang sudah dibeli'), c('tidak dapat dikembalikan'));
+  o.push(lr('TOTAL', n(t.total)), lr('Bayar', n(t.bayar)), lr('Kembali', n(t.bayar - t.total)), line);
+  if (t.jasaKlaim) o.push(c('Jasa servis KSG ditanggung Yamaha'));
+  o.push(c('Terima kasih'), c('Barang yang sudah dibeli'), c('tidak dapat dikembalikan'));
   return o.join('\n');
 }
 
@@ -34,4 +39,4 @@ function printNota() {
 }
 
 actions['print'] = printNota;
-actions['nota'] = el => showNota(S.trx.find(t => t.no === el.dataset.no));
+actions['nota'] = el => showNota((st.lap.list || S.trx).find(t => t.no === el.dataset.no) || S.trx.find(t => t.no === el.dataset.no));

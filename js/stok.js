@@ -1,14 +1,14 @@
-// Menu Stok Part: daftar part, tambah/ubah part, barang masuk.
-import { $, esc, rp, stamp, toast, errMsg } from './util.js';
-import { S, st, part, kategoriList, namaPetugas, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, partPicker, pickedKode } from './state.js';
-import { db, doc, collection, setDoc, updateDoc, addDoc, increment } from './firebase.js';
+// Menu Stok Part: daftar part, tambah/ubah part, import/export Excel. Barang masuk lewat menu Pembelian Stok.
+import { $, esc, rp, toast, errMsg } from './util.js';
+import { S, st, part, kategoriList, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, go } from './state.js';
+import { db, doc, setDoc, updateDoc } from './firebase.js';
 
 const MAX_ROWS = 200; // tabel dibatasi supaya tetap ringan dengan ribuan part
 
 function renderStok() {
   $('#view').innerHTML = `<div class="grid">
    <div class="panel"><div class="row spread"><h3>Stok sparepart</h3>
-     <div class="row"><button class="btn" type="button" data-act="import-open">Import Excel</button><button class="btn" type="button" data-act="export-xlsx">Export Excel</button><button class="btn" type="button" data-act="masuk">Barang masuk</button><button class="btn pri" type="button" data-act="part-new">+ Part baru [F1]</button></div></div>
+     <div class="row"><button class="btn" type="button" data-act="import-open">Import Excel</button><button class="btn" type="button" data-act="export-xlsx">Export Excel</button><button class="btn" type="button" data-act="go-pembelian">Pembelian stok</button><button class="btn pri" type="button" data-act="part-new">+ Part baru [F1]</button></div></div>
     <div class="row"><input id="s-q" placeholder="Cari kode, nama, tipe motor" value="${esc(st.stokQ)}" style="flex:1 1 220px" aria-label="Cari part"><select id="s-kat" style="width:auto;max-width:100%" aria-label="Kategori"><option value="">Semua kategori</option>${kategoriList().map(k => `<option ${k === st.stokKat ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><label class="row small" for="s-low" style="gap:6px;cursor:pointer"><input type="checkbox" id="s-low" style="width:auto" ${st.stokLow ? 'checked' : ''}>Hanya stok menipis</label></div>
     <div id="s-panel"></div>
     <div id="s-tbl"></div>
@@ -37,14 +37,6 @@ function renderSPanel() {
   const el = $('#s-panel'); if (!el) return;
   const pe = st.partEdit;
   if (!pe) { el.innerHTML = ''; return; }
-  if (pe.mode === 'masuk') {
-    if (!S.parts.length) { el.innerHTML = '<div class="empty">Tambahkan part dulu sebelum mencatat barang masuk.</div>'; return; }
-    el.innerHTML = `<div class="panel" style="background:var(--panel-2);box-shadow:none"><h3>Barang masuk dari supplier</h3>
-     <div class="row">${partPicker('m-part', 'Part')}</div>
-     <div class="form"><label class="f" for="m-qty">Jumlah masuk<input id="m-qty" type="number" min="1" value="1" class="num"></label><label class="f" for="m-sup">Supplier / No. faktur<input id="m-sup" placeholder="mis. Main dealer / faktur 123"></label></div>
-     <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="panel-close">Batal</button><button class="btn pri" type="button" data-act="masuk-save">Tambah stok [F2]</button></div></div>`;
-    return;
-  }
   const p = pe.data;
   el.innerHTML = `<div class="panel" style="background:var(--panel-2);box-shadow:none"><h3>${pe.mode === 'new' ? 'Part baru' : 'Ubah part ' + esc(p.kode)}</h3><div class="form">
    <label class="f" for="p-kode">Kode / barcode<input id="p-kode" class="mono" value="${esc(p.kode)}" ${pe.mode === 'edit' ? 'disabled' : ''}></label>
@@ -57,20 +49,6 @@ function renderSPanel() {
    <label class="f" for="p-stok">Stok<input id="p-stok" type="number" min="0" class="num" value="${p.stok || 0}"></label>
    <label class="f" for="p-min">Stok minimum<input id="p-min" type="number" min="0" class="num" value="${p.min || 0}"></label>
   </div><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="panel-close">Batal</button><button class="btn pri" type="button" data-act="part-save">Simpan part [F2]</button></div></div>`;
-}
-
-async function masukSave() {
-  if (st.saving) return;
-  const kode = pickedKode('m-part'), p = part(kode), q = +$('#m-qty').value || 0;
-  if (!p) { toast('Pilih part dari daftar yang muncul saat mengetik'); $('#m-part').focus(); return; }
-  if (q < 1) { toast('Jumlah masuk minimal 1'); return; }
-  st.saving = true;
-  try {
-    await updateDoc(doc(db, 'parts', kode), { stok: increment(q) });
-    await addDoc(collection(db, 'masuk'), { kode, nama: p.nama, qty: q, supplier: $('#m-sup').value.trim(), tgl: stamp(new Date()), petugas: namaPetugas() });
-    toast(q + ' pcs ' + p.nama + ' masuk ke stok');
-    $('#m-part').value = ''; $('#m-qty').value = 1; $('#m-part').focus();   // panel tetap terbuka untuk barang berikutnya
-  } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 
 async function partSave() {
@@ -90,14 +68,13 @@ async function partSave() {
 
 views.stok = renderStok;
 refreshers.stok = renderSTbl;
-fkeys.stok = { baru: 'part-new', simpan: () => st.partEdit ? (st.partEdit.mode === 'masuk' ? 'masuk-save' : 'part-save') : null };
+fkeys.stok = { baru: 'part-new', simpan: () => st.partEdit ? 'part-save' : null };
 Object.assign(actions, {
   'part-new': () => { st.partEdit = { mode: 'new', data: { kode: '', nama: '', kategori: '', cocok: '', rak: '', beli: 0, jual: 0, stok: 0, min: 0 } }; renderSPanel(); $('#p-kode').focus(); },
   'part-edit': el => { st.partEdit = { mode: 'edit', data: { ...part(el.dataset.k) } }; renderSPanel(); $('#s-panel').scrollIntoView({ block: 'nearest' }); $('#p-nama').focus(); },
-  'masuk': () => { st.partEdit = { mode: 'masuk' }; renderSPanel(); $('#m-part')?.focus(); },
+  'go-pembelian': () => go('pembelian'),
   'panel-close': () => { st.partEdit = null; renderSPanel(); },
-  'part-save': partSave,
-  'masuk-save': masukSave
+  'part-save': partSave
 });
 inputHandlers.push(e => { if (e.target.id === 's-q') { st.stokQ = e.target.value; renderSTbl(); } });
 changeHandlers.push(e => {
