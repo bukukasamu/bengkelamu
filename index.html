@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aceh Mitra Utama POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>html,body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login-screen" class="login-wrap" hidden>
+  <div class="login">
+    <div class="lh"><div class="brand"><b>ACEH MITRA UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div></div>
+    <form id="login-form" autocomplete="on">
+      <div id="login-err" class="err" hidden></div>
+      <label class="f" for="login-email">Email petugas<input id="login-email" type="email" required autocomplete="username"></label>
+      <label class="f" for="login-pass">Kata sandi<input id="login-pass" type="password" required autocomplete="current-password"></label>
+      <button class="btn pri" id="login-btn" type="submit">Masuk</button>
+    </form>
+  </div>
+</section>
+
+<!-- APLIKASI -->
+<div id="app-shell" hidden>
+  <header class="top">
+    <div class="brand"><b>ACEH MITRA UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div>
+    <div class="meta"><span id="clock" class="num"></span><span id="who"></span><button class="btn sm" id="logout" type="button">Keluar</button></div>
+  </header>
+  <div class="toolbar" role="toolbar" aria-label="Aksi cepat">
+    <button class="fk" id="fk-baru" type="button"><kbd>F1</kbd>Baru</button>
+    <button class="fk" id="fk-simpan" type="button"><kbd>F2</kbd>Simpan</button>
+    <button class="fk" id="fk-cetak" type="button"><kbd>F8</kbd>Cetak Nota Terakhir</button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Menu">
+    <button class="tab" role="tab" data-view="beranda" type="button">Beranda</button>
+    <button class="tab" role="tab" data-view="kasir" type="button">Kasir Sparepart</button>
+    <button class="tab" role="tab" data-view="servis" type="button">Servis Bengkel</button>
+    <button class="tab" role="tab" data-view="stok" type="button">Stok Part</button>
+    <button class="tab" role="tab" data-view="laporan" type="button">Laporan</button>
+  </nav>
+  <main id="view"><div class="loading">Memuat data…</div></main>
+</div>
+<div id="modal-root"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Petugas terdaftar = ada dokumen staff/{email} yang dibuat admin lewat Firebase Console.
+    function isStaff() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/staff/$(request.auth.token.email));
+    }
+
+    // Daftar petugas: hanya bisa dibaca oleh pemilik akun itu sendiri, diubah lewat Console saja.
+    match /staff/{email} {
+      allow read: if request.auth != null && request.auth.token.email == email;
+      allow write: if false;
+    }
+
+    // Semua data toko hanya untuk petugas terdaftar.
+    match /{col}/{id} {
+      allow read, write: if col != 'staff' && isStaff();
+    }
+  }
+}
