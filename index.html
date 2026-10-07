@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Aceh Mitra Utama POS</title>
+<title>Aceh Mandiri Utama POS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -15,7 +15,7 @@
 <!-- LOGIN -->
 <section id="login-screen" class="login-wrap" hidden>
   <div class="login">
-    <div class="lh"><div class="brand"><b>ACEH MITRA UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div></div>
+    <div class="lh"><div class="brand"><b class="app-name">ACEH MANDIRI UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div><div class="ver app-ver"></div></div>
     <form id="login-form" autocomplete="on">
       <div id="login-err" class="err" hidden></div>
       <label class="f" for="login-email">Email petugas<input id="login-email" type="email" required autocomplete="username"></label>
@@ -26,24 +26,30 @@
 </section>
 
 <!-- APLIKASI -->
-<div id="app-shell" hidden>
-  <header class="top">
-    <div class="brand"><b>ACEH MITRA UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div>
-    <div class="meta"><span id="clock" class="num"></span><span id="who"></span><button class="btn sm" id="logout" type="button">Keluar</button></div>
-  </header>
-  <div class="toolbar" role="toolbar" aria-label="Aksi cepat">
-    <button class="fk" id="fk-baru" type="button"><kbd>F1</kbd>Baru</button>
-    <button class="fk" id="fk-simpan" type="button"><kbd>F2</kbd>Simpan</button>
-    <button class="fk" id="fk-cetak" type="button"><kbd>F8</kbd>Cetak Nota Terakhir</button>
+<div id="app-shell" class="shell" hidden>
+  <aside class="sidebar" id="sidebar" aria-label="Menu utama">
+    <div class="sb-brand"><b class="app-name">ACEH MANDIRI UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div>
+    <nav id="side-nav"></nav>
+    <div class="sb-foot">
+      <div><b id="who"></b><div class="role" id="who-role"></div></div>
+      <button class="btn sm" id="logout" type="button">Keluar</button>
+      <div class="ver app-ver"></div>
+    </div>
+  </aside>
+  <div class="sb-backdrop" id="sb-backdrop" hidden></div>
+  <div class="content">
+    <header class="topbar">
+      <button class="sb-toggle" id="sb-toggle" type="button" aria-label="Tampilkan atau sembunyikan menu" aria-controls="sidebar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <h1 id="page-title">Beranda</h1>
+      <span class="clock num" id="clock"></span>
+    </header>
+    <div class="toolbar" role="toolbar" aria-label="Aksi cepat">
+      <button class="fk" id="fk-baru" type="button"><kbd>F1</kbd>Baru</button>
+      <button class="fk" id="fk-simpan" type="button"><kbd>F2</kbd>Simpan</button>
+      <button class="fk" id="fk-cetak" type="button"><kbd>F8</kbd>Cetak Nota Terakhir</button>
+    </div>
+    <main id="view"><div class="loading">Memuat data…</div></main>
   </div>
-  <nav class="tabs" role="tablist" aria-label="Menu">
-    <button class="tab" role="tab" data-view="beranda" type="button">Beranda</button>
-    <button class="tab" role="tab" data-view="kasir" type="button">Kasir Sparepart</button>
-    <button class="tab" role="tab" data-view="servis" type="button">Servis Bengkel</button>
-    <button class="tab" role="tab" data-view="stok" type="button">Stok Part</button>
-    <button class="tab" role="tab" data-view="laporan" type="button">Laporan</button>
-  </nav>
-  <main id="view"><div class="loading">Memuat data…</div></main>
 </div>
 <div id="modal-root"></div>
 

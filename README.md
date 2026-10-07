@@ -1,84 +1,102 @@
-# Aceh Mitra Utama POS
+# Aceh Mandiri Utama POS · versi 2.0.0
 
-Aplikasi web kasir sparepart dan bengkel Yamaha untuk Aceh Mitra Utama.
-Data tersimpan di **Cloud Firestore** (realtime, bisa dipakai beberapa kasir sekaligus) dan login petugas memakai **Firebase Authentication**.
+Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
+Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
 
-Fitur: Beranda (omzet, antrian, stok menipis), Kasir Sparepart, Servis Bengkel (work order), Stok Part (import/export Excel, barang masuk), Laporan. Shortcut F1 Baru, F2 Simpan, F8 Cetak Nota.
+## Alur kerja per peran
+
+| Peran | Menu | Tugas |
+|---|---|---|
+| **Registrasi** | Registrasi Servis, Master Data (pemilik & kendaraan) | Motor masuk: data konsumen & kendaraan, keluhan, jenis servis (Reguler / **KSB** / **KSG ke-1..4**), jasa, pilih mekanik yang kosong |
+| **Sparepart** | Order Sparepart, Stok Part, Pembelian Stok | Isi order sparepart untuk motor yang sudah diregistrasi sesuai permintaan mekanik; catat pembelian dari supplier |
+| **Mekanik** | Performa Mekanik | Mulai / tandai selesai pekerjaan; lihat jumlah motor, nilai jasa, komisi, estimasi gaji |
+| **Kasir** | Pembayaran Servis, Penjualan Sparepart, Laporan | Cek jasa + sparepart, tambah biaya lain, diskon, terima pembayaran, cetak nota; jual part langsung |
+| **Admin / Pemilik** | Semua menu | Termasuk Master Data: jasa & harga, mekanik (gaji, komisi), tipe motor, petugas login |
+
+Status work order: **Antri** (registrasi) → **Dikerjakan** → **Selesai** (mekanik) → **Lunas** (kasir). Stok sparepart dipotong saat kasir menerima pembayaran.
+
+**KSG (Kartu Service Gratis):** jasa tidak ditagih ke konsumen; nilainya tercatat sebagai *klaim KSG* (laporan & nilai jasa mekanik). Sparepart dan biaya lain tetap ditagih.
+**KSB (Kartu Service Berkala):** servis berkala berbayar, nomor kartu dicatat di WO dan nota.
+
+## Pembelian stok
+
+Menu **Pembelian Stok** → *Invoice baru*: tanggal invoice, no. invoice, supplier, status bayar (lunas / belum lunas + jatuh tempo), total di invoice, lalu daftar barang (part, qty, harga beli).
+
+1. **Simpan draft** bisa dilakukan kapan saja.
+2. **Preview & terima barang** menampilkan semua barang, total pembelian, selisih dengan total invoice, stok sebelum → sesudah, dan harga beli rata-rata baru. Barang baru masuk stok setelah dicentang "sudah dicek fisik".
+3. Invoice belum lunas tampil sebagai **hutang ke supplier** (merah jika lewat jatuh tempo). Tandai lunas kapan pun.
+
+Harga beli part diperbarui dengan rata-rata tertimbang (stok lama × harga lama + qty baru × harga baru).
 
 ## Struktur folder
 
 ```
-index.html            halaman utama
+index.html            halaman utama (sidebar + konten)
 style.css             tampilan
-firestore.rules       aturan keamanan database (tempel di Firebase Console)
+firestore.rules       aturan keamanan per peran (tempel di Firebase Console)
 js/
-  main.js             titik masuk: login, sinkron data, navigasi, shortcut F1/F2/F8
+  main.js             titik masuk: login & peran, sidebar, sinkron data, shortcut F1/F2/F8
+  config.js           nama aplikasi, VERSI, peran & menu per peran, data awal
   firebase-config.js  konfigurasi project bengkel-amu
-  firebase.js         inisialisasi Firebase (versi SDK diatur di sini)
-  state.js            data bersama + pengaturan toko (jasa, mekanik, tipe motor)
+  firebase.js         inisialisasi Firebase + pembuatan akun petugas
+  state.js            data bersama & navigasi
   util.js             format rupiah/tanggal, toast, modal
-  numbering.js        penomoran nota PJ/SV dan work order WO
-  stats.js            perhitungan omzet & laba
+  numbering.js        nomor nota PJ/SV, pembelian PB, work order WO
+  stats.js            perhitungan omzet, klaim KSG, laba
+  wo-common.js        fungsi bersama work order
   nota.js             tampilan & cetak nota
-  beranda.js          menu Beranda
-  kasir.js            menu Kasir Sparepart
-  servis.js           menu Servis Bengkel
-  stok.js             menu Stok Part
-  laporan.js          menu Laporan
-  import-excel.js     import/export Excel (tampilan)
+  beranda.js          Beranda
+  registrasi.js       Registrasi Servis
+  order.js            Order Sparepart
+  bayar.js            Pembayaran Servis
+  mekanik.js          Performa Mekanik
+  kasir.js            Penjualan Sparepart
+  stok.js             Stok Part
+  pembelian.js        Pembelian Stok
+  laporan.js          Laporan Penjualan
+  master.js           Master Data
+  import-excel.js     import/export Excel
   excel-parser.js     pembaca kolom Excel (DMS Yamaha / template)
   seed.js             20 part contoh
 ```
 
-**Saat update dari versi sebelumnya:** hapus `app.js` dan `firebase-config.js` lama di root repository, lalu upload semua file di atas (termasuk folder `js`).
+## Update dari versi 1.x
 
-## Setup Firebase (sekali saja)
+1. Di repository GitHub, **hapus `js/servis.js`** (sudah diganti registrasi/order/bayar/mekanik).
+2. Upload semua file baru (`index.html`, `style.css`, `firestore.rules`, folder `js`).
+3. **Wajib:** Firebase Console → Firestore → Rules → tempel isi `firestore.rules` yang baru → *Publish*.
+4. Login sebagai admin. Data awal jasa, mekanik, dan tipe motor dibuat otomatis; ubah di **Master Data**.
+5. Tambah petugas lain di **Master Data → Petugas Login** (akun login dibuat otomatis). Untuk peran Mekanik, data mekaniknya ikut terhubung lewat email.
 
-1. **Firestore**: Firebase Console → Firestore Database → *Create database* → lokasi `asia-southeast2 (Jakarta)` → mode *production*.
-2. **Rules**: Firestore → tab *Rules* → tempel isi `firestore.rules` → *Publish*.
-3. **Login**: Authentication → Sign-in method → aktifkan **Email/Password**.
-4. **Akun petugas**: Authentication → Users → *Add user*.
-5. **Daftarkan petugas**: Firestore → koleksi `staff` → Document ID = **email petugas persis** → field `nama` (string) dan `peran` (string: `admin`/`kasir`).
-6. **Domain**: Authentication → Settings → Authorized domains → tambah `USERNAME.github.io`.
+Data lama (nota, work order) tetap terbaca.
+
+## Setup Firebase (project baru)
+
+1. Firestore Database → *Create database* → lokasi `asia-southeast2 (Jakarta)` → mode *production*.
+2. Firestore → Rules → tempel `firestore.rules` → *Publish*.
+3. Authentication → Sign-in method → aktifkan **Email/Password**.
+4. Buat akun admin pertama di Authentication → Users.
+5. Firestore → koleksi `staff` → Document ID = email admin → field `nama` dan `peran` = `admin`.
+6. Authentication → Settings → Authorized domains → tambah `USERNAME.github.io`.
 
 ## Import data part dari Excel
 
-Menu **Stok Part → Import Excel**, pilih file. Dua format dikenali otomatis:
+**Stok Part → Import Excel**. Format dikenali otomatis: ekspor stok DMS Yamaha (`Parts`, `On Hand Qty`, `Average Cost`, `Retail Price`, `Product Category`, `Superseding Parts`, `ABC Category`) atau template toko (`kode, nama, kategori, cocok, rak, harga_beli, harga_jual, stok, stok_min`). Import ulang hanya menulis part yang berubah.
 
-- **Ekspor stok DMS Yamaha** (seperti `Data_parts.xlsx`): kolom `Parts` → kode, kolom tanpa judul di sebelahnya → nama, `On Hand Qty` → stok, `Average Cost` → harga beli, `Retail Price` → harga jual, `Product Category` → kategori, `Superseding Parts` → part pengganti, `ABC Category` → kelas ABC. Baris "Total:" otomatis dilewati.
-- **Template toko** (tombol *Unduh template*): `kode, nama, kategori, cocok, rak, harga_beli, harga_jual, stok, stok_min`.
+## Laporan penjualan
 
-Sebelum disimpan muncul pratinjau: jumlah part baru, part lama yang berubah, dan yang tidak berubah. Untuk part yang sudah ada, pilih **perbarui** (stok, harga, nama, kategori ditimpa dari file; rak, cocok untuk, dan stok minimum yang sudah diatur tetap) atau **hanya tambah part baru**. Part yang tidak berubah tidak ditulis ulang, jadi import ulang file DMS setiap hari tetap hemat.
-
-Stok minimum part baru dari DMS diisi otomatis dari kelas ABC (A=2, B=1, lainnya 0) dan bisa diubah per part.
-
-**Export Excel** mengunduh seluruh stok dalam format template (bisa diedit lalu di-import kembali).
-
-## Deploy ke GitHub Pages
-
-Upload semua file ke repository (branch `main`, root) → Settings → Pages → *Deploy from a branch* → `main` / `(root)`.
-Jangan buka `index.html` dengan klik dua kali (`file://`); modul JavaScript hanya jalan lewat alamat web. Untuk coba di komputer: `npx serve .`.
-
-## Kuota paket gratis (Spark)
-
-Batas harian: 50.000 baca dan 20.000 tulis dokumen.
-- Import pertama 2.500 part ≈ 2.500 tulis. Import ulang hanya menulis part yang berubah.
-- Setiap kali aplikasi dibuka, daftar part dibaca dari server. Cache lokal browser sudah diaktifkan supaya pembukaan berikutnya lebih hemat, tapi kalau toko memakai banyak komputer yang sering di-refresh dan muncul pesan "Kuota harian Firebase habis", pertimbangkan paket Blaze (bayar sesuai pemakaian di atas kuota gratis; hitung perkiraannya di halaman harga Firebase dan pasang batas anggaran di Google Cloud Billing).
-
-## Struktur data Firestore
-
-- `parts/{kode}`: kode, nama, kategori, cocok, rak, beli, jual, stok, min, pengganti, abc
-- `trx/{no}`: nota penjualan (`PJ-yymmdd-001`) dan servis (`SV-yymmdd-001`)
-- `wo/{no}`: work order bengkel (`WO-0001`)
-- `masuk/{auto}`: riwayat barang masuk
-- `imports/{auto}`: riwayat import Excel
-- `meta/counter`: penomoran otomatis
-- `staff/{email}`: petugas yang boleh login
+Periode: hari ini, 7 hari, bulan ini, bulan lalu, atau pilih tanggal. Klik kotak angka (part, jasa, klaim KSG), part terlaris, mekanik, atau kasir untuk menyaring daftar transaksi; klik transaksi untuk melihat nota. Hasil saringan bisa di-export ke Excel.
 
 ## Menyesuaikan
 
-Daftar jasa + harga, nama mekanik, tipe motor, dan kategori ada di bagian atas `js/state.js`.
+- Nama aplikasi & nomor versi: `js/config.js` (`APP_NAME`, `APP_VERSION`).
+- Menu per peran: `MENUS` di `js/config.js`.
+- Jasa, harga, mekanik, gaji, komisi, tipe motor: langsung di aplikasi (Master Data).
+
+## Kuota paket gratis (Spark)
+
+50.000 baca dan 20.000 tulis per hari. Cache lokal browser sudah aktif. Jika muncul "Kuota harian Firebase habis", pertimbangkan paket Blaze dan pasang batas anggaran di Google Cloud Billing.
 
 ## Keamanan
 
-`apiKey` di `js/firebase-config.js` memang boleh terlihat publik; yang melindungi data adalah `firestore.rules` + koleksi `staff`.
+`apiKey` di `js/firebase-config.js` memang publik; data dilindungi `firestore.rules` (akses per peran) + koleksi `staff`.
