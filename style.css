@@ -232,3 +232,33 @@ main{width:100%}
 .wa-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .f-wa{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:1.2em}
 .f-wa .wa-btn{margin-block:-4px}
+
+/* ---------- v2.3: halaman cek servis ---------- */
+.cek .auth-form{align-items:flex-start;padding-block:72px 48px;overflow-y:auto}
+.cek-wrap{width:100%;max-width:560px;display:flex;flex-direction:column;gap:18px}
+.cek-wrap form{max-width:380px}
+.cek .auth-super{text-decoration:none}
+.cek-card{display:flex;flex-direction:column;gap:14px}
+.cek-nopol{font-size:1.6rem;font-weight:500;letter-spacing:.04em}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;counter-reset:s}
+.steps li{display:flex;flex-direction:column;gap:2px;position:relative;padding-top:20px;font-size:.88rem}
+.steps li::before{content:"";position:absolute;top:6px;left:0;right:0;height:3px;background:var(--line);border-radius:2px}
+.steps li .dot{position:absolute;top:0;left:0;width:15px;height:15px;border-radius:50%;background:var(--panel);border:3px solid var(--line)}
+.steps li.done::before{background:var(--good)} .steps li.done .dot{border-color:var(--good);background:var(--good)}
+.steps li.now::before{background:linear-gradient(90deg,var(--accent) 50%,var(--line) 50%)} .steps li.now .dot{border-color:var(--accent);background:var(--panel);box-shadow:0 0 0 4px var(--accent-soft)}
+.steps li.now b{color:var(--accent)}
+@media (max-width:480px){.steps{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:12px}}
+
+/* ---------- v2.3: catatan waktu ---------- */
+.timeline{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font-size:.8rem}
+.tl{background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.tl-sep{color:var(--muted)}
+.btn.wa-solid{background:#1f9d55;border-color:#1f9d55;color:#fff}
+.btn.wa-solid:hover{background:#178246}
+.form-wil{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.riw{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.riw-row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.riw-row:last-child{border-bottom:0}
+.riw-row>div:first-child{min-width:0}
+.riw-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.cek-link{text-align:center;margin:8px 0 0}.cek-link a{color:var(--accent);font-weight:600}

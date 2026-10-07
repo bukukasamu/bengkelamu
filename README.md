@@ -1,7 +1,15 @@
-# Aceh Mandiri Utama POS · versi 2.2.0
+# Aceh Mandiri Utama POS · versi 2.3.0
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 2.3.0
+
+- **Alamat bertingkat**: Provinsi (default Aceh) → Kabupaten/Kota → Kecamatan → Kelurahan/Gampong + alamat jalan, di Registrasi dan Master Data → Pemilik & Kendaraan. Data wilayah resmi seluruh Indonesia ada di folder `wilayah/` (sumber: paket idn-area-data, lisensi MIT). Master kendaraan bisa **difilter per wilayah**, menampilkan **jumlah konsumen per wilayah**, dan **export Excel**.
+- **Catatan waktu servis**: setiap perubahan status dicatat jamnya. Terlihat di Registrasi & Pembayaran (alur waktu), dan di **Performa Mekanik**: rata-rata/tercepat/terlama lama dikerjakan per mekanik, per tipe motor, dan semua mekanik. Waktu Ditunda tidak dihitung sebagai waktu kerja.
+- **Nota PDF + watermark logo**: di jendela nota ada *Unduh PDF* dan *Kirim PDF via WA*. Di HP/tablet yang mendukung, PDF langsung dibagikan ke WhatsApp. Di komputer, PDF diunduh lalu WhatsApp terbuka berisi pesan + link cek servis; lampirkan PDF yang barusan diunduh (WhatsApp Web tidak mengizinkan lampiran otomatis).
+- **Beranda bisa diklik**: Omzet hari ini (daftar nota), Part terjual (item part hari ini + stok kini), Motor masuk, Stok menipis.
+- **Halaman cek servis konsumen**: `cek.html` (link juga ada di halaman login dan di pesan WA). Konsumen memasukkan no. polisi + no. HP untuk melihat status servis (Diterima → Dikerjakan → Selesai → Diambil), estimasi biaya, dan riwayat servis + unduh nota PDF.
 
 ## Tampilan & kebiasaan input
 
@@ -58,6 +66,8 @@ Harga beli part diperbarui dengan rata-rata tertimbang (stok lama × harga lama 
 
 ```
 index.html            halaman utama (sidebar + konten)
+cek.html              halaman cek servis untuk konsumen (tanpa login)
+wilayah/              data wilayah Indonesia (index.json + 1 file per provinsi, mis. 11.json = Aceh)
 style.css             tampilan
 firestore.rules       aturan keamanan per peran (tempel di Firebase Console)
 js/
@@ -68,6 +78,9 @@ js/
   akun.js             login PIN: tambah petugas, reset PIN, ganti PIN sendiri
   payment.js          pembayaran cash / transfer / campur
   brand.js            logo toko + animasi loading roda gigi
+  wilayah.js          alamat bertingkat provinsi/kab/kec/kelurahan
+  nota-pdf.js         nota PDF dengan watermark logo
+  cek.js              halaman cek servis konsumen (cek.html)
   state.js            data bersama & navigasi
   util.js             format rupiah/tanggal, toast, modal
   numbering.js        nomor nota PJ/SV, pembelian PB, work order WO
@@ -89,7 +102,7 @@ js/
   seed.js             20 part contoh
 ```
 
-## Update ke versi 2.2.0
+## Update ke versi 2.3.0
 
 1. Upload semua file baru ke GitHub (`index.html`, `style.css`, `firestore.rules`, folder `js`). Pastikan `js/servis.js` sudah terhapus.
 2. **Wajib:** Firebase Console → Firestore → Rules → tempel `firestore.rules` yang baru → *Publish*.
@@ -125,6 +138,8 @@ Periode: hari ini, 7 hari, bulan ini, bulan lalu, atau pilih tanggal. Klik kotak
 50.000 baca dan 20.000 tulis per hari. Cache lokal browser sudah aktif. Jika muncul "Kuota harian Firebase habis", pertimbangkan paket Blaze dan pasang batas anggaran di Google Cloud Billing.
 
 ## Keamanan
+
+Halaman cek servis membaca dokumen `pantau/{kunci}`, dengan kunci = SHA-256 dari nopol + nomor HP. Dokumen hanya bisa dibuka bila tahu keduanya dan tidak bisa didaftar/ditelusuri (lihat `firestore.rules`). Isinya ringkasan servis kendaraan itu saja.
 
 `apiKey` di `js/firebase-config.js` memang publik; data dilindungi `firestore.rules` (akses per peran) + koleksi `staff`.
 

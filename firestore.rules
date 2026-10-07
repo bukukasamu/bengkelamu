@@ -20,6 +20,14 @@ service cloud.firestore {
       allow write: if isSuper();
     }
 
+    // Halaman cek servis konsumen: dokumen hanya bisa dibuka bila tahu ID-nya (hash nopol + no. HP),
+    // tidak bisa ditelusuri/didaftar. Ditulis otomatis oleh aplikasi petugas.
+    match /pantau/{id} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isStaff();
+    }
+
     // Daftar petugas: tiap orang membaca datanya sendiri; admin mengelola semua.
     match /staff/{email} {
       allow read: if signedIn() && (request.auth.token.email == email || hasRole(['admin']));
