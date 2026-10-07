@@ -1,8 +1,8 @@
 // Fungsi bersama untuk work order (WO) servis: hitung biaya, tampilan ringkas, simpan.
-import { esc, rp, clone, stamp, waButton, waNumber } from './util.js';
+import { esc, rp, clone, stamp, waButton, waNumber, toast } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, part, mekanikById, namaPetugas } from './state.js';
-import { db, doc, getDoc, setDoc, runTransaction, updateDoc } from './firebase.js';
+import { db, doc, getDoc, getDocs, setDoc, runTransaction, updateDoc, collection, query, where } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 
 // Antri = belum ada mekanik · Dikerjakan = mekanik sedang mengerjakan (mekanik sibuk)
@@ -141,5 +141,33 @@ export async function syncPantau(w, trx) {
     if (trx) riwayat.unshift({ ...trx, km: w.km || '', waktu: durasi(w), dibuat: null });
     const aktif = AKTIF.includes(w.status) ? ringkasWo(w) : (cur.aktif && cur.aktif.no !== w.no ? cur.aktif : null);
     await setDoc(ref, { nopol: w.nopol, tipe: w.tipe || '', nama: w.nama || '', updated: stamp(new Date()), aktif, riwayat: riwayat.slice(0, 12) });
-  } catch (e) { console.warn('Gagal memperbarui data cek servis', e); }
+  } catch (e) { pantauGagal(e); }
+}
+let warned = false;
+function pantauGagal(e) {
+  console.warn('Gagal memperbarui data cek servis', e);
+  if (!warned && e && e.code === 'permission-denied') { warned = true; toast('Data cek servis konsumen gagal disimpan. Admin: publish ulang firestore.rules (versi 2.3.0).'); }
+}
+
+// Bangun ulang data cek servis dari work order & nota yang sudah ada (mis. servis sebelum versi 2.3.0).
+// onProgress(n, total) dipanggil per kendaraan. Mengembalikan jumlah kendaraan yang ditulis.
+export async function rebuildPantau(onProgress) {
+  const grup = new Map();
+  for (const w of S.wo) {
+    const key = await pantauKey(w.nopol, w.hp); if (!key) continue;
+    const g = grup.get(key) || { wo: [] }; g.wo.push(w); grup.set(key, g);
+  }
+  let n = 0;
+  for (const [key, g] of grup) {
+    const wos = g.wo.sort((a, b) => a.tgl.localeCompare(b.tgl)), last = wos[wos.length - 1];
+    const byNo = new Map(wos.map(w => [w.no, w]));
+    const snap = await getDocs(query(collection(db, 'trx'), where('nopol', '==', last.nopol)));
+    const riwayat = snap.docs.map(d => d.data()).filter(t => t.jenis === 'SERVIS')
+      .sort((a, b) => b.tgl.localeCompare(a.tgl)).slice(0, 12)
+      .map(t => { const w = byNo.get(t.wo) || {}; return { ...t, hp: t.hp || w.hp || '', km: t.km || w.km || '', tipe: t.tipe || w.tipe || '', waktu: t.waktu || (w.log ? durasi(w) : null), dibuat: null }; });
+    const akt = [...wos].reverse().find(w => AKTIF.includes(w.status));
+    await setDoc(doc(db, 'pantau', key), { nopol: last.nopol, tipe: last.tipe || '', nama: last.nama || '', updated: stamp(new Date()), aktif: akt ? ringkasWo(akt) : null, riwayat });
+    onProgress?.(++n, grup.size);
+  }
+  return n;
 }

@@ -5,7 +5,7 @@ import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys
 import { ROLES } from './config.js';
 import { db, doc, collection, getDocs, query, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
-import { statusPill } from './wo-common.js';
+import { statusPill, rebuildPantau } from './wo-common.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
 import { loadXLSX } from './import-excel.js';
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
@@ -65,7 +65,7 @@ function renderKend() {
   const rekap = {}; list.forEach(k => { const v = k[lvl[0]] || '(belum diisi)'; rekap[v] = (rekap[v] || 0) + 1; });
   const rk = Object.entries(rekap).sort((a, b) => b[1] - a[1]), mx = rk.length ? rk[0][1] : 1;
   const sel = (id, v, list, ph) => `<select id="${id}" style="width:auto;max-width:100%" aria-label="${ph}"><option value="">${ph}</option>${list.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
-  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, HP, tipe, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row"><button class="btn" type="button" data-act="ms-kxlsx">Export Excel</button><button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div></div>
+  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, HP, tipe, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row">${isRole('admin') ? '<button class="btn" type="button" data-act="ms-pantau" title="Bangun ulang data halaman cek servis konsumen dari servis yang sudah ada">Sinkron cek servis</button>' : ''}<button class="btn" type="button" data-act="ms-kxlsx">Export Excel</button><button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div></div>
    <div class="row" style="margin-top:8px"><span class="small muted">Filter wilayah:</span>${sel('fw-kab', fWil.kab, kabs, 'Semua kabupaten/kota')}${sel('fw-kec', fWil.kec, kecs, 'Semua kecamatan')}${sel('fw-kel', fWil.kel, kels, 'Semua kelurahan/gampong')}${fWil.kab || fWil.kec || fWil.kel ? '<button class="btn sm ghost" type="button" data-act="fw-clear">Hapus filter</button>' : ''}</div>
    <div id="ms-kform"></div>
    ${rk.length > 1 || (rk.length === 1 && !fWil.kel) ? `<div class="panel" style="box-shadow:none;margin-block:10px"><h3>Konsumen per ${lvl[2].toLowerCase()}</h3>${rk.slice(0, 12).map(([w, c]) => `<button class="bar-row" type="button" data-act="fw-pick" data-l="${lvl[1]}" data-v="${esc(w)}"><span class="row spread small"><span class="bar-lbl">${esc(w)}</span><span class="num">${c} kendaraan</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${c / mx * 100}%"></span></span></button>`).join('')}</div>` : ''}
@@ -223,6 +223,12 @@ Object.assign(actions, {
   'ms-kclose': () => { kendEdit = null; renderKForm(); },
   'ms-ksave': saveKend,
   'ms-kxlsx': exportKend,
+  'ms-pantau': async el => {
+    if (el.disabled) return; el.disabled = true; const t = el.textContent;
+    try { const n = await rebuildPantau((i, tot) => { el.textContent = `Sinkron ${i}/${tot}…`; }); toast(n ? `Data cek servis ${n} kendaraan diperbarui` : 'Tidak ada servis dengan nomor HP valid untuk disinkronkan'); }
+    catch (e) { toast(e.code === 'permission-denied' ? 'Ditolak: publish ulang firestore.rules (versi 2.3.0) di Firebase Console' : errMsg(e)); }
+    finally { el.disabled = false; el.textContent = t; }
+  },
   'fw-clear': () => { fWil = { kab: '', kec: '', kel: '' }; renderKend(); },
   'fw-pick': el => { const l = el.dataset.l, v = el.dataset.v === '(belum diisi)' ? '' : el.dataset.v; if (!v) return; fWil[l] = v; if (l === 'kab') { fWil.kec = fWil.kel = ''; } if (l === 'kec') fWil.kel = ''; renderKend(); },
   'ms-kdel': el => confirmTwice(el, 'k' + kendEdit.id, async () => { try { await deleteDoc(doc(db, 'kendaraan', kendEdit.id)); toast('Kendaraan dihapus'); kendEdit = null; kend = null; renderKend(); } catch (e) { toast(errMsg(e)); } }),
