@@ -10,10 +10,14 @@ service cloud.firestore {
     function isStaff() { return isSuper() || (signedIn() && exists(staffDoc())); }
     function hasRole(roles) { return isSuper() || (signedIn() && exists(staffDoc()) && get(staffDoc()).data.peran in roles); }
 
-    // Daftar nama petugas untuk layar login (dibaca sebelum login; isinya hanya nama, peran, akun)
-    match /publik/{id} {
+    // Dibaca sebelum login: daftar nama petugas (nama, peran, akun) dan logo toko
+    match /publik/login {
       allow read: if true;
       allow write: if hasRole(['admin']);
+    }
+    match /publik/brand {
+      allow read: if true;
+      allow write: if isSuper();
     }
 
     // Daftar petugas: tiap orang membaca datanya sendiri; admin mengelola semua.

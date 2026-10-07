@@ -12,11 +12,29 @@
 </head>
 <body>
 
-<!-- LOGIN -->
-<section id="login-screen" class="login-wrap" hidden>
-  <div class="login">
-    <div class="lh"><div class="brand"><b class="app-name">ACEH MANDIRI UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div><div class="ver app-ver"></div></div>
+<!-- LOADER AWAL (tampil sebelum aplikasi siap) -->
+<div id="boot" class="boot"><div class="loader" role="status"><svg class="gears" viewBox="0 0 132 132" aria-hidden="true"><path class="g1" d="M41.98 20.06 L46.44 19.21 L47.49 10.08 L52.51 10.08 L53.56 19.21 L58.02 20.06 L62.31 21.55 L67.79 14.17 L72.14 16.68 L68.48 25.11 L71.92 28.08 L74.89 31.52 L83.32 27.86 L85.83 32.21 L78.45 37.69 L79.94 41.98 L80.79 46.44 L89.92 47.49 L89.92 52.51 L80.79 53.56 L79.94 58.02 L78.45 62.31 L85.83 67.79 L83.32 72.14 L74.89 68.48 L71.92 71.92 L68.48 74.89 L72.14 83.32 L67.79 85.83 L62.31 78.45 L58.02 79.94 L53.56 80.79 L52.51 89.92 L47.49 89.92 L46.44 80.79 L41.98 79.94 L37.69 78.45 L32.21 85.83 L27.86 83.32 L31.52 74.89 L28.08 71.92 L25.11 68.48 L16.68 72.14 L14.17 67.79 L21.55 62.31 L20.06 58.02 L19.21 53.56 L10.08 52.51 L10.08 47.49 L19.21 46.44 L20.06 41.98 L21.55 37.69 L14.17 32.21 L16.68 27.86 L25.11 31.52 L28.08 28.08 L31.52 25.11 L27.86 16.68 L32.21 14.17 L37.69 21.55 Z M61.00 50.00 A11 11 0 1 0 39.00 50.00 A11 11 0 1 0 61.00 50.00 Z" fill-rule="evenodd"/><g transform="translate(92 92)"><path class="g2" d="M-7.65 -18.48 L-3.44 -19.70 L-2.64 -27.88 L2.64 -27.88 L3.44 -19.70 L7.65 -18.48 L11.50 -16.36 L17.85 -21.57 L21.57 -17.85 L16.36 -11.50 L18.48 -7.65 L19.70 -3.44 L27.88 -2.64 L27.88 2.64 L19.70 3.44 L18.48 7.65 L16.36 11.50 L21.57 17.85 L17.85 21.57 L11.50 16.36 L7.65 18.48 L3.44 19.70 L2.64 27.88 L-2.64 27.88 L-3.44 19.70 L-7.65 18.48 L-11.50 16.36 L-17.85 21.57 L-21.57 17.85 L-16.36 11.50 L-18.48 7.65 L-19.70 3.44 L-27.88 2.64 L-27.88 -2.64 L-19.70 -3.44 L-18.48 -7.65 L-16.36 -11.50 L-21.57 -17.85 L-17.85 -21.57 L-11.50 -16.36 Z M8.00 0.00 A8 8 0 1 0 -8.00 0.00 A8 8 0 1 0 8.00 0.00 Z" fill-rule="evenodd"/></g></svg><span>Memuat aplikasi…</span></div></div>
+
+<!-- LOGIN: kiri logo, kanan form -->
+<section id="login-screen" class="auth" hidden>
+  <button class="auth-super" id="login-switch" type="button">Super admin</button>
+  <div class="auth-brand">
+    <svg class="auth-deco" viewBox="0 0 132 132" aria-hidden="true"><path class="g1" d="M41.98 20.06 L46.44 19.21 L47.49 10.08 L52.51 10.08 L53.56 19.21 L58.02 20.06 L62.31 21.55 L67.79 14.17 L72.14 16.68 L68.48 25.11 L71.92 28.08 L74.89 31.52 L83.32 27.86 L85.83 32.21 L78.45 37.69 L79.94 41.98 L80.79 46.44 L89.92 47.49 L89.92 52.51 L80.79 53.56 L79.94 58.02 L78.45 62.31 L85.83 67.79 L83.32 72.14 L74.89 68.48 L71.92 71.92 L68.48 74.89 L72.14 83.32 L67.79 85.83 L62.31 78.45 L58.02 79.94 L53.56 80.79 L52.51 89.92 L47.49 89.92 L46.44 80.79 L41.98 79.94 L37.69 78.45 L32.21 85.83 L27.86 83.32 L31.52 74.89 L28.08 71.92 L25.11 68.48 L16.68 72.14 L14.17 67.79 L21.55 62.31 L20.06 58.02 L19.21 53.56 L10.08 52.51 L10.08 47.49 L19.21 46.44 L20.06 41.98 L21.55 37.69 L14.17 32.21 L16.68 27.86 L25.11 31.52 L28.08 28.08 L31.52 25.11 L27.86 16.68 L32.21 14.17 L37.69 21.55 Z M61.00 50.00 A11 11 0 1 0 39.00 50.00 A11 11 0 1 0 61.00 50.00 Z" fill-rule="evenodd"/><g transform="translate(92 92)"><path class="g2" d="M-7.65 -18.48 L-3.44 -19.70 L-2.64 -27.88 L2.64 -27.88 L3.44 -19.70 L7.65 -18.48 L11.50 -16.36 L17.85 -21.57 L21.57 -17.85 L16.36 -11.50 L18.48 -7.65 L19.70 -3.44 L27.88 -2.64 L27.88 2.64 L19.70 3.44 L18.48 7.65 L16.36 11.50 L21.57 17.85 L17.85 21.57 L11.50 16.36 L7.65 18.48 L3.44 19.70 L2.64 27.88 L-2.64 27.88 L-3.44 19.70 L-7.65 18.48 L-11.50 16.36 L-17.85 21.57 L-21.57 17.85 L-16.36 11.50 L-18.48 7.65 L-19.70 3.44 L-27.88 2.64 L-27.88 -2.64 L-19.70 -3.44 L-18.48 -7.65 L-16.36 -11.50 L-21.57 -17.85 L-17.85 -21.57 L-11.50 -16.36 Z M8.00 0.00 A8 8 0 1 0 -8.00 0.00 A8 8 0 1 0 8.00 0.00 Z" fill-rule="evenodd"/></g></svg>
+    <div class="auth-brand-inner">
+      <div class="auth-logo"><img class="brand-logo" alt="Logo Aceh Mandiri Utama" hidden><span class="brand-ph">AMU</span></div>
+      <h1 class="app-name">ACEH MANDIRI UTAMA</h1>
+      <p class="auth-tag">Sparepart &amp; Bengkel Yamaha</p>
+      <div class="auth-line"></div>
+      <p class="auth-desc">Registrasi servis, order sparepart, kasir, dan laporan dalam satu aplikasi.</p>
+    </div>
+    <div class="ver app-ver auth-ver"></div>
+  </div>
+  <div class="auth-form">
     <form id="login-form" autocomplete="on">
+      <div>
+        <h2 id="login-title">Selamat datang</h2>
+        <p class="muted" id="login-sub">Pilih nama Anda lalu masukkan PIN.</p>
+      </div>
       <div id="login-err" class="err" hidden></div>
       <div id="login-pin-mode" class="login-mode">
         <label class="f" for="login-nama">Nama petugas<select id="login-nama"><option value="">Memuat daftar…</option></select></label>
@@ -26,8 +44,8 @@
         <label class="f" for="login-email">Email super admin<input id="login-email" type="email" autocomplete="username"></label>
         <label class="f" for="login-pass">Kata sandi<input id="login-pass" type="password" autocomplete="current-password"></label>
       </div>
-      <button class="btn pri" id="login-btn" type="submit">Masuk</button>
-      <button class="btn sm ghost" id="login-switch" type="button">Masuk sebagai super admin</button>
+      <button class="btn pri auth-btn" id="login-btn" type="submit">Masuk</button>
+      <button class="btn sm ghost" id="login-back" type="button" hidden>← Kembali ke login petugas</button>
     </form>
   </div>
 </section>
@@ -35,7 +53,7 @@
 <!-- APLIKASI -->
 <div id="app-shell" class="shell" hidden>
   <aside class="sidebar" id="sidebar" aria-label="Menu utama">
-    <div class="sb-brand"><b class="app-name">ACEH MANDIRI UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div>
+    <div class="sb-brand"><img class="brand-logo sb-logo" alt="" hidden><b class="app-name">ACEH MANDIRI UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div>
     <nav id="side-nav"></nav>
     <div class="sb-foot">
       <div><b id="who"></b><div class="role" id="who-role"></div></div>

@@ -1,7 +1,15 @@
-# Aceh Mandiri Utama POS · versi 2.1.0
+# Aceh Mandiri Utama POS · versi 2.2.0
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Tampilan & kebiasaan input
+
+- Halaman login dua sisi: **kiri logo toko**, **kanan form login**. Logo diganti oleh super admin di **Master Data → Logo** (tab ini hanya muncul untuk super admin).
+- Tombol **Super admin** kecil di pojok kanan atas halaman login.
+- Animasi loading dua roda gigi saat aplikasi dibuka dan saat memuat data.
+- **Semua isian teks otomatis huruf kapital** (nopol, nama, keluhan, supplier, dll). Email, PIN, angka, dan tanggal tidak diubah.
+- **No. HP konsumen** punya tombol **WA** untuk langsung chat WhatsApp (registrasi, order sparepart, pembayaran, master kendaraan). Di pembayaran ada tombol *Kabari konsumen* berisi pesan motor selesai + total biaya.
 
 ## Login
 
@@ -59,6 +67,7 @@ js/
   firebase.js         inisialisasi Firebase + pembuatan akun petugas
   akun.js             login PIN: tambah petugas, reset PIN, ganti PIN sendiri
   payment.js          pembayaran cash / transfer / campur
+  brand.js            logo toko + animasi loading roda gigi
   state.js            data bersama & navigasi
   util.js             format rupiah/tanggal, toast, modal
   numbering.js        nomor nota PJ/SV, pembelian PB, work order WO
@@ -80,7 +89,7 @@ js/
   seed.js             20 part contoh
 ```
 
-## Update ke versi 2.1.0
+## Update ke versi 2.2.0
 
 1. Upload semua file baru ke GitHub (`index.html`, `style.css`, `firestore.rules`, folder `js`). Pastikan `js/servis.js` sudah terhapus.
 2. **Wajib:** Firebase Console → Firestore → Rules → tempel `firestore.rules` yang baru → *Publish*.
@@ -119,4 +128,4 @@ Periode: hari ini, 7 hari, bulan ini, bulan lalu, atau pilih tanggal. Klik kotak
 
 `apiKey` di `js/firebase-config.js` memang publik; data dilindungi `firestore.rules` (akses per peran) + koleksi `staff`.
 
-Daftar nama petugas di layar login (`publik/login`) bisa dibaca tanpa login supaya nama bisa dipilih. PIN 6 angka dilindungi pembatasan percobaan dari Firebase (muncul "Terlalu banyak percobaan salah" setelah beberapa kali salah). Supaya lebih aman, batasi API key ke domain GitHub Pages Anda di Google Cloud Console → Credentials.
+Daftar nama petugas di layar login (`publik/login`) dan logo (`publik/brand`, hanya bisa diubah super admin) bisa dibaca tanpa login supaya nama bisa dipilih. PIN 6 angka dilindungi pembatasan percobaan dari Firebase (muncul "Terlalu banyak percobaan salah" setelah beberapa kali salah). Supaya lebih aman, batasi API key ke domain GitHub Pages Anda di Google Cloud Console → Credentials.
