@@ -6,7 +6,7 @@ import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
-import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo } from './wo-common.js';
+import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo, logStatus, timelineHTML, durasi, syncPantau } from './wo-common.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { showNota } from './nota.js';
 
@@ -45,6 +45,7 @@ function renderDetail() {
   const jasa = normJasa(w), bisaBayar = w.status === 'Selesai';
   $('#bay-detail').innerHTML = `<div class="row spread"><h2>${esc(w.no)}</h2>${jenisBadge(w)}</div>
     ${woHeader(w)}
+    ${timelineHTML(w)}
     ${statusPanel(w)}
     <h3>Jasa servis</h3>
     ${jasa.length ? `<div class="tw"><table><tbody>${jasa.map(j => `<tr><td>${esc(j.nama)}</td><td class="r num">${ksg ? `<s class="muted">${rp(j.harga)}</s> gratis` : rp(j.harga)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Tidak ada jasa.</div>'}
@@ -71,10 +72,11 @@ function renderTot() {
 async function setStatus(el) {
   if (st.saving || !st.bayarNo) return;
   const s = el.dataset.s, w = findWo(st.bayarNo);
-  const patch = s === 'Selesai' ? { status: 'Selesai', selesai: stamp(new Date()), lapor: namaPetugas() }
-    : { status: 'Ditunda', tglTunda: stamp(new Date()), alasanTunda: ($('#bay-tunda')?.value || '').trim(), lapor: namaPetugas() };
+  const base = { log: logStatus(w.log, s), lapor: namaPetugas() };
+  const patch = s === 'Selesai' ? { ...base, status: 'Selesai', selesai: stamp(new Date()) }
+    : { ...base, status: 'Ditunda', tglTunda: stamp(new Date()), alasanTunda: ($('#bay-tunda')?.value || '').trim() };
   st.saving = true;
-  try { await updateWo(w.no, patch); Object.assign(w, patch); toast(`${w.nopol}: ${s}. ${mekanikNama(w) || 'Mekanik'} sekarang kosong.`); renderList(); renderDetail(); }
+  try { await updateWo(w.no, patch); Object.assign(w, patch); syncPantau(w); toast(`${w.nopol}: ${s}. ${mekanikNama(w) || 'Mekanik'} sekarang kosong.`); renderList(); renderDetail(); }
   catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 
@@ -107,14 +109,16 @@ async function confirm() {
       const diskon = Math.min(d.diskon || 0, sub), total = sub - diskon;
       const pay = payStatus(d.pay, total); if (pay.err) throw new Error(pay.err);
       const { no, counter } = nextNumber(cs, 'SV');
-      const trx = { no, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', nopol: w.nopol, tipe: w.tipe || '', mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
+      const log = logStatus(ws.data().log, 'Lunas'), waktu = durasi({ log });
+      const trx = { no, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', hp: w.hp || '', nopol: w.nopol, tipe: w.tipe || '', km: w.km || '', waktu, mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
         jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas() };
       tx.set(counterRef(), counter);
       items.forEach((x, i) => tx.update(refs[i], { stok: ps[i].data().stok - x.qty }));
       tx.set(doc(db, 'trx', no), { ...trx, dibuat: serverTimestamp() });
-      tx.update(woRef, { status: 'Lunas', nota: no, biaya });
+      tx.update(woRef, { status: 'Lunas', nota: no, biaya, log });
       return trx;
     });
+    syncPantau({ ...w, status: 'Lunas', log: [...(w.log || []), { s: 'Lunas', t: t.tgl }] }, t);
     st.lastNota = t; st.bayarNo = null; st.bayarDraft = null;
     renderBayar(); showNota(t);
   } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }

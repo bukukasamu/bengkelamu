@@ -1,8 +1,8 @@
 // Fungsi bersama untuk work order (WO) servis: hitung biaya, tampilan ringkas, simpan.
-import { esc, rp, clone, waButton } from './util.js';
+import { esc, rp, clone, stamp, waButton, waNumber } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, part, mekanikById, namaPetugas } from './state.js';
-import { db, doc, runTransaction, updateDoc } from './firebase.js';
+import { db, doc, getDoc, setDoc, runTransaction, updateDoc } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 
 // Antri = belum ada mekanik · Dikerjakan = mekanik sedang mengerjakan (mekanik sibuk)
@@ -88,3 +88,58 @@ export async function saveWo(w) {
 }
 export const updateWo = (no, patch) => updateDoc(doc(db, 'wo', no), clone(patch));
 export const findWo = no => S.wo.find(x => x.no === no);
+
+/* ---------- Catatan waktu servis ----------
+   Setiap perubahan status disimpan di w.log = [{ s: status, t: 'YYYY-MM-DD HH:MM', o: petugas }].
+   Lama kerja = jumlah waktu berstatus Dikerjakan (waktu Ditunda tidak dihitung). */
+export const logStatus = (log, s) => [...(log || []), { s, t: stamp(new Date()), o: namaPetugas() }];
+const toDate = t => new Date(String(t).replace(' ', 'T'));
+export function durasi(w) {
+  const log = [...(w.log || [])];
+  if (!log.length) return null;
+  let kerja = 0, tunda = 0, mulai = null, selesai = null;
+  for (let i = 0; i < log.length; i++) {
+    const a = log[i], end = log[i + 1] ? toDate(log[i + 1].t) : new Date();
+    const m = Math.max(0, (end - toDate(a.t)) / 60000);
+    if (a.s === 'Dikerjakan') { kerja += m; if (!mulai) mulai = a.t; }
+    if (a.s === 'Ditunda') tunda += m;
+    if (a.s === 'Selesai' && !selesai) selesai = a.t;
+    if (a.s === 'Selesai' || a.s === 'Lunas') break;   // setelah selesai tidak dihitung lagi
+  }
+  const masuk = log[0].t;
+  return {
+    masuk, mulai, selesai,
+    kerja: Math.round(kerja), tunda: Math.round(tunda),
+    tunggu: mulai ? Math.round((toDate(mulai) - toDate(masuk)) / 60000) : null,
+    total: selesai ? Math.round((toDate(selesai) - toDate(masuk)) / 60000) : null
+  };
+}
+export const fmtDur = m => m == null ? '–' : m < 60 ? `${m} mnt` : m < 1440 ? `${Math.floor(m / 60)} j ${m % 60} mnt` : `${Math.floor(m / 1440)} hr ${Math.floor((m % 1440) / 60)} j`;
+const jam = t => t ? String(t).slice(11, 16) : '';
+export function timelineHTML(w) {
+  const d = durasi(w); if (!d) return '';
+  return `<div class="timeline">${(w.log || []).map(l => `<span class="tl"><b>${esc(l.s)}</b> ${esc(l.t.slice(5, 10).replace('-', '/'))} ${esc(jam(l.t))}</span>`).join('<span class="tl-sep">→</span>')}</div>
+    <div class="small muted">Tunggu mekanik ${fmtDur(d.tunggu)} · Lama dikerjakan ${fmtDur(d.kerja)}${d.tunda ? ' · Ditunda ' + fmtDur(d.tunda) : ''}${d.total != null ? ' · Masuk s/d selesai ' + fmtDur(d.total) : ''}</div>`;
+}
+
+/* ---------- Data untuk halaman cek servis konsumen ----------
+   Dokumen pantau/{kunci}, kunci = SHA-256 dari "NOPOL|62NOMORHP". Hanya bisa dibuka oleh yang tahu nopol + nomor HP. */
+export async function pantauKey(nopol, hp) {
+  const n = waNumber(hp), k = String(nopol || '').replace(/\s+/g, '').toUpperCase();
+  if (!n || !k) return '';
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k + '|' + n));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+const ringkasWo = w => ({ no: w.no, tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
+  jasa: normJasa(w).map(j => j.nama), parts: (w.parts || []).map(x => ({ nama: part(x.kode)?.nama || x.kode, qty: x.qty })), estimasi: woCalc(w).total, alasanTunda: w.alasanTunda || '' });
+// Dipanggil setelah WO disimpan / status berubah / dibayar. Gagal di sini tidak membatalkan pekerjaan kasir.
+export async function syncPantau(w, trx) {
+  try {
+    const key = await pantauKey(w.nopol, w.hp); if (!key) return;
+    const ref = doc(db, 'pantau', key), s = await getDoc(ref), cur = s.exists() ? s.data() : {};
+    const riwayat = (cur.riwayat || []).filter(r => !trx || r.no !== trx.no);
+    if (trx) riwayat.unshift({ ...trx, km: w.km || '', waktu: durasi(w), dibuat: null });
+    const aktif = AKTIF.includes(w.status) ? ringkasWo(w) : (cur.aktif && cur.aktif.no !== w.no ? cur.aktif : null);
+    await setDoc(ref, { nopol: w.nopol, tipe: w.tipe || '', nama: w.nama || '', updated: stamp(new Date()), aktif, riwayat: riwayat.slice(0, 12) });
+  } catch (e) { console.warn('Gagal memperbarui data cek servis', e); }
+}

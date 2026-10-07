@@ -6,6 +6,8 @@ import { ROLES } from './config.js';
 import { db, doc, collection, getDocs, query, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
 import { statusPill } from './wo-common.js';
+import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
+import { loadXLSX } from './import-excel.js';
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
 
 const TABS = [
@@ -37,20 +39,37 @@ function renderMaster() {
 }
 
 /* ---------- Pemilik & kendaraan ---------- */
-const KF = [['nopol', 'No. Polisi', 'mono'], ['nama', 'Nama pemilik'], ['hp', 'No. HP'], ['tipe', 'Tipe motor'], ['tahun', 'Tahun'], ['warna', 'Warna'], ['noRangka', 'No. rangka', 'mono'], ['noMesin', 'No. mesin', 'mono'], ['km', 'KM terakhir'], ['alamat', 'Alamat', 'wide']];
+const KF = [['nopol', 'No. Polisi', 'mono'], ['nama', 'Nama pemilik'], ['hp', 'No. HP'], ['tipe', 'Tipe motor'], ['tahun', 'Tahun'], ['warna', 'Warna'], ['noRangka', 'No. rangka', 'mono'], ['noMesin', 'No. mesin', 'mono'], ['km', 'KM terakhir']];
+const KSAVE = [...KF.map(f => f[0]), ...WIL_FIELDS];
+let fWil = { kab: '', kec: '', kel: '' };
 async function loadKend() {
-  try { const s = await getDocs(query(collection(db, 'kendaraan'), orderBy('updated', 'desc'), limit(500))); kend = s.docs.map(d => ({ id: d.id, ...d.data() })); }
+  try { const s = await getDocs(query(collection(db, 'kendaraan'), orderBy('updated', 'desc'), limit(1000))); kend = s.docs.map(d => ({ id: d.id, ...d.data() })); }
   catch (e) { kend = []; toast(errMsg(e)); }
   if (st.masterTab === 'kendaraan') renderKend();
+}
+const uniq = a => [...new Set(a.filter(Boolean))].sort((x, y) => x.localeCompare(y));
+function kendFiltered() {
+  const q = kendQ.toLowerCase();
+  return kend.filter(k => (!q || [k.nopol, k.nama, k.hp, k.tipe, k.alamat, k.kelurahan, k.kecamatan].join(' ').toLowerCase().includes(q))
+    && (!fWil.kab || k.kabupaten === fWil.kab) && (!fWil.kec || k.kecamatan === fWil.kec) && (!fWil.kel || k.kelurahan === fWil.kel));
 }
 function renderKend() {
   const el = $('#ms-body'); if (!el) return;
   if (!kend) { el.innerHTML = loaderHTML('Memuat data kendaraan…'); loadKend(); return; }
-  const q = kendQ.toLowerCase();
-  const list = kend.filter(k => !q || [k.nopol, k.nama, k.hp, k.tipe].join(' ').toLowerCase().includes(q));
-  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, HP, tipe" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div>
+  const list = kendFiltered();
+  const kabs = uniq(kend.map(k => k.kabupaten));
+  const kecs = uniq(kend.filter(k => !fWil.kab || k.kabupaten === fWil.kab).map(k => k.kecamatan));
+  const kels = uniq(kend.filter(k => (!fWil.kab || k.kabupaten === fWil.kab) && (!fWil.kec || k.kecamatan === fWil.kec)).map(k => k.kelurahan));
+  // Rekap jumlah konsumen per wilayah satu tingkat di bawah filter yang dipilih
+  const lvl = fWil.kec ? ['kelurahan', 'kel', 'Kelurahan / gampong'] : fWil.kab ? ['kecamatan', 'kec', 'Kecamatan'] : ['kabupaten', 'kab', 'Kabupaten / kota'];
+  const rekap = {}; list.forEach(k => { const v = k[lvl[0]] || '(belum diisi)'; rekap[v] = (rekap[v] || 0) + 1; });
+  const rk = Object.entries(rekap).sort((a, b) => b[1] - a[1]), mx = rk.length ? rk[0][1] : 1;
+  const sel = (id, v, list, ph) => `<select id="${id}" style="width:auto;max-width:100%" aria-label="${ph}"><option value="">${ph}</option>${list.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
+  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, HP, tipe, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row"><button class="btn" type="button" data-act="ms-kxlsx">Export Excel</button><button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div></div>
+   <div class="row" style="margin-top:8px"><span class="small muted">Filter wilayah:</span>${sel('fw-kab', fWil.kab, kabs, 'Semua kabupaten/kota')}${sel('fw-kec', fWil.kec, kecs, 'Semua kecamatan')}${sel('fw-kel', fWil.kel, kels, 'Semua kelurahan/gampong')}${fWil.kab || fWil.kec || fWil.kel ? '<button class="btn sm ghost" type="button" data-act="fw-clear">Hapus filter</button>' : ''}</div>
    <div id="ms-kform"></div>
-   <div class="tw"><table><thead><tr><th>Nopol</th><th>Pemilik</th><th>No. HP</th><th>Motor</th><th>Servis terakhir</th></tr></thead><tbody>${list.slice(0, 200).map(k => `<tr class="row-click" tabindex="0" data-act="ms-kedit" data-id="${esc(k.id)}"><td class="mono">${esc(k.nopol)}</td><td>${esc(k.nama || '–')}</td><td class="mono small">${esc(k.hp || '')} ${waButton(k.hp, 'Halo ' + (k.nama || '') + ', ')}</td><td>${esc(k.tipe || '')}${k.tahun ? ' · ' + esc(k.tahun) : ''}${k.warna ? ' · ' + esc(k.warna) : ''}</td><td class="small">${esc((k.updated || '').slice(0, 10))}${k.woTerakhir ? ' · ' + esc(k.woTerakhir) : ''}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Belum ada kendaraan. Kendaraan otomatis tercatat saat registrasi servis.</td></tr>'}</tbody></table></div>
+   ${rk.length > 1 || (rk.length === 1 && !fWil.kel) ? `<div class="panel" style="box-shadow:none;margin-block:10px"><h3>Konsumen per ${lvl[2].toLowerCase()}</h3>${rk.slice(0, 12).map(([w, c]) => `<button class="bar-row" type="button" data-act="fw-pick" data-l="${lvl[1]}" data-v="${esc(w)}"><span class="row spread small"><span class="bar-lbl">${esc(w)}</span><span class="num">${c} kendaraan</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${c / mx * 100}%"></span></span></button>`).join('')}</div>` : ''}
+   <div class="tw"><table><thead><tr><th>Nopol</th><th>Pemilik</th><th>No. HP</th><th>Motor</th><th>Wilayah</th><th>Servis terakhir</th></tr></thead><tbody>${list.slice(0, 200).map(k => `<tr class="row-click" tabindex="0" data-act="ms-kedit" data-id="${esc(k.id)}"><td class="mono">${esc(k.nopol)}</td><td>${esc(k.nama || '–')}</td><td class="mono small">${esc(k.hp || '')} ${waButton(k.hp, 'Halo ' + (k.nama || '') + ', ')}</td><td>${esc(k.tipe || '')}${k.tahun ? ' · ' + esc(k.tahun) : ''}${k.warna ? ' · ' + esc(k.warna) : ''}</td><td class="small">${esc([k.kelurahan, k.kecamatan, k.kabupaten].filter(Boolean).join(', ') || k.alamat || '–')}</td><td class="small">${esc((k.updated || '').slice(0, 10))}${k.woTerakhir ? ' · ' + esc(k.woTerakhir) : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Tidak ada kendaraan yang cocok. Kendaraan otomatis tercatat saat registrasi servis.</td></tr>'}</tbody></table></div>
    <p class="small muted" style="margin:0">${list.length} kendaraan${list.length > 200 ? ' (ditampilkan 200, persempit pencarian)' : ''}.</p>`;
   renderKForm();
 }
@@ -60,9 +79,11 @@ function renderKForm() {
   const k = kendEdit, isNew = !k.id;
   const riwayat = isNew ? [] : [...S.wo].reverse().filter(w => nopolKey(w.nopol) === k.id).slice(0, 10);
   el.innerHTML = `<div class="panel" style="background:var(--panel-2);box-shadow:none;margin-block:12px"><h3>${isNew ? 'Kendaraan baru' : 'Ubah ' + esc(k.nopol)}</h3>
-   <div class="form">${KF.map(([f, l, c]) => `<label class="f${c === 'wide' ? ' wide' : ''}" for="mk-${f}">${l}<input id="mk-${f}" data-kf="${f}" ${c === 'mono' ? 'class="mono"' : ''} value="${esc(k[f] || '')}" ${f === 'nopol' && !isNew ? 'disabled' : ''} ${f === 'tipe' ? 'list="dl-tipe"' : ''}></label>`).join('')}<datalist id="dl-tipe">${tipeList().map(t => `<option value="${esc(t)}">`).join('')}</datalist></div>
+   <div class="form">${KF.map(([f, l, c]) => `<label class="f" for="mk-${f}">${l}<input id="mk-${f}" data-kf="${f}" ${c === 'mono' ? 'class="mono"' : ''} value="${esc(k[f] || '')}" ${f === 'nopol' && !isNew ? 'disabled' : ''} ${f === 'tipe' ? 'list="dl-tipe"' : ''}></label>`).join('')}<datalist id="dl-tipe">${tipeList().map(t => `<option value="${esc(t)}">`).join('')}</datalist></div>
+   <div class="form form-wil">${wilayahHTML('mw', k)}</div>
    ${riwayat.length ? `<div class="small"><b>Riwayat servis:</b> ${riwayat.map(w => `${esc(w.no)} (${esc(w.tgl.slice(0, 10))}) ${statusPill(w.status)}`).join(' · ')}</div>` : ''}
    <div class="row" style="justify-content:flex-end">${!isNew && isRole('admin') ? '<button class="btn ghost" type="button" data-act="ms-kdel">Hapus</button>' : ''}<button class="btn" type="button" data-act="ms-kclose">Batal</button><button class="btn pri" type="button" data-act="ms-ksave">Simpan [F2]</button></div></div>`;
+  fillWilayah('mw', { get: () => kendEdit });
 }
 async function saveKend() {
   const k = kendEdit; k.nopol = (k.nopol || '').trim().toUpperCase().replace(/\s+/g, ' ');
@@ -70,10 +91,19 @@ async function saveKend() {
   const id = k.id || nopolKey(k.nopol);
   if (!k.id && kend.find(x => x.id === id)) { toast(k.nopol + ' sudah terdaftar'); return; }
   try {
-    const data = Object.fromEntries(KF.map(([f]) => [f, (k[f] || '').toString().trim()]));
+    const data = Object.fromEntries(KSAVE.map(f => [f, (k[f] || '').toString().trim()]));
     await setDoc(doc(db, 'kendaraan', id), { ...data, updated: stamp(new Date()) }, { merge: true });
     toast('Kendaraan ' + k.nopol + ' disimpan'); kendEdit = null; kend = null; renderKend();
   } catch (e) { toast(errMsg(e)); }
+}
+async function exportKend() {
+  const list = kendFiltered(); if (!list.length) { toast('Tidak ada data untuk diexport'); return; }
+  try {
+    const X = await loadXLSX();
+    const rows = list.map(k => ({ nopol: k.nopol, pemilik: k.nama || '', hp: k.hp || '', tipe: k.tipe || '', tahun: k.tahun || '', warna: k.warna || '', alamat: k.alamat || '', kelurahan: k.kelurahan || '', kecamatan: k.kecamatan || '', kabupaten_kota: k.kabupaten || '', provinsi: k.provinsi || '', servis_terakhir: (k.updated || '').slice(0, 10) }));
+    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Konsumen');
+    X.writeFile(wb, `konsumen-${[fWil.kab, fWil.kec, fWil.kel].filter(Boolean).join('-') || 'semua'}.xlsx`.replace(/\s+/g, '_'));
+  } catch (e) { toast('Gagal export: ' + e.message); }
 }
 
 /* ---------- Jasa servis ---------- */
@@ -192,6 +222,9 @@ Object.assign(actions, {
   'ms-kedit': el => { const k = kend.find(x => x.id === el.dataset.id); if (k) { kendEdit = { ...k }; renderKForm(); $('#ms-kform').scrollIntoView({ block: 'nearest' }); } },
   'ms-kclose': () => { kendEdit = null; renderKForm(); },
   'ms-ksave': saveKend,
+  'ms-kxlsx': exportKend,
+  'fw-clear': () => { fWil = { kab: '', kec: '', kel: '' }; renderKend(); },
+  'fw-pick': el => { const l = el.dataset.l, v = el.dataset.v === '(belum diisi)' ? '' : el.dataset.v; if (!v) return; fWil[l] = v; if (l === 'kab') { fWil.kec = fWil.kel = ''; } if (l === 'kec') fWil.kel = ''; renderKend(); },
   'ms-kdel': el => confirmTwice(el, 'k' + kendEdit.id, async () => { try { await deleteDoc(doc(db, 'kendaraan', kendEdit.id)); toast('Kendaraan dihapus'); kendEdit = null; kend = null; renderKend(); } catch (e) { toast(errMsg(e)); } }),
   'js-save': async el => { const id = el.dataset.id, nama = $('#js-n-' + id).value.trim(); if (!nama) { toast('Nama jasa wajib diisi'); return; } try { await updateDoc(doc(db, 'jasa', id), { nama, harga: +$('#js-h-' + id).value || 0, aktif: $('#js-a-' + id).checked }); toast('Jasa ' + nama + ' disimpan'); } catch (e) { toast(errMsg(e)); } },
   'js-add': async () => { const nama = $('#js-n-new').value.trim(); if (!nama) { toast('Isi nama jasa'); return; } try { await addDoc(collection(db, 'jasa'), { nama, harga: +$('#js-h-new').value || 0, aktif: true, urut: S.jasa.length }); toast('Jasa ' + nama + ' ditambahkan'); renderJasa(); } catch (e) { toast(errMsg(e)); } },
@@ -234,6 +267,12 @@ inputHandlers.push(e => {
   if (t.id === 'ms-kq') { kendQ = t.value; const pos = t.selectionStart; renderKend(); const n = $('#ms-kq'); n.focus(); n.setSelectionRange(pos, pos); }
   if (t.dataset.kf && kendEdit) kendEdit[t.dataset.kf] = t.value;
   if (['sf-pin', 'mm-p-new', 'pin-new'].includes(t.id)) t.value = t.value.replace(/\D/g, '').slice(0, 6);
+});
+changeHandlers.push(e => {
+  const t = e.target;
+  if (t.id === 'fw-kab') { fWil = { kab: t.value, kec: '', kel: '' }; renderKend(); }
+  if (t.id === 'fw-kec') { fWil.kec = t.value; fWil.kel = ''; renderKend(); }
+  if (t.id === 'fw-kel') { fWil.kel = t.value; renderKend(); }
 });
 changeHandlers.push(async e => {
   if (e.target.id !== 'lg-file' || !e.target.files[0]) return;

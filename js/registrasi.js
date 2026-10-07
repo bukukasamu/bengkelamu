@@ -4,11 +4,12 @@ import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, setDoc } from './firebase.js';
-import { AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge } from './wo-common.js';
+import { AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau } from './wo-common.js';
+import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
 
 export const nopolKey = n => String(n || '').replace(/\s+/g, '').toUpperCase();
-const KEND_FIELDS = ['nopol', 'nama', 'hp', 'alamat', 'tipe', 'tahun', 'warna', 'noRangka', 'noMesin'];
-const blank = () => ({ no: null, tgl: stamp(new Date()), nopol: '', nama: '', hp: '', alamat: '', tipe: '', tahun: '', warna: '', noRangka: '', noMesin: '', km: '', keluhan: '', jenisServis: 'Reguler', ksgKe: '', noKartu: '', jasa: [], mekanikId: '', mekanik: '', parts: [], biaya: [], catatanPart: '', status: 'Antri' });
+const KEND_FIELDS = ['nopol', 'nama', 'hp', 'tipe', 'tahun', 'warna', 'noRangka', 'noMesin', ...WIL_FIELDS];
+const blank = () => ({ no: null, tgl: stamp(new Date()), nopol: '', nama: '', hp: '', provinsi: '', kabKode: '', kabupaten: '', kecamatan: '', kelurahan: '', alamat: '', tipe: '', tahun: '', warna: '', noRangka: '', noMesin: '', km: '', keluhan: '', jenisServis: 'Reguler', ksgKe: '', noKartu: '', jasa: [], mekanikId: '', mekanik: '', parts: [], biaya: [], catatanPart: '', status: 'Antri' });
 let filter = 'aktif';
 const waMsg = w => `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol || ''}${w.no ? ' (' + w.no + ')' : ''}. `;
 
@@ -56,8 +57,9 @@ function renderRegistrasi() {
      ${inp('noRangka', 'No. rangka', 'class="mono"')}
      ${inp('noMesin', 'No. mesin', 'class="mono"')}
      ${inp('km', 'Kilometer', 'inputmode="numeric" class="num" placeholder="mis. 12.500"')}
-     <label class="f wide" for="r-alamat">Alamat<input id="r-alamat" data-rf="alamat" value="${esc(w.alamat)}" ${dis}></label>
     </div>
+    <h3>Alamat konsumen</h3>
+    <div class="form form-wil">${wilayahHTML('rw', w, locked)}</div>
     <h3>Servis</h3>
     <div class="form">
      <label class="f" for="r-jenis">Jenis servis<select id="r-jenis" data-rf="jenisServis" ${dis}>${Object.entries(JENIS_SERVIS).map(([k, l]) => `<option value="${k}" ${k === w.jenisServis ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
@@ -69,6 +71,7 @@ function renderRegistrasi() {
     ${w.jenisServis === 'KSG' ? `<div class="note small">KSG: jasa servis gratis untuk konsumen. ${w.tipe && w.ksgKe ? (tarifKsg(w) ? `Klaim ke main dealer (${esc(w.tipe)}, KSG ke-${esc(w.ksgKe)}): <b>${rp(tarifKsg(w))}</b>.` : `<span class="diff-bad">Tarif KSG ${esc(w.tipe)} ke-${esc(w.ksgKe)} belum diisi</span> di Master Data → Tarif KSG.`) : 'Pilih tipe motor dan KSG ke berapa untuk melihat nilai klaim.'} Sparepart dan biaya lain tetap ditagih.</div>` : ''}
     <h3>Jasa servis</h3>
     <div class="checks">${[...jasaList, ...extra].map((j, i) => `<label for="r-j${i}"><input type="checkbox" id="r-j${i}" data-jasa="${esc(j.nama)}" data-harga="${j.harga}" ${selected.find(x => x.nama === j.nama) ? 'checked' : ''} ${dis}>${esc(j.nama)}<span class="hr">${w.jenisServis === 'KSG' ? 'gratis' : rp(j.harga)}</span></label>`).join('') || '<div class="small muted">Belum ada jasa. Tambahkan di Master Data → Jasa Servis.</div>'}</div>
+    ${w.no ? timelineHTML(w) : ''}
     <div class="totals small"><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span>${c.klaim ? `<span class="muted">Klaim KSG</span><span class="num">${rp(c.klaim)}</span>` : ''}${w.parts.length ? `<span class="muted">Order sparepart</span><span class="num">${rp(c.parts)}</span>` : ''}</div>
     <div class="row" style="justify-content:flex-end">
      ${w.no && !locked && isRole('admin') ? `<label class="f" for="r-status" style="flex-direction:row;align-items:center;gap:6px">Status<select id="r-status" style="width:auto">${AKTIF.map(s => `<option ${s === w.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>` : ''}
@@ -77,6 +80,7 @@ function renderRegistrasi() {
     </div>
    </div></div>`;
   renderList();
+  fillWilayah('rw', { get: () => st.regDraft });
 }
 
 async function lookupKendaraan(nopol) {
@@ -110,6 +114,9 @@ async function save() {
     const busy = sibukOleh(mek, w.no);
     if (busy) { toast(mek.nama + ' masih mengerjakan ' + busy.nopol + '. Pilih mekanik lain.'); delete w._lanjut; return; }
   }
+  // Catat jam setiap perubahan status (untuk menghitung lama servis)
+  const prevStatus = stored ? stored.status : null;
+  if (status !== prevStatus) w.log = logStatus(w.log || (stored?.log) || [], status);
   w.status = status; w.mekanik = mek?.nama || '';
   delete w._manual; delete w._lanjut;
   w.jasa = normJasa(w);
@@ -119,6 +126,7 @@ async function save() {
     w.no = no;
     const kend = Object.fromEntries(KEND_FIELDS.map(f => [f, w[f] || '']));
     await setDoc(doc(db, 'kendaraan', nopolKey(w.nopol)), { ...kend, km: w.km || '', updated: stamp(new Date()), woTerakhir: no }, { merge: true });
+    syncPantau(w);
     toast('Work order ' + no + ' disimpan');
     renderRegistrasi();
   } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }

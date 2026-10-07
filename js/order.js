@@ -2,7 +2,7 @@
 // sesuai permintaan mekanik. Stok dipotong saat kasir menerima pembayaran.
 import { $, esc, rp, clone, toast, errMsg } from './util.js';
 import { S, st, part, views, refreshers, actions, inputHandlers, fkeys, partPicker, pickedKode } from './state.js';
-import { AKTIF, woCard, woHeader, woCalc, partsTable, updateWo, findWo, dipesan } from './wo-common.js';
+import { AKTIF, woCard, woHeader, woCalc, partsTable, updateWo, findWo, dipesan, syncPantau } from './wo-common.js';
 
 function renderList() {
   const el = $('#ord-list'); if (!el) return;
@@ -38,7 +38,7 @@ async function save() {
   st.saving = true;
   try {
     await updateWo(w.no, { parts: w.parts, catatanPart: w.catatanPart || '' });
-    const o = findWo(w.no); if (o) { o.parts = clone(w.parts); o.catatanPart = w.catatanPart; }
+    const o = findWo(w.no); if (o) { o.parts = clone(w.parts); o.catatanPart = w.catatanPart; syncPantau(o); }
     toast('Order sparepart ' + w.no + ' disimpan'); renderDetail();
   } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
