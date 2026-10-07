@@ -1,22 +1,40 @@
-# Aceh Mandiri Utama POS · versi 2.0.0
+# Aceh Mandiri Utama POS · versi 2.1.0
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Login
+
+- **Super admin** (`cashflow.amu@gmail.com`): tombol *Masuk sebagai super admin* → email + kata sandi. Selalu punya akses penuh, tidak perlu dokumen di koleksi `staff`.
+- **Petugas lain & mekanik**: pilih nama → ketik **PIN 6 angka** (masuk otomatis setelah angka ke-6).
+- Setiap petugas bisa **Ganti PIN** sendiri (tombol di bawah sidebar).
+- Admin menambah petugas di **Master Data → Petugas & PIN**, mekanik di **Master Data → Mekanik** (kolom Login PIN). Lupa PIN → admin klik **Reset PIN**.
+
+Di belakang layar setiap petugas punya akun Firebase dengan email buatan (`…@petugas.amu-pos.id`) dan kata sandi = PIN. Karena Firebase tidak mengizinkan admin mengganti kata sandi orang lain dari aplikasi web, Reset PIN membuat akun baru dan memindahkan hak aksesnya; akun lama otomatis tidak bisa dipakai.
 
 ## Alur kerja per peran
 
 | Peran | Menu | Tugas |
 |---|---|---|
-| **Registrasi** | Registrasi Servis, Master Data (pemilik & kendaraan) | Motor masuk: data konsumen & kendaraan, keluhan, jenis servis (Reguler / **KSB** / **KSG ke-1..4**), jasa, pilih mekanik yang kosong |
-| **Sparepart** | Order Sparepart, Stok Part, Pembelian Stok | Isi order sparepart untuk motor yang sudah diregistrasi sesuai permintaan mekanik; catat pembelian dari supplier |
-| **Mekanik** | Performa Mekanik | Mulai / tandai selesai pekerjaan; lihat jumlah motor, nilai jasa, komisi, estimasi gaji |
-| **Kasir** | Pembayaran Servis, Penjualan Sparepart, Laporan | Cek jasa + sparepart, tambah biaya lain, diskon, terima pembayaran, cetak nota; jual part langsung |
-| **Admin / Pemilik** | Semua menu | Termasuk Master Data: jasa & harga, mekanik (gaji, komisi), tipe motor, petugas login |
+| **Registrasi** | Registrasi Servis, Master Data (pemilik & kendaraan) | Motor masuk: konsumen, kendaraan, keluhan, jenis servis (Reguler / **KSB** / **KSG ke-1..4**), jasa, pilih **mekanik yang kosong** |
+| **Sparepart** | Order Sparepart, Stok Part, Pembelian Stok | Order sparepart untuk motor yang diregistrasi; catat pembelian dari supplier |
+| **Mekanik** | Performa Mekanik | Lihat pekerjaan saat ini, jumlah motor, nilai jasa, komisi, estimasi gaji |
+| **Kasir** | Pembayaran & Status Servis, Penjualan Sparepart, Laporan | Terima laporan mekanik (selesai / lanjut lama), biaya lain, diskon, pembayaran cash/transfer/campur, cetak nota |
+| **Admin** | Semua menu | Termasuk Master Data lengkap |
 
-Status work order: **Antri** (registrasi) → **Dikerjakan** → **Selesai** (mekanik) → **Lunas** (kasir). Stok sparepart dipotong saat kasir menerima pembayaran.
+**Mekanik hanya mengerjakan 1 motor.** Status WO:
+- **Antri**: belum ada mekanik.
+- **Dikerjakan**: mekanik dipilih di registrasi; mekanik ini tidak bisa dipilih untuk motor lain.
+- Mekanik **melapor ke kasir**; kasir menandai **Selesai** (siap dibayar) atau **Lanjut lama / Ditunda** (mis. tunggu part, dengan alasan). Keduanya membuat mekanik **kosong** lagi.
+- Motor Ditunda dilanjutkan dari Registrasi → pilih mekanik kosong → *Lanjutkan dikerjakan*.
+- **Lunas**: sudah dibayar.
 
-**KSG (Kartu Service Gratis):** jasa tidak ditagih ke konsumen; nilainya tercatat sebagai *klaim KSG* (laporan & nilai jasa mekanik). Sparepart dan biaya lain tetap ditagih.
-**KSB (Kartu Service Berkala):** servis berkala berbayar, nomor kartu dicatat di WO dan nota.
+**Stok dipotong saat kasir menerima pembayaran.** Part yang sudah diorder untuk servis yang belum dibayar dihitung "dipesan servis": tidak bisa dijual di konter atau diorder ke motor lain melebihi sisa stok.
+
+**KSG:** jasa gratis untuk konsumen; nilai klaim ke main dealer diambil dari **Master Data → Tarif KSG** (per tipe motor dan KSG ke-1..4). Sparepart dan biaya lain tetap ditagih.
+**KSB:** servis berkala berbayar; nomor kartu dicatat di WO dan nota.
+
+**Pembayaran:** cash, transfer, atau campur. Rekening tujuan dari **Master Data → Rekening**. Kembalian hanya dari cash, jadi transfer tidak boleh melebihi total. Laporan menampilkan uang masuk cash (setelah kembalian) dan transfer per rekening.
 
 ## Pembelian stok
 
@@ -39,6 +57,8 @@ js/
   config.js           nama aplikasi, VERSI, peran & menu per peran, data awal
   firebase-config.js  konfigurasi project bengkel-amu
   firebase.js         inisialisasi Firebase + pembuatan akun petugas
+  akun.js             login PIN: tambah petugas, reset PIN, ganti PIN sendiri
+  payment.js          pembayaran cash / transfer / campur
   state.js            data bersama & navigasi
   util.js             format rupiah/tanggal, toast, modal
   numbering.js        nomor nota PJ/SV, pembelian PB, work order WO
@@ -60,24 +80,21 @@ js/
   seed.js             20 part contoh
 ```
 
-## Update dari versi 1.x
+## Update ke versi 2.1.0
 
-1. Di repository GitHub, **hapus `js/servis.js`** (sudah diganti registrasi/order/bayar/mekanik).
-2. Upload semua file baru (`index.html`, `style.css`, `firestore.rules`, folder `js`).
-3. **Wajib:** Firebase Console → Firestore → Rules → tempel isi `firestore.rules` yang baru → *Publish*.
-4. Login sebagai admin. Data awal jasa, mekanik, dan tipe motor dibuat otomatis; ubah di **Master Data**.
-5. Tambah petugas lain di **Master Data → Petugas Login** (akun login dibuat otomatis). Untuk peran Mekanik, data mekaniknya ikut terhubung lewat email.
-
-Data lama (nota, work order) tetap terbaca.
+1. Upload semua file baru ke GitHub (`index.html`, `style.css`, `firestore.rules`, folder `js`). Pastikan `js/servis.js` sudah terhapus.
+2. **Wajib:** Firebase Console → Firestore → Rules → tempel `firestore.rules` yang baru → *Publish*.
+3. Pastikan Authentication → Sign-in method → **Email/Password** aktif (dipakai juga untuk akun PIN).
+4. Masuk sebagai super admin, lalu isi **Master Data**: Rekening, Tarif KSG, Mekanik (+ PIN), Petugas & PIN.
 
 ## Setup Firebase (project baru)
 
 1. Firestore Database → *Create database* → lokasi `asia-southeast2 (Jakarta)` → mode *production*.
 2. Firestore → Rules → tempel `firestore.rules` → *Publish*.
 3. Authentication → Sign-in method → aktifkan **Email/Password**.
-4. Buat akun admin pertama di Authentication → Users.
-5. Firestore → koleksi `staff` → Document ID = email admin → field `nama` dan `peran` = `admin`.
-6. Authentication → Settings → Authorized domains → tambah `USERNAME.github.io`.
+4. Buat akun super admin `cashflow.amu@gmail.com` di Authentication → Users (tidak perlu dokumen `staff`).
+5. Authentication → Settings → Authorized domains → tambah `USERNAME.github.io`.
+6. Petugas lain ditambahkan dari aplikasi (Master Data → Petugas & PIN / Mekanik).
 
 ## Import data part dari Excel
 
@@ -91,7 +108,8 @@ Periode: hari ini, 7 hari, bulan ini, bulan lalu, atau pilih tanggal. Klik kotak
 
 - Nama aplikasi & nomor versi: `js/config.js` (`APP_NAME`, `APP_VERSION`).
 - Menu per peran: `MENUS` di `js/config.js`.
-- Jasa, harga, mekanik, gaji, komisi, tipe motor: langsung di aplikasi (Master Data).
+- Jasa, harga, tarif KSG, mekanik, gaji, komisi, rekening, tipe motor, petugas: langsung di aplikasi (Master Data).
+- Email super admin: `SUPER_ADMIN` di `js/config.js` **dan** fungsi `isSuper()` di `firestore.rules`.
 
 ## Kuota paket gratis (Spark)
 
@@ -100,3 +118,5 @@ Periode: hari ini, 7 hari, bulan ini, bulan lalu, atau pilih tanggal. Klik kotak
 ## Keamanan
 
 `apiKey` di `js/firebase-config.js` memang publik; data dilindungi `firestore.rules` (akses per peran) + koleksi `staff`.
+
+Daftar nama petugas di layar login (`publik/login`) bisa dibaca tanpa login supaya nama bisa dipilih. PIN 6 angka dilindungi pembatasan percobaan dari Firebase (muncul "Terlalu banyak percobaan salah" setelah beberapa kali salah). Supaya lebih aman, batasi API key ke domain GitHub Pages Anda di Google Cloud Console → Credentials.

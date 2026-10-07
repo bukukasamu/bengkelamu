@@ -18,9 +18,16 @@
     <div class="lh"><div class="brand"><b class="app-name">ACEH MANDIRI UTAMA</b><span>Sparepart &amp; Bengkel Yamaha</span></div><div class="ver app-ver"></div></div>
     <form id="login-form" autocomplete="on">
       <div id="login-err" class="err" hidden></div>
-      <label class="f" for="login-email">Email petugas<input id="login-email" type="email" required autocomplete="username"></label>
-      <label class="f" for="login-pass">Kata sandi<input id="login-pass" type="password" required autocomplete="current-password"></label>
+      <div id="login-pin-mode" class="login-mode">
+        <label class="f" for="login-nama">Nama petugas<select id="login-nama"><option value="">Memuat daftar…</option></select></label>
+        <label class="f" for="login-pin">PIN (6 angka)<input id="login-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" class="num pin-input"></label>
+      </div>
+      <div id="login-email-mode" class="login-mode" hidden>
+        <label class="f" for="login-email">Email super admin<input id="login-email" type="email" autocomplete="username"></label>
+        <label class="f" for="login-pass">Kata sandi<input id="login-pass" type="password" autocomplete="current-password"></label>
+      </div>
       <button class="btn pri" id="login-btn" type="submit">Masuk</button>
+      <button class="btn sm ghost" id="login-switch" type="button">Masuk sebagai super admin</button>
     </form>
   </div>
 </section>
@@ -32,7 +39,7 @@
     <nav id="side-nav"></nav>
     <div class="sb-foot">
       <div><b id="who"></b><div class="role" id="who-role"></div></div>
-      <button class="btn sm" id="logout" type="button">Keluar</button>
+      <div class="row"><button class="btn sm" id="ganti-pin" type="button" hidden>Ganti PIN</button><button class="btn sm" id="logout" type="button">Keluar</button></div>
       <div class="ver app-ver"></div>
     </div>
   </aside>
