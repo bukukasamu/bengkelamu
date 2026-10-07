@@ -2,7 +2,7 @@
 // sesuai permintaan mekanik. Stok dipotong saat kasir menerima pembayaran.
 import { $, esc, rp, clone, toast, errMsg } from './util.js';
 import { S, st, part, views, refreshers, actions, inputHandlers, fkeys, partPicker, pickedKode } from './state.js';
-import { AKTIF, woCard, woHeader, woCalc, partsTable, updateWo, findWo } from './wo-common.js';
+import { AKTIF, woCard, woHeader, woCalc, partsTable, updateWo, findWo, dipesan } from './wo-common.js';
 
 function renderList() {
   const el = $('#ord-list'); if (!el) return;
@@ -52,7 +52,8 @@ Object.assign(actions, {
     const k = pickedKode('o-pcari'), p = part(k);
     if (!p) { toast('Pilih part dari daftar yang muncul saat mengetik'); $('#o-pcari').focus(); return; }
     const q = Math.max(1, +$('#o-pq').value || 1), ex = st.orderDraft.parts.find(x => x.kode === k), tot = (ex ? ex.qty : 0) + q;
-    if (tot > p.stok) { toast('Stok ' + p.nama + ' tinggal ' + p.stok); return; }
+    const sisa = p.stok - dipesan(k, st.orderDraft.no);   // dikurangi order servis lain yang belum dibayar
+    if (tot > sisa) { toast(`Stok ${p.nama} ${p.stok}` + (p.stok !== sisa ? `, ${p.stok - sisa} sudah dipesan servis lain` : '') + `. Bisa diorder: ${Math.max(0, sisa)}`); return; }
     ex ? ex.qty = tot : st.orderDraft.parts.push({ kode: k, qty: q });
     renderDetail(); $('#o-pcari').focus();
   },

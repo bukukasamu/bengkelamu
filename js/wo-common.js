@@ -4,9 +4,11 @@ import { S, part, mekanikById, namaPetugas } from './state.js';
 import { db, doc, runTransaction, updateDoc } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 
-export const STATUS = { Antri: 'p-warn', Dikerjakan: 'p-info', Selesai: 'p-good', Lunas: 'p-good' };
+// Antri = belum ada mekanik · Dikerjakan = mekanik sedang mengerjakan (mekanik sibuk)
+// Ditunda = lanjut lama, mis. menunggu part (mekanik bebas lagi) · Selesai = menunggu bayar · Lunas = sudah dibayar
+export const STATUS = { Antri: 'p-warn', Dikerjakan: 'p-info', Ditunda: 'p-bad', Selesai: 'p-good', Lunas: 'p-good' };
 export const statusPill = s => `<span class="pill ${STATUS[s] || 'p-info'}">${esc(s)}</span>`;
-export const AKTIF = ['Antri', 'Dikerjakan', 'Selesai'];
+export const AKTIF = ['Antri', 'Dikerjakan', 'Ditunda', 'Selesai'];
 
 // Data lama menyimpan jasa sebagai nama saja; ubah ke {nama, harga}
 export const normJasa = w => (w.jasa || []).map(j => typeof j === 'string' ? { nama: j, harga: S.jasa.find(x => x.nama === j)?.harga || 0 } : j);
@@ -15,24 +17,34 @@ export const jenisBadge = w => w.jenisServis === 'KSG' ? `<span class="badge b-k
   : w.jenisServis === 'KSB' ? '<span class="badge b-ksb">KSB</span>' : '<span class="badge b-reg">Reguler</span>';
 export const jenisText = w => w.jenisServis === 'KSG' ? 'KSG' + (w.ksgKe ? ' ke-' + w.ksgKe : '') : w.jenisServis === 'KSB' ? 'KSB' : 'Reguler';
 
-// KSG: jasa tidak ditagih ke konsumen (diklaim ke main dealer). Sparepart & biaya tambahan tetap ditagih.
+// Tarif klaim KSG dari main dealer: Master Data → Tarif KSG (per tipe motor, KSG ke-1..4)
+export const tarifKsg = w => +(S.settings.ksgTarif?.[w.tipe]?.[(+w.ksgKe || 0) - 1] || 0);
+
+// KSG: jasa tidak ditagih ke konsumen; nilai klaim = tarif main dealer. Sparepart & biaya tambahan tetap ditagih.
 export function woCalc(w) {
   const parts = (w.parts || []).reduce((a, x) => a + x.qty * (part(x.kode)?.jual || 0), 0);
   const jasa = normJasa(w).reduce((a, j) => a + (+j.harga || 0), 0);
   const biaya = (w.biaya || []).reduce((a, b) => a + (+b.jumlah || 0), 0);
   const ksg = w.jenisServis === 'KSG';
   const jasaTagih = ksg ? 0 : jasa;
-  return { parts, jasa, jasaTagih, klaim: ksg ? jasa : 0, biaya, total: parts + jasaTagih + biaya };
+  return { parts, jasa, jasaTagih, klaim: ksg ? tarifKsg(w) : 0, biaya, total: parts + jasaTagih + biaya };
+}
+
+// Part yang sudah diorder untuk servis yang belum dibayar (stok baru dipotong saat bayar)
+export function dipesan(kode, kecualiNo) {
+  return S.wo.filter(w => AKTIF.includes(w.status) && w.no !== kecualiNo).reduce((a, w) => a + (w.parts || []).filter(x => x.kode === kode).reduce((b, x) => b + x.qty, 0), 0);
 }
 
 export const mekanikNama = w => (w.mekanikId && mekanikById(w.mekanikId)?.nama) || w.mekanik || '';
 
-// Jumlah motor aktif per mekanik (untuk menandai mekanik yang sedang kosong)
-export function bebanMekanik() {
+// Mekanik hanya mengerjakan 1 motor. Sibuk = punya WO berstatus Dikerjakan.
+// Mekanik bebas lagi setelah kasir menandai motornya Selesai atau Ditunda (lanjut lama).
+export function sibukMap() {
   const m = {};
-  S.wo.filter(w => w.status === 'Antri' || w.status === 'Dikerjakan').forEach(w => { const k = w.mekanikId || w.mekanik; if (k) m[k] = (m[k] || 0) + 1; });
+  S.wo.filter(w => w.status === 'Dikerjakan' && (w.mekanikId || w.mekanik)).forEach(w => { m[w.mekanikId || w.mekanik] = w; });
   return m;
 }
+export const sibukOleh = (mek, kecualiNo) => { const w = sibukMap()[mek.id] || sibukMap()[mek.nama]; return w && w.no !== kecualiNo ? w : null; };
 
 export function woCard(o, current, act = 'pick-wo') {
   return `<button class="wo" type="button" data-act="${act}" data-no="${esc(o.no)}" aria-current="${o.no === current}">

@@ -1,7 +1,12 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.1.0';
+
+// Super admin masuk dengan email + kata sandi; petugas lain masuk dengan pilih nama + PIN 6 digit.
+export const SUPER_ADMIN = 'cashflow.amu@gmail.com';
+// Domain akun PIN (tidak pernah dikirimi email, hanya penanda akun di Firebase)
+export const PIN_DOMAIN = 'petugas.amu-pos.id';
 
 export const ROLES = {
   admin: 'Admin / Pemilik',
@@ -16,7 +21,7 @@ export const MENUS = [
   { id: 'beranda', label: 'Beranda', group: 'Utama', roles: ['admin', 'registrasi', 'sparepart', 'kasir'] },
   { id: 'registrasi', label: 'Registrasi Servis', group: 'Bengkel', roles: ['admin', 'registrasi'] },
   { id: 'order', label: 'Order Sparepart', group: 'Bengkel', roles: ['admin', 'sparepart'] },
-  { id: 'bayar', label: 'Pembayaran Servis', group: 'Bengkel', roles: ['admin', 'kasir'] },
+  { id: 'bayar', label: 'Pembayaran & Status Servis', group: 'Bengkel', roles: ['admin', 'kasir'] },
   { id: 'mekanik', label: 'Performa Mekanik', group: 'Bengkel', roles: ['admin', 'mekanik'] },
   { id: 'kasir', label: 'Penjualan Sparepart', group: 'Sparepart', roles: ['admin', 'kasir'] },
   { id: 'stok', label: 'Stok Part', group: 'Sparepart', roles: ['admin', 'sparepart'] },

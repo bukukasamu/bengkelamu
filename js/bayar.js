@@ -1,60 +1,88 @@
-// Menu Pembayaran Servis (kasir): cek jasa, sparepart, biaya tambahan lain, diskon, terima pembayaran.
-import { $, esc, rp, stamp, toast, errMsg } from './util.js';
+// Menu Pembayaran & Status Servis (kasir):
+// 1. Mekanik melapor ke kasir: motor Selesai, atau harus Lanjut lama (Ditunda). Keduanya membuat mekanik bebas lagi.
+// 2. Motor Selesai: cek jasa, sparepart, biaya lain, diskon, terima pembayaran cash / transfer / campur.
+import { $, esc, rp, stamp, clone, toast, errMsg } from './util.js';
 import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
-import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge } from './wo-common.js';
+import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo } from './wo-common.js';
+import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { showNota } from './nota.js';
 
-const ORDER = { Selesai: 0, Dikerjakan: 1, Antri: 2 };
+const ORDER = { Dikerjakan: 0, Selesai: 1, Ditunda: 2, Antri: 3 };
 
 function renderList() {
   const el = $('#bay-list'); if (!el) return;
   const l = [...S.wo].reverse().filter(w => AKTIF.includes(w.status)).sort((a, b) => ORDER[a.status] - ORDER[b.status]);
-  el.innerHTML = l.map(o => woCard(o, st.bayarNo, 'bay-pick')).join('') || '<div class="empty">Tidak ada servis yang menunggu pembayaran.</div>';
+  el.innerHTML = l.map(o => woCard(o, st.bayarNo, 'bay-pick')).join('') || '<div class="empty">Tidak ada motor di bengkel.</div>';
 }
 
 function renderBayar() {
   $('#view').innerHTML = `<div class="grid g-servis">
-   <div class="panel"><h3>Menunggu pembayaran</h3><p class="small muted" style="margin:0">Motor berstatus Selesai tampil paling atas.</p><div class="wolist" id="bay-list"></div></div>
+   <div class="panel"><h3>Motor di bengkel</h3><p class="small muted" style="margin:0">Dikerjakan: tunggu laporan mekanik. Selesai: siap dibayar.</p><div class="wolist" id="bay-list"></div></div>
    <div class="panel" id="bay-detail"><div class="empty">Pilih motor di sebelah kiri.</div></div>
   </div>`;
   renderList();
-  if (st.bayarNo && findWo(st.bayarNo) && AKTIF.includes(findWo(st.bayarNo).status)) renderDetail(); else st.bayarNo = null;
+  if (st.bayarNo && AKTIF.includes(findWo(st.bayarNo)?.status)) renderDetail(); else st.bayarNo = null;
 }
 
 const draftWo = () => ({ ...findWo(st.bayarNo), biaya: st.bayarDraft.biaya });
+const grandTotal = () => Math.max(0, woCalc(draftWo()).total - (st.bayarDraft.diskon || 0));
+
+function statusPanel(w) {
+  if (w.status === 'Dikerjakan') return `<div class="note"><b>Laporan mekanik ${esc(mekanikNama(w))}</b>
+    <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="bay-status" data-s="Selesai">Motor selesai</button><input id="bay-tunda" class="inline-input" placeholder="Alasan lanjut lama, mis. tunggu part" style="flex:1 1 200px" aria-label="Alasan ditunda"><button class="btn" type="button" data-act="bay-status" data-s="Ditunda">Lanjut lama (tunda)</button></div>
+    <div class="small muted" style="margin-top:4px">Kedua pilihan membuat mekanik kosong dan bisa menerima motor berikutnya.</div></div>`;
+  if (w.status === 'Ditunda') return `<div class="note"><b>Ditunda</b>${w.alasanTunda ? ': ' + esc(w.alasanTunda) : ''}${w.tglTunda ? ` <span class="small muted">(${esc(w.tglTunda)})</span>` : ''}
+    <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="bay-status" data-s="Selesai">Motor sudah selesai</button><span class="small muted">Untuk dikerjakan lagi, pilih mekanik kosong di Registrasi → Lanjutkan dikerjakan.</span></div></div>`;
+  if (w.status === 'Antri') return '<div class="note small">Belum ada mekanik. Registrasi perlu memilih mekanik yang kosong.</div>';
+  return '';
+}
 
 function renderDetail() {
   const w = draftWo(), c = woCalc(w), d = st.bayarDraft, ksg = w.jenisServis === 'KSG';
-  const jasa = normJasa(w);
+  const jasa = normJasa(w), bisaBayar = w.status === 'Selesai';
   $('#bay-detail').innerHTML = `<div class="row spread"><h2>${esc(w.no)}</h2>${jenisBadge(w)}</div>
     ${woHeader(w)}
+    ${statusPanel(w)}
     <h3>Jasa servis</h3>
     ${jasa.length ? `<div class="tw"><table><tbody>${jasa.map(j => `<tr><td>${esc(j.nama)}</td><td class="r num">${ksg ? `<s class="muted">${rp(j.harga)}</s> gratis` : rp(j.harga)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Tidak ada jasa.</div>'}
-    ${ksg ? `<div class="note small">KSG ke-${esc(w.ksgKe || '?')}: jasa ${rp(c.klaim)} tidak ditagih ke konsumen, tercatat sebagai klaim ke main dealer.</div>` : ''}
+    ${ksg ? `<div class="note small">KSG ke-${esc(w.ksgKe || '?')} ${esc(w.tipe)}: jasa gratis untuk konsumen. Klaim ke main dealer ${tarifKsg(w) ? rp(tarifKsg(w)) : '<span class="diff-bad">belum ada tarif (isi di Master Data → Tarif KSG)</span>'}.</div>` : ''}
     <h3>Order sparepart</h3>
     ${partsTable(w)}
-    <div class="row spread"><h3>Biaya tambahan lain</h3><button class="btn sm" type="button" data-act="bay-addbiaya">+ Tambah biaya</button></div>
+    ${bisaBayar ? `<div class="row spread"><h3>Biaya tambahan lain</h3><button class="btn sm" type="button" data-act="bay-addbiaya">+ Tambah biaya</button></div>
     ${d.biaya.length ? `<div class="tw"><table><thead><tr><th>Keterangan</th><th class="r">Jumlah (Rp)</th><th></th></tr></thead><tbody>${d.biaya.map((b, i) => `<tr><td><input class="inline-input" id="bi-k${i}" data-bi="${i}" data-bf="ket" value="${esc(b.ket)}" placeholder="mis. Cuci motor, las knalpot" aria-label="Keterangan biaya"></td><td><input class="inline-input num" id="bi-j${i}" data-bi="${i}" data-bf="jumlah" type="number" min="0" step="1000" value="${b.jumlah || ''}" aria-label="Jumlah biaya" style="text-align:right"></td><td><button class="btn sm ghost" type="button" data-act="bay-rmbiaya" data-i="${i}" aria-label="Hapus">✕</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Tidak ada biaya tambahan.</div>'}
-    <div class="form"><label class="f" for="bay-dis">Diskon (Rp)<input id="bay-dis" type="number" min="0" step="1000" class="num" value="${d.diskon || ''}"></label><label class="f" for="bay-bayar">Dibayar (Rp)<input id="bay-bayar" type="number" min="0" step="1000" class="num" value="${d.bayar || ''}"></label></div>
+    <div class="form"><label class="f" for="bay-dis">Diskon (Rp)<input id="bay-dis" type="number" min="0" step="1000" class="num" value="${d.diskon || ''}"></label></div>
+    <h3>Pembayaran</h3>
+    ${payFields('bay', d.pay)}
     <div id="bay-tot"></div>
-    <div class="row" style="justify-content:flex-end">${w.status === 'Selesai'
-      ? '<button class="btn pri" type="button" data-act="bay-confirm">Terima pembayaran &amp; cetak nota [F2]</button>'
-      : `<span class="small muted">Belum bisa dibayar: status masih ${esc(w.status)}. Menunggu mekanik menandai selesai.</span>`}</div>`;
+    <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="bay-confirm">Terima pembayaran &amp; cetak nota [F2]</button></div>`
+    : `<div class="totals"><span class="muted">Estimasi tagihan</span><span class="num">${rp(c.total)}</span></div>`}`;
   renderTot();
 }
 
 function renderTot() {
   const el = $('#bay-tot'); if (!el) return;
-  const c = woCalc(draftWo()), d = st.bayarDraft, total = Math.max(0, c.total - (d.diskon || 0)), kb = (d.bayar || 0) - total;
-  el.innerHTML = `<div class="totals"><span class="muted">Sparepart</span><span class="num">${rp(c.parts)}</span><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span><span class="muted">Biaya lain</span><span class="num">${rp(c.biaya)}</span><span class="muted">Diskon</span><span class="num">${d.diskon ? '−' + rp(d.diskon) : rp(0)}</span><span style="font-weight:600">Total bayar</span><span class="big num">${rp(total)}</span><span class="muted">Kembalian</span><span class="num" style="color:${d.bayar && kb < 0 ? 'var(--bad)' : 'inherit'}">${d.bayar ? (kb < 0 ? 'Kurang ' + rp(-kb) : rp(kb)) : '–'}</span></div>`;
+  const c = woCalc(draftWo()), d = st.bayarDraft, total = grandTotal();
+  el.innerHTML = `<div class="totals"><span class="muted">Sparepart</span><span class="num">${rp(c.parts)}</span><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span><span class="muted">Biaya lain</span><span class="num">${rp(c.biaya)}</span><span class="muted">Diskon</span><span class="num">${d.diskon ? '−' + rp(d.diskon) : rp(0)}</span><span style="font-weight:600">Total bayar</span><span class="big num">${rp(total)}</span>${payTotals(d.pay, total)}</div>`;
+}
+
+async function setStatus(el) {
+  if (st.saving || !st.bayarNo) return;
+  const s = el.dataset.s, w = findWo(st.bayarNo);
+  const patch = s === 'Selesai' ? { status: 'Selesai', selesai: stamp(new Date()), lapor: namaPetugas() }
+    : { status: 'Ditunda', tglTunda: stamp(new Date()), alasanTunda: ($('#bay-tunda')?.value || '').trim(), lapor: namaPetugas() };
+  st.saving = true;
+  try { await updateWo(w.no, patch); Object.assign(w, patch); toast(`${w.nopol}: ${s}. ${mekanikNama(w) || 'Mekanik'} sekarang kosong.`); renderList(); renderDetail(); }
+  catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 
 async function confirm() {
   if (st.saving || !st.bayarNo) return;
   const w = draftWo(), d = st.bayarDraft;
-  if (w.status !== 'Selesai') { toast('Motor belum ditandai selesai oleh mekanik'); return; }
+  if (w.status !== 'Selesai') { toast('Motor belum dilaporkan selesai'); return; }
+  const chk = payStatus(d.pay, grandTotal());
+  if (chk.err) { toast(chk.err); return; }
   const biaya = d.biaya.filter(b => b.ket.trim() || b.jumlah).map(b => ({ ket: b.ket.trim() || 'Biaya lain', jumlah: +b.jumlah || 0 }));
   st.saving = true;
   try {
@@ -73,13 +101,13 @@ async function confirm() {
       });
       const ksg = w.jenisServis === 'KSG', jasaAsli = normJasa(ws.data());
       const jasa = jasaAsli.map(j => ({ nama: j.nama, harga: ksg ? 0 : +j.harga || 0 }));
-      const jasaKlaim = ksg ? jasaAsli.reduce((a, j) => a + (+j.harga || 0), 0) : 0;
+      const jasaKlaim = ksg ? tarifKsg(w) : 0;
       const sub = items.reduce((a, x) => a + x.qty * x.harga, 0) + jasa.reduce((a, j) => a + j.harga, 0) + biaya.reduce((a, b) => a + b.jumlah, 0);
-      const diskon = Math.min(d.diskon || 0, sub), total = sub - diskon, bayar = d.bayar || 0;
-      if (bayar < total) throw new Error('Uang dibayar kurang dari total');
+      const diskon = Math.min(d.diskon || 0, sub), total = sub - diskon;
+      const pay = payStatus(d.pay, total); if (pay.err) throw new Error(pay.err);
       const { no, counter } = nextNumber(cs, 'SV');
-      const trx = { no, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', nopol: w.nopol, mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
-        jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', items, jasa, jasaKlaim, biaya, diskon, total, bayar, kasir: namaPetugas() };
+      const trx = { no, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', nopol: w.nopol, tipe: w.tipe || '', mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
+        jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas() };
       tx.set(counterRef(), counter);
       items.forEach((x, i) => tx.update(refs[i], { stok: ps[i].data().stok - x.qty }));
       tx.set(doc(db, 'trx', no), { ...trx, dibuat: serverTimestamp() });
@@ -91,15 +119,17 @@ async function confirm() {
   } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 
+registerPay('bay', { get: () => st.bayarDraft?.pay, total: grandTotal, onChange: renderTot });
 views.bayar = renderBayar;
 refreshers.bayar = () => { renderList(); if (st.bayarNo && !AKTIF.includes(findWo(st.bayarNo)?.status)) renderBayar(); };
 fkeys.bayar = { simpan: 'bay-confirm' };
 Object.assign(actions, {
   'bay-pick': el => {
     const o = findWo(el.dataset.no); if (!o) return;
-    st.bayarNo = o.no; st.bayarDraft = { biaya: (o.biaya || []).map(b => ({ ...b })), diskon: 0, bayar: 0 };
+    st.bayarNo = o.no; st.bayarDraft = { biaya: clone(o.biaya || []), diskon: 0, pay: emptyPay() };
     renderList(); renderDetail();
   },
+  'bay-status': setStatus,
   'bay-addbiaya': () => { st.bayarDraft.biaya.push({ ket: '', jumlah: 0 }); renderDetail(); $('#bi-k' + (st.bayarDraft.biaya.length - 1))?.focus(); },
   'bay-rmbiaya': el => { st.bayarDraft.biaya.splice(+el.dataset.i, 1); renderDetail(); },
   'bay-confirm': confirm
@@ -108,5 +138,4 @@ inputHandlers.push(e => {
   const t = e.target, d = st.bayarDraft; if (!d) return;
   if (t.dataset.bi != null) { const b = d.biaya[+t.dataset.bi]; b[t.dataset.bf] = t.dataset.bf === 'jumlah' ? (+t.value || 0) : t.value; renderTot(); }
   if (t.id === 'bay-dis') { d.diskon = +t.value || 0; renderTot(); }
-  if (t.id === 'bay-bayar') { d.bayar = +t.value || 0; renderTot(); }
 });

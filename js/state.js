@@ -16,7 +16,7 @@ export const mekanikAktif = () => S.mekanik.filter(m => m.aktif !== false).sort(
 export const mekanikById = id => S.mekanik.find(m => m.id === id);
 
 /* ---- State tampilan ---- */
-export const emptyCart = () => ({ items: [], pelanggan: '', diskon: 0, bayar: 0 });
+export const emptyCart = () => ({ items: [], pelanggan: '', diskon: 0, pay: { cash: 0, transfer: 0, rekeningId: '', ref: '' } });
 export const st = {
   view: 'beranda', loaded: false, petugas: null, role: null, saving: false, lastNota: null,
   cart: emptyCart(),

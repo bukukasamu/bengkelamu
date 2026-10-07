@@ -27,7 +27,9 @@ const FILTERS = {
   ksg: { label: 'Servis KSG (klaim)', test: t => t.jenisServis === 'KSG' },
   ksb: { label: 'Servis KSB', test: t => t.jenisServis === 'KSB' },
   biaya: { label: 'Ada biaya tambahan', test: t => (t.biaya || []).length > 0 },
-  diskon: { label: 'Ada diskon', test: t => (t.diskon || 0) > 0 }
+  diskon: { label: 'Ada diskon', test: t => (t.diskon || 0) > 0 },
+  cash: { label: 'Dibayar cash', test: t => t.cash == null || t.cash > 0 },
+  transfer: { label: 'Dibayar transfer', test: t => (t.transfer || 0) > 0 }
 };
 function applyFilter(list) {
   const f = st.lap.filter; if (!f) return list;
@@ -35,9 +37,10 @@ function applyFilter(list) {
   if (f.type === 'kode') return list.filter(t => t.items.some(x => x.kode === f.value));
   if (f.type === 'mekanik') return list.filter(t => t.mekanik === f.value);
   if (f.type === 'kasir') return list.filter(t => (t.kasir || '') === f.value);
+  if (f.type === 'rek') return list.filter(t => (t.transfer || 0) > 0 && (t.rekeningId || '?') === f.value);
   return list;
 }
-const filterLabel = f => FILTERS[f.type]?.label || (f.type === 'kode' ? 'Part: ' + f.label : f.type === 'mekanik' ? 'Mekanik: ' + f.value : 'Kasir: ' + f.value);
+const filterLabel = f => FILTERS[f.type]?.label || (f.type === 'kode' ? 'Part: ' + f.label : f.type === 'mekanik' ? 'Mekanik: ' + f.value : f.type === 'rek' ? 'Transfer ke ' + f.label : 'Kasir: ' + f.value);
 
 async function source(from, to) {
   if (from >= loadedFrom) return trxIn(from, to);
@@ -76,6 +79,13 @@ async function renderLaporan() {
    </div>
    <div class="grid g2">
     <div class="panel"><h3>Part terlaris</h3>${topL.length ? topL.map(([k, v]) => `<button class="bar-row" type="button" data-act="lap-f" data-t="kode" data-v="${esc(k)}" data-l="${esc(v.nama)}"><span class="row spread small"><span class="bar-lbl">${esc(v.nama)}</span><span class="num">${v.qty} pcs · ${rp(v.nilai)}</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${v.qty / mx * 100}%"></span></span></button>`).join('') : '<div class="empty">Belum ada penjualan part.</div>'}</div>
+    <div class="panel"><h3>Uang masuk</h3>
+     <div class="tw"><table><tbody>
+      <tr class="row-click" tabindex="0" data-act="lap-f" data-t="cash"><td><b>Cash</b> <span class="small muted">(setelah kembalian)</span></td><td class="r num">${rp(all.cash)}</td></tr>
+      ${Object.entries(all.rek).map(([id, r]) => `<tr class="row-click" tabindex="0" data-act="lap-f" data-t="rek" data-v="${esc(id)}" data-l="${esc(r.label)}"><td>Transfer · ${esc(r.label)} <span class="small muted">(${r.n} nota)</span></td><td class="r num">${rp(r.total)}</td></tr>`).join('')}
+      <tr><td><b>Total uang masuk</b></td><td class="r num"><b>${rp(all.cash + all.transfer)}</b></td></tr>
+     </tbody></table></div>
+    </div>
     <div class="panel"><h3>Per mekanik &amp; kasir</h3>
      ${mek.length ? `<div class="tw"><table><thead><tr><th>Mekanik</th><th class="r">Motor</th><th class="r">Total</th></tr></thead><tbody>${mek.map(([m, v]) => `<tr class="row-click" tabindex="0" data-act="lap-f" data-t="mekanik" data-v="${esc(m)}"><td>${esc(m)}</td><td class="r num">${v.n}</td><td class="r num">${rp(v.total)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Belum ada servis lunas.</div>'}
      ${kas.length ? `<div class="tw"><table><thead><tr><th>Kasir</th><th class="r">Nota</th><th class="r">Total</th></tr></thead><tbody>${kas.map(([m, v]) => `<tr class="row-click" tabindex="0" data-act="lap-f" data-t="kasir" data-v="${esc(m)}"><td>${esc(m)}</td><td class="r num">${v.n}</td><td class="r num">${rp(v.total)}</td></tr>`).join('')}</tbody></table></div>` : ''}
@@ -92,7 +102,7 @@ async function exportXlsx() {
   try {
     const X = await loadXLSX();
     const rows = list.map(t => ({ nota: t.no, waktu: t.tgl, jenis: t.jenis === 'SERVIS' ? 'Servis ' + (t.jenisServis || 'Reguler') : 'Part', pelanggan: t.pelanggan, nopol: t.nopol || '', mekanik: t.mekanik || '', kasir: t.kasir || '',
-      sparepart: t.items.reduce((a, x) => a + x.qty * x.harga, 0), jasa: (t.jasa || []).reduce((a, j) => a + j.harga, 0), klaim_ksg: t.jasaKlaim || 0, biaya_lain: (t.biaya || []).reduce((a, b) => a + b.jumlah, 0), diskon: t.diskon || 0, total: t.total }));
+      sparepart: t.items.reduce((a, x) => a + x.qty * x.harga, 0), jasa: (t.jasa || []).reduce((a, j) => a + j.harga, 0), klaim_ksg: t.jasaKlaim || 0, biaya_lain: (t.biaya || []).reduce((a, b) => a + b.jumlah, 0), diskon: t.diskon || 0, total: t.total, metode: t.metode || 'Cash', cash_bersih: t.cash == null ? t.total : (t.cash || 0) - (t.kembali || 0), transfer: t.transfer || 0, rekening: t.rekening || '' }));
     const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Penjualan');
     const [from, to] = range();
     X.writeFile(wb, `laporan-penjualan-${from}_${to}.xlsx`);

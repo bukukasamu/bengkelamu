@@ -20,8 +20,13 @@ export function notaText(t) {
   if ((t.biaya || []).length) { o.push('BIAYA LAIN:'); t.biaya.forEach(b => o.push(lr('  ' + b.ket, n(b.jumlah)))); }
   o.push(line, lr('Subtotal', n(t.total + (t.diskon || 0))));
   if (t.diskon) o.push(lr('Diskon', '-' + n(t.diskon)));
-  o.push(lr('TOTAL', n(t.total)), lr('Bayar', n(t.bayar)), lr('Kembali', n(t.bayar - t.total)), line);
-  if (t.jasaKlaim) o.push(c('Jasa servis KSG ditanggung Yamaha'));
+  o.push(lr('TOTAL', n(t.total)));
+  if (t.cash != null) {   // nota v2.1: cash / transfer / campur
+    if (t.cash) o.push(lr('Cash', n(t.cash)));
+    if (t.transfer) { o.push(lr('Transfer', n(t.transfer))); if (t.rekening) o.push('  ' + t.rekening.slice(0, W - 2)); if (t.refTransfer) o.push('  Ref: ' + t.refTransfer); }
+    o.push(lr('Kembali', n(t.kembali || 0)), line);
+  } else o.push(lr('Bayar', n(t.bayar)), lr('Kembali', n(t.bayar - t.total)), line);
+  if (t.jenisServis === 'KSG') o.push(c('Jasa servis KSG gratis'));
   o.push(c('Terima kasih'), c('Barang yang sudah dibeli'), c('tidak dapat dikembalikan'));
   return o.join('\n');
 }

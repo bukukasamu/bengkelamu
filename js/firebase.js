@@ -20,7 +20,7 @@ export async function createStaffAccount(email, password) {
   await signOutAuth(secondary);
 }
 
-export { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+export { onAuthStateChanged, signInWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 export {
   collection, doc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit,
   runTransaction, setDoc, updateDoc, addDoc, deleteDoc, increment, writeBatch, serverTimestamp

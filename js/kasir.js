@@ -4,6 +4,11 @@ import { S, st, part, emptyCart, namaPetugas, views, refreshers, actions, inputH
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { showNota } from './nota.js';
+import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
+import { dipesan } from './wo-common.js';
+
+// Stok yang bisa dijual di konter = stok fisik dikurangi part yang sudah diorder untuk servis yang belum dibayar
+const tersedia = p => p.stok - dipesan(p.kode);
 
 export function searchParts(q, n = 8) {
   q = q.trim().toLowerCase();
@@ -25,7 +30,8 @@ function renderKasir() {
    <div class="panel"><div class="row spread"><h3>Penjualan sparepart</h3><span class="small muted">${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
     <div class="form"><label class="f wide" for="k-pel">Pelanggan / bengkel<input id="k-pel" placeholder="Umum" value="${esc(c.pelanggan)}"></label></div>
     <div id="k-cart"></div>
-    <div class="form"><label class="f" for="k-dis">Diskon (Rp)<input id="k-dis" class="num" type="number" min="0" step="1000" value="${c.diskon || ''}"></label><label class="f" for="k-bayar">Dibayar (Rp)<input id="k-bayar" class="num" type="number" min="0" step="1000" value="${c.bayar || ''}"></label></div>
+    <div class="form"><label class="f" for="k-dis">Diskon (Rp)<input id="k-dis" class="num" type="number" min="0" step="1000" value="${c.diskon || ''}"></label></div>
+    ${payFields('k', c.pay)}
     <div id="k-tot"></div>
     <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cart-clear" type="button">Kosongkan</button><button class="btn pri" data-act="cart-save" type="button">Simpan &amp; Cetak Nota [F2]</button></div>
    </div></div>`;
@@ -35,7 +41,7 @@ function renderKasir() {
 function renderKRes() {
   if (!$('#k-res')) return;
   const r = searchParts($('#k-q') ? $('#k-q').value : '');
-  $('#k-res').innerHTML = r.length ? r.map(p => `<button class="res" type="button" data-act="add" data-k="${esc(p.kode)}"><span><span class="nm">${esc(p.nama)}</span><br><span class="sub"><span class="mono">${esc(p.kode)}</span>${p.cocok ? ' · ' + esc(p.cocok) : ''}${p.rak ? ' · rak ' + esc(p.rak) : ''}</span></span><span style="text-align:right"><span class="num">${rp(p.jual)}</span><br><span class="pill ${p.stok <= 0 ? 'p-bad' : p.stok <= p.min ? 'p-warn' : 'p-good'}">stok ${p.stok}</span></span></button>`).join('')
+  $('#k-res').innerHTML = r.length ? r.map(p => `<button class="res" type="button" data-act="add" data-k="${esc(p.kode)}"><span><span class="nm">${esc(p.nama)}</span><br><span class="sub"><span class="mono">${esc(p.kode)}</span>${p.cocok ? ' · ' + esc(p.cocok) : ''}${p.rak ? ' · rak ' + esc(p.rak) : ''}</span></span><span style="text-align:right"><span class="num">${rp(p.jual)}</span><br><span class="pill ${tersedia(p) <= 0 ? 'p-bad' : p.stok <= p.min ? 'p-warn' : 'p-good'}">stok ${p.stok}</span>${dipesan(p.kode) ? `<br><span class="small muted">${dipesan(p.kode)} dipesan servis</span>` : ''}</span></button>`).join('')
     : `<div class="empty">${S.parts.length ? 'Part tidak ditemukan.' : 'Belum ada data part. Import dulu di menu Stok Part.'}</div>`;
 }
 
@@ -51,13 +57,13 @@ function renderCart() {
 
 function renderKTot() {
   if (!$('#k-tot')) return;
-  const c = st.cart, { sub, total } = cartTotal(), kb = (c.bayar || 0) - total;
-  $('#k-tot').innerHTML = `<div class="totals"><span class="muted">Subtotal</span><span class="num">${rp(sub)}</span><span class="muted">Diskon</span><span class="num">${c.diskon ? '−' + rp(c.diskon) : rp(0)}</span><span style="font-weight:600">Total</span><span class="big num">${rp(total)}</span><span class="muted">Kembalian</span><span class="num" style="color:${c.bayar && kb < 0 ? 'var(--bad)' : 'inherit'}">${c.bayar ? (kb < 0 ? 'Kurang ' + rp(-kb) : rp(kb)) : '–'}</span></div>`;
+  const c = st.cart, { sub, total } = cartTotal();
+  $('#k-tot').innerHTML = `<div class="totals"><span class="muted">Subtotal</span><span class="num">${rp(sub)}</span><span class="muted">Diskon</span><span class="num">${c.diskon ? '−' + rp(c.diskon) : rp(0)}</span><span style="font-weight:600">Total</span><span class="big num">${rp(total)}</span>${payTotals(c.pay, total)}</div>`;
 }
 
 function addToCart(k) {
   const p = part(k), it = st.cart.items.find(x => x.kode === k), q = (it ? it.qty : 0) + 1;
-  if (q > p.stok) { toast('Stok ' + p.nama + ' tinggal ' + p.stok); return; }
+  if (q > tersedia(p)) { toast(dipesan(k) ? `Stok ${p.nama} ${p.stok}, ${dipesan(k)} sudah dipesan servis. Sisa bisa dijual: ${Math.max(0, tersedia(p))}` : 'Stok ' + p.nama + ' tinggal ' + p.stok); return; }
   it ? it.qty++ : st.cart.items.push({ kode: k, qty: 1 }); renderCart();
 }
 
@@ -65,10 +71,11 @@ async function saveSale() {
   if (st.saving) return;
   const c = st.cart;
   if (!c.items.length) { toast('Keranjang masih kosong'); return; }
-  if ((c.bayar || 0) < cartTotal().total) { toast('Uang dibayar kurang dari total'); $('#k-bayar')?.focus(); return; }
+  const chk = payStatus(c.pay, cartTotal().total);
+  if (chk.err) { toast(chk.err); return; }
   st.saving = true;
   try {
-    const diskon = c.diskon || 0, bayar = c.bayar || 0;
+    const diskon = c.diskon || 0;
     const t = await runTransaction(db, async tx => {
       const cs = await tx.get(counterRef());
       const refs = c.items.map(x => doc(db, 'parts', x.kode));
@@ -80,9 +87,9 @@ async function saveSale() {
         return { kode: p.kode, nama: p.nama, qty: x.qty, harga: p.jual, beli: p.beli || 0 };
       });
       const total = Math.max(0, items.reduce((a, x) => a + x.qty * x.harga, 0) - diskon);
-      if (bayar < total) throw new Error('Uang dibayar kurang dari total');
+      const pay = payStatus(c.pay, total); if (pay.err) throw new Error(pay.err);
       const { no, counter } = nextNumber(cs, 'PJ');
-      const trx = { no, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', nopol: '', items, jasa: [], diskon, total, bayar, kasir: namaPetugas() };
+      const trx = { no, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', nopol: '', items, jasa: [], diskon, total, ...payRecord(c.pay, total), kasir: namaPetugas() };
       tx.set(counterRef(), counter);
       items.forEach((x, i) => tx.update(refs[i], { stok: ps[i].data().stok - x.qty }));
       tx.set(doc(db, 'trx', no), { ...trx, dibuat: serverTimestamp() });
@@ -92,6 +99,7 @@ async function saveSale() {
   } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 
+registerPay('k', { get: () => st.cart.pay, total: () => cartTotal().total, onChange: renderKTot });
 views.kasir = renderKasir;
 refreshers.kasir = () => { st.cart.items = st.cart.items.filter(x => part(x.kode)); renderKRes(); renderCart(); };
 fkeys.kasir = { baru: 'cart-clear', simpan: 'cart-save' };
@@ -108,7 +116,6 @@ inputHandlers.push(e => {
   if (t.id === 'k-q') renderKRes();
   if (t.id === 'k-pel') st.cart.pelanggan = t.value;
   if (t.id === 'k-dis') { st.cart.diskon = +t.value || 0; renderKTot(); }
-  if (t.id === 'k-bayar') { st.cart.bayar = +t.value || 0; renderKTot(); }
 });
 // Enter di kolom cari = tambah hasil teratas (dipanggil dari main.js)
 export function onSearchEnter(input) {

@@ -1,8 +1,9 @@
 // Titik masuk aplikasi: login + peran, sidebar, sinkron data Firestore, shortcut keyboard.
 import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from './firebase.js';
-import { $, esc, dkey, toast, closeModal, errMsg } from './util.js';
+import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
 import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can } from './state.js';
-import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE } from './config.js';
+import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
+import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
 import { showNota } from './nota.js';
 import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
@@ -45,37 +46,90 @@ $('#sb-backdrop').addEventListener('click', toggleSidebar);
 $('#side-nav').addEventListener('click', e => { const b = e.target.closest('.sb-link'); if (b) go(b.dataset.view); });
 
 /* ---------- LOGIN ---------- */
-let loginMsg = '', unsubs = [], ready = {}, need = [];
+// Petugas: pilih nama + PIN 6 digit. Super admin: email + kata sandi.
+let loginMsg = '', unsubs = [], ready = {}, need = [], loginList = [], emailMode = false;
 
+function setLoginMode(email) {
+  emailMode = email;
+  $('#login-pin-mode').hidden = email; $('#login-email-mode').hidden = !email;
+  $('#login-switch').textContent = email ? 'Masuk dengan nama & PIN' : 'Masuk sebagai super admin';
+  (email ? $('#login-email') : ($('#login-nama').value ? $('#login-pin') : $('#login-nama')))?.focus();
+}
+async function fillLoginList() {
+  try { loginList = await loadLoginList(); } catch (e) { loginList = []; }
+  const groups = {};
+  loginList.forEach(p => { (groups[p.peran] = groups[p.peran] || []).push(p); });
+  let last = ''; try { last = localStorage.getItem('amu-login-id') || ''; } catch (e) {}
+  $('#login-nama').innerHTML = loginList.length
+    ? '<option value="">Pilih nama</option>' + Object.keys(ROLES).filter(r => groups[r]).map(r => `<optgroup label="${esc(ROLES[r])}">${groups[r].map(p => `<option value="${esc(p.id)}" ${p.id === last ? 'selected' : ''}>${esc(p.nama)}</option>`).join('')}</optgroup>`).join('')
+    : '<option value="">Belum ada petugas</option>';
+  if (!loginList.length) setLoginMode(true);
+}
 function showLogin(msg) {
   $('#app-shell').hidden = true; $('#login-screen').hidden = false;
   const m = msg || loginMsg; loginMsg = '';
   $('#login-err').hidden = !m; $('#login-err').textContent = m || '';
-  $('#login-btn').disabled = false;
+  $('#login-btn').disabled = false; $('#login-pin').value = ''; $('#login-pass').value = '';
 }
+$('#login-switch').addEventListener('click', () => setLoginMode(!emailMode));
+$('#login-pin').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); if (e.target.value.length === 6 && $('#login-nama').value) $('#login-form').requestSubmit(); });
 $('#login-form').addEventListener('submit', async e => {
-  e.preventDefault(); $('#login-btn').disabled = true; $('#login-err').hidden = true;
-  try { await signInWithEmailAndPassword(auth, $('#login-email').value.trim(), $('#login-pass').value); }
+  e.preventDefault();
+  let email, pass;
+  if (emailMode) { email = $('#login-email').value.trim(); pass = $('#login-pass').value; if (!email || !pass) { showLogin('Isi email dan kata sandi.'); return; } }
+  else {
+    const p = loginList.find(x => x.id === $('#login-nama').value);
+    if (!p) { showLogin('Pilih nama petugas dulu.'); $('#login-nama').focus(); return; }
+    if (!validPin($('#login-pin').value)) { showLogin('PIN harus 6 angka.'); $('#login-pin').focus(); return; }
+    email = p.email; pass = $('#login-pin').value;
+    try { localStorage.setItem('amu-login-id', p.id); } catch (e) {}
+  }
+  $('#login-btn').disabled = true; $('#login-err').hidden = true;
+  try { await signInWithEmailAndPassword(auth, email, pass); }
   catch (err) {
-    const m = { 'auth/invalid-credential': 'Email atau kata sandi salah.', 'auth/too-many-requests': 'Terlalu banyak percobaan. Tunggu sebentar.', 'auth/network-request-failed': 'Tidak ada koneksi internet.' };
-    showLogin(m[err.code] || err.message);
+    const m = { 'auth/invalid-credential': emailMode ? 'Email atau kata sandi salah.' : 'PIN salah.', 'auth/wrong-password': 'PIN salah.', 'auth/too-many-requests': 'Terlalu banyak percobaan salah. Tunggu beberapa menit.', 'auth/network-request-failed': 'Tidak ada koneksi internet.' };
+    showLogin(m[err.code] || err.message); (emailMode ? $('#login-pass') : $('#login-pin')).focus();
   }
 });
 $('#logout').addEventListener('click', () => signOut(auth));
 
+// Ganti PIN sendiri
+$('#ganti-pin').addEventListener('click', () => {
+  modal(`<h2>Ganti PIN</h2>
+   <label class="f" for="gp-lama">PIN sekarang<input id="gp-lama" type="password" inputmode="numeric" maxlength="6" class="num pin-input" data-autofocus></label>
+   <label class="f" for="gp-baru">PIN baru (6 angka)<input id="gp-baru" type="password" inputmode="numeric" maxlength="6" class="num pin-input"></label>
+   <label class="f" for="gp-ulang">Ulangi PIN baru<input id="gp-ulang" type="password" inputmode="numeric" maxlength="6" class="num pin-input"></label>
+   <div id="gp-err" class="err" hidden></div>
+   <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn pri" type="button" data-act="gp-save">Simpan PIN</button></div>`);
+});
+actions['gp-save'] = async () => {
+  const lama = $('#gp-lama').value, baru = $('#gp-baru').value, err = m => { $('#gp-err').hidden = false; $('#gp-err').textContent = m; };
+  if (!validPin(baru)) return err('PIN baru harus 6 angka.');
+  if (baru !== $('#gp-ulang').value) return err('Ulangan PIN baru tidak sama.');
+  if (baru === lama) return err('PIN baru sama dengan PIN lama.');
+  try { await gantiPinSendiri(lama, baru); closeModal(); toast('PIN berhasil diganti'); }
+  catch (e) { err(e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' ? 'PIN sekarang salah.' : e.code === 'auth/too-many-requests' ? 'Terlalu banyak percobaan. Tunggu sebentar.' : errMsg(e)); }
+};
+
 onAuthStateChanged(auth, async u => {
   unsubs.forEach(f => f()); unsubs = []; st.loaded = false; ready = {};
-  if (!u) { st.petugas = null; st.role = null; showLogin(); return; }
+  if (!u) { st.petugas = null; st.role = null; showLogin(); fillLoginList(); return; }
   try {
-    const sd = await getDoc(doc(db, 'staff', u.email));
-    if (!sd.exists()) { loginMsg = 'Akun ' + u.email + ' belum terdaftar sebagai petugas. Minta admin menambahkan di Master Data → Petugas Login.'; await signOut(auth); return; }
-    st.petugas = { email: u.email, ...sd.data() };
+    const email = (u.email || '').toLowerCase();
+    const sd = await getDoc(doc(db, 'staff', email));
+    if (email === SUPER_ADMIN) {
+      st.petugas = { email, nama: 'Super Admin', ...(sd.exists() ? sd.data() : {}), peran: 'admin', super: true };
+    } else {
+      if (!sd.exists()) { loginMsg = 'Akun ini sudah tidak aktif. Minta admin memeriksa di Master Data → Petugas.'; await signOut(auth); return; }
+      st.petugas = { email, ...sd.data() };
+    }
     st.role = ROLES[st.petugas.peran] ? st.petugas.peran : null;
     if (!st.role) { loginMsg = 'Peran "' + (st.petugas.peran || '') + '" tidak dikenal. Peran yang valid: ' + Object.keys(ROLES).join(', ') + '.'; await signOut(auth); return; }
   } catch (e) { loginMsg = 'Tidak bisa membaca data petugas: ' + errMsg(e); await signOut(auth); return; }
   $('#login-screen').hidden = true; $('#app-shell').hidden = false;
   $('#who').textContent = st.petugas.nama || st.petugas.email;
-  $('#who-role').textContent = ROLES[st.role];
+  $('#who-role').textContent = st.petugas.super ? 'Super Admin' : ROLES[st.role];
+  $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
   renderSidebar();
   let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
   st.view = last && can(last) ? last : HOME[st.role];

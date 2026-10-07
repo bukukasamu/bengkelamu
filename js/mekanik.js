@@ -1,8 +1,8 @@
 // Menu Performa Mekanik: pekerjaan aktif (mulai/selesai), jumlah motor, nilai jasa, komisi, estimasi gaji.
-import { $, esc, rp, dkey, stamp, toast, errMsg } from './util.js';
+import { $, esc, rp, dkey } from './util.js';
 import { S, st, views, refreshers, actions, changeHandlers, mekanikAktif, isRole } from './state.js';
 import { trxIn } from './stats.js';
-import { AKTIF, statusPill, jenisBadge, updateWo, findWo } from './wo-common.js';
+import { AKTIF, statusPill, jenisBadge } from './wo-common.js';
 
 function periode() {
   const now = new Date();
@@ -24,7 +24,7 @@ export function hitung(m, from, to) {
 }
 
 function myMekanik() {
-  if (isRole('mekanik')) return S.mekanik.find(m => (m.email || '').toLowerCase() === (st.petugas.email || '').toLowerCase());
+  if (isRole('mekanik')) return S.mekanik.find(m => m.id === st.petugas.mekanikId) || S.mekanik.find(m => m.loginId && m.loginId === st.petugas.loginId);
   const l = mekanikAktif();
   return l.find(m => m.id === st.mekSel) || l[0];
 }
@@ -32,7 +32,7 @@ function myMekanik() {
 function renderMekanik() {
   const m = myMekanik(), p = periode();
   if (!m) {
-    $('#view').innerHTML = `<div class="panel"><div class="empty">${isRole('mekanik') ? `Akun ${esc(st.petugas.email)} belum dihubungkan ke data mekanik. Minta admin mengisi email ini di Master Data → Mekanik.` : 'Belum ada data mekanik. Tambahkan di Master Data → Mekanik.'}</div></div>`;
+    $('#view').innerHTML = `<div class="panel"><div class="empty">${isRole('mekanik') ? 'Data mekanik untuk akun ini tidak ditemukan. Minta admin memeriksa di Master Data → Mekanik.' : 'Belum ada data mekanik. Tambahkan di Master Data → Mekanik.'}</div></div>`;
     return;
   }
   const h = hitung(m, p.from, p.to);
@@ -45,13 +45,13 @@ function renderMekanik() {
    </div>
    <div class="tiles t5">
     <div class="tile"><span class="lbl">Motor selesai</span><span class="val">${h.unit}</span><span class="sub">${p.label}${h.ksg ? ' · ' + h.ksg + ' KSG' : ''}</span></div>
-    <div class="tile"><span class="lbl">Nilai jasa</span><span class="val">${rp(h.jasa)}</span><span class="sub">termasuk klaim KSG</span></div>
+    <div class="tile"><span class="lbl">Nilai jasa</span><span class="val">${rp(h.jasa)}</span><span class="sub">klaim KSG pakai tarif main dealer</span></div>
     <div class="tile"><span class="lbl">Komisi ${+m.komisi || 0}%</span><span class="val">${rp(h.komisi)}</span><span class="sub">dari nilai jasa</span></div>
     <div class="tile"><span class="lbl">Gaji pokok</span><span class="val">${rp(h.gaji)}</span><span class="sub">per bulan</span></div>
     <div class="tile"><span class="lbl">Estimasi gaji</span><span class="val" style="color:var(--good)">${rp(h.total)}</span><span class="sub">gaji pokok + komisi</span></div>
    </div>
-   <div class="panel"><h3>Pekerjaan aktif</h3>
-    ${aktif.length ? `<div class="tw"><table><thead><tr><th>WO</th><th>Motor</th><th>Keluhan</th><th>Status</th><th></th></tr></thead><tbody>${aktif.map(w => `<tr><td class="mono">${esc(w.no)}<br>${jenisBadge(w)}</td><td><span class="mono">${esc(w.nopol)}</span><br><span class="small muted">${esc(w.tipe)}</span></td><td class="small">${esc(w.keluhan || '–')}${w.catatanPart ? `<br><span class="muted">Part: ${esc(w.catatanPart)}</span>` : ''}</td><td>${statusPill(w.status)}</td><td>${w.status === 'Antri' ? `<button class="btn sm pri" type="button" data-act="mk-status" data-no="${esc(w.no)}" data-s="Dikerjakan">Mulai kerjakan</button>` : w.status === 'Dikerjakan' ? `<button class="btn sm pri" type="button" data-act="mk-status" data-no="${esc(w.no)}" data-s="Selesai">Tandai selesai</button>` : '<span class="small muted">Menunggu kasir</span>'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada pekerjaan aktif.</div>'}
+   <div class="panel"><h3>Pekerjaan saat ini</h3>
+    ${aktif.length ? `<div class="tw"><table><thead><tr><th>WO</th><th>Motor</th><th>Keluhan</th><th>Status</th><th></th></tr></thead><tbody>${aktif.map(w => `<tr><td class="mono">${esc(w.no)}<br>${jenisBadge(w)}</td><td><span class="mono">${esc(w.nopol)}</span><br><span class="small muted">${esc(w.tipe)}</span></td><td class="small">${esc(w.keluhan || '–')}${w.catatanPart ? `<br><span class="muted">Part: ${esc(w.catatanPart)}</span>` : ''}</td><td>${statusPill(w.status)}</td><td class="small muted">${w.status === 'Dikerjakan' ? 'Lapor ke kasir bila selesai atau harus lanjut lama' : w.status === 'Ditunda' ? esc(w.alasanTunda || 'Ditunda') : w.status === 'Selesai' ? 'Menunggu pembayaran' : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada pekerjaan aktif.</div>'}
    </div>
    ${semua.length > 1 ? `<div class="panel"><h3>Semua mekanik · ${esc(p.label)}</h3><div class="tw"><table><thead><tr><th>Mekanik</th><th class="r">Motor</th><th class="r">Nilai jasa</th><th class="r">Komisi</th><th class="r">Estimasi gaji</th></tr></thead><tbody>${semua.map(({ m: x, h: y }) => `<tr class="row-click" tabindex="0" data-act="mk-pick" data-id="${esc(x.id)}"><td>${esc(x.nama)}</td><td class="r num">${y.unit}</td><td class="r num">${rp(y.jasa)}</td><td class="r num">${rp(y.komisi)}</td><td class="r num">${rp(y.total)}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
    <div class="panel"><h3>Riwayat servis · ${esc(p.label)}</h3>
@@ -59,21 +59,9 @@ function renderMekanik() {
    </div></div>`;
 }
 
-async function setStatus(el) {
-  if (st.saving) return;
-  st.saving = true;
-  try {
-    const patch = { status: el.dataset.s, [el.dataset.s === 'Dikerjakan' ? 'mulai' : 'selesai']: stamp(new Date()) };
-    await updateWo(el.dataset.no, patch);
-    const w = findWo(el.dataset.no); if (w) Object.assign(w, patch);
-    toast(el.dataset.no + ': ' + el.dataset.s); renderMekanik();
-  } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
-}
-
 views.mekanik = renderMekanik;
 Object.assign(actions, {
   'mk-per': el => { st.mekPeriode = el.dataset.p; renderMekanik(); },
-  'mk-pick': el => { st.mekSel = el.dataset.id; renderMekanik(); },
-  'mk-status': setStatus
+  'mk-pick': el => { st.mekSel = el.dataset.id; renderMekanik(); }
 });
 changeHandlers.push(e => { if (e.target.id === 'mk-sel') { st.mekSel = e.target.value; renderMekanik(); } });

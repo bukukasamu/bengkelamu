@@ -1,7 +1,7 @@
 // Menu Beranda: ringkasan hari ini, grafik 7 hari, antrian bengkel, stok menipis.
 import { $, esc, rp, dkey, HARI, toast, errMsg } from './util.js';
 import { S, st, views, actions, go, can, mekanikAktif } from './state.js';
-import { AKTIF, statusPill, jenisBadge, mekanikNama, bebanMekanik } from './wo-common.js';
+import { AKTIF, statusPill, jenisBadge, mekanikNama, sibukOleh } from './wo-common.js';
 import { trxIn, sums } from './stats.js';
 import { db, doc, writeBatch } from './firebase.js';
 import { SEED_PARTS } from './seed.js';
@@ -36,7 +36,6 @@ function renderBeranda() {
   const low = S.parts.filter(p => p.min > 0 && p.stok <= p.min);
   const woToday = S.wo.filter(w => w.tgl.slice(0, 10) === t);
   const aktif = S.wo.filter(w => AKTIF.includes(w.status));
-  const beban = bebanMekanik();
   const seedBox = S.parts.length || !can('stok') ? '' : `<div class="panel"><h3>Database part masih kosong</h3><p style="margin:0">Upload data part dari Excel (ekspor DMS Yamaha atau template sendiri), atau isi 20 part contoh untuk mencoba.</p><div class="row">${can('stok') ? '<button class="btn pri" type="button" data-act="import-open">Import dari Excel</button>' : ''}<button class="btn" type="button" data-act="seed">Isi 20 part contoh</button></div></div>`;
   $('#view').innerHTML = `<div class="grid">${seedBox}
    <div class="tiles">
@@ -46,7 +45,7 @@ function renderBeranda() {
     <div class="tile"><span class="lbl">Stok menipis</span><span class="val" style="color:${low.length ? 'var(--bad)' : 'inherit'}">${low.length} item</span><span class="sub">dari ${S.parts.length.toLocaleString('id-ID')} part</span></div>
    </div>
    <div class="panel"><div class="row spread"><h3>Omzet 7 hari terakhir</h3><div class="legend"><span><i style="background:var(--accent)"></i>Sparepart</span><span><i style="background:var(--jasa)"></i>Jasa servis</span></div></div>${chartSVG()}</div>
-   <div class="panel"><h3>Status mekanik</h3><div class="mek-list">${mekanikAktif().map(m => { const n = beban[m.id] || beban[m.nama] || 0; return `<div class="mek"><span>${esc(m.nama)}</span>${n ? `<span class="pill p-warn">${n} motor aktif</span>` : '<span class="pill p-good">Kosong</span>'}</div>`; }).join('') || '<div class="small muted">Belum ada data mekanik.</div>'}</div></div>
+   <div class="panel"><h3>Status mekanik</h3><div class="mek-list">${mekanikAktif().map(m => { const w = sibukOleh(m); return `<div class="mek${w ? ' busy' : ''}"><span>${esc(m.nama)}</span>${w ? `<span class="small">mengerjakan <span class="mono">${esc(w.nopol)}</span> <span class="pill p-info">Sibuk</span></span>` : '<span class="pill p-good">Kosong</span>'}</div>`; }).join('') || '<div class="small muted">Belum ada data mekanik.</div>'}</div></div>
    <div class="grid g2">
     <div class="panel"><div class="row spread"><h3>Antrian bengkel</h3>${can('registrasi') ? '<button class="btn sm" data-act="go-registrasi" type="button">Registrasi</button>' : ''}</div>
      ${aktif.length ? `<div class="tw"><table><thead><tr><th>Nopol</th><th>Motor</th><th>Mekanik</th><th>Status</th></tr></thead><tbody>${aktif.map(w => `<tr><td class="mono">${esc(w.nopol)}<br>${jenisBadge(w)}</td><td>${esc(w.tipe)}</td><td>${esc(mekanikNama(w) || '–')}</td><td>${statusPill(w.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada motor dalam antrian.</div>'}
