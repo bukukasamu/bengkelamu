@@ -125,7 +125,14 @@ onAuthStateChanged(auth, async u => {
   if (!u) { st.petugas = null; st.role = null; showLogin(); fillLoginList(); return; }
   try {
     const email = (u.email || '').toLowerCase();
-    const sd = await getDoc(doc(db, 'staff', email));
+    let sd;
+    try { sd = await getDoc(doc(db, 'staff', email)); }
+    catch (e) {
+      // Tepat setelah login, token kadang belum terpasang ke koneksi database: coba sekali lagi
+      if (e.code !== 'permission-denied') throw e;
+      await u.getIdToken(true); await new Promise(r => setTimeout(r, 1200));
+      sd = await getDoc(doc(db, 'staff', email));
+    }
     if (email === SUPER_ADMIN) {
       st.petugas = { email, nama: 'Super Admin', ...(sd.exists() ? sd.data() : {}), peran: 'admin', super: true };
     } else {
@@ -134,7 +141,12 @@ onAuthStateChanged(auth, async u => {
     }
     st.role = ROLES[st.petugas.peran] ? st.petugas.peran : null;
     if (!st.role) { loginMsg = 'Peran "' + (st.petugas.peran || '') + '" tidak dikenal. Peran yang valid: ' + Object.keys(ROLES).join(', ') + '.'; await signOut(auth); return; }
-  } catch (e) { loginMsg = 'Tidak bisa membaca data petugas: ' + errMsg(e); await signOut(auth); return; }
+  } catch (e) {
+    loginMsg = e.code === 'permission-denied'
+      ? 'Akses ke data petugas ditolak. Tutup tab lain aplikasi ini (termasuk tab Cek Servis), muat ulang halaman, lalu masuk lagi. Bila masih gagal, admin perlu publish ulang firestore.rules.'
+      : 'Tidak bisa membaca data petugas: ' + errMsg(e);
+    await signOut(auth); return;
+  }
   bootDone(); $('#login-screen').hidden = true; $('#app-shell').hidden = false;
   $('#who').textContent = st.petugas.nama || st.petugas.email;
   $('#who-role').textContent = st.petugas.super ? 'Super Admin' : ROLES[st.role];
