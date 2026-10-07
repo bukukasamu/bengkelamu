@@ -1,4 +1,4 @@
-# Aceh Mandiri Utama POS · versi 2.3.0
+# Aceh Mandiri Utama POS · versi 2.3.1
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
@@ -9,6 +9,7 @@ Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekal
 - **Catatan waktu servis**: setiap perubahan status dicatat jamnya. Terlihat di Registrasi & Pembayaran (alur waktu), dan di **Performa Mekanik**: rata-rata/tercepat/terlama lama dikerjakan per mekanik, per tipe motor, dan semua mekanik. Waktu Ditunda tidak dihitung sebagai waktu kerja.
 - **Nota PDF + watermark logo**: di jendela nota ada *Unduh PDF* dan *Kirim PDF via WA*. Di HP/tablet yang mendukung, PDF langsung dibagikan ke WhatsApp. Di komputer, PDF diunduh lalu WhatsApp terbuka berisi pesan + link cek servis; lampirkan PDF yang barusan diunduh (WhatsApp Web tidak mengizinkan lampiran otomatis).
 - **Beranda bisa diklik**: Omzet hari ini (daftar nota), Part terjual (item part hari ini + stok kini), Motor masuk, Stok menipis.
+- **Sinkron cek servis** (Master Data → Pemilik & Kendaraan, admin): membangun ulang data halaman cek servis dari work order & nota yang sudah ada, misalnya servis yang dicatat sebelum versi 2.3.0.
 - **Halaman cek servis konsumen**: `cek.html` (link juga ada di halaman login dan di pesan WA). Konsumen memasukkan no. polisi + no. HP untuk melihat status servis (Diterima → Dikerjakan → Selesai → Diambil), estimasi biaya, dan riwayat servis + unduh nota PDF.
 
 ## Tampilan & kebiasaan input
