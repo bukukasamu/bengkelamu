@@ -1,6 +1,7 @@
 // Menu Master Data: pemilik & kendaraan, jasa servis, tarif KSG, mekanik (+PIN), rekening, tipe motor, petugas (+PIN).
-import { $, esc, rp, stamp, toast, errMsg } from './util.js';
-import { S, st, views, refreshers, actions, inputHandlers, fkeys, tipeList, isRole } from './state.js';
+import { $, esc, rp, stamp, toast, errMsg, waButton } from './util.js';
+import { loaderHTML, getBrand, resizeImage, saveLogo } from './brand.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole } from './state.js';
 import { ROLES } from './config.js';
 import { db, doc, collection, getDocs, query, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
@@ -14,9 +15,10 @@ const TABS = [
   ['mekanik', 'Mekanik', ['admin']],
   ['rekening', 'Rekening', ['admin']],
   ['tipe', 'Tipe Motor', ['admin']],
-  ['petugas', 'Petugas & PIN', ['admin']]
+  ['petugas', 'Petugas & PIN', ['admin']],
+  ['logo', 'Logo', ['admin'], 'super']
 ];
-const tabsFor = () => TABS.filter(t => isRole(...t[2]));
+const tabsFor = () => TABS.filter(t => isRole(...t[2]) && (t[3] !== 'super' || st.petugas?.super));
 let kend = null, kendQ = '', kendEdit = null, logins = null;
 
 // Hapus perlu diklik dua kali (dialog konfirmasi bawaan browser tidak dipakai)
@@ -31,7 +33,7 @@ const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p
 function renderMaster() {
   const tabs = tabsFor(); if (!tabs.find(t => t[0] === st.masterTab)) st.masterTab = tabs[0][0];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="ms-tab" data-t="${k}" aria-selected="${k === st.masterTab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
-  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff })[st.masterTab]();
+  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, logo: renderLogo })[st.masterTab]();
 }
 
 /* ---------- Pemilik & kendaraan ---------- */
@@ -43,12 +45,12 @@ async function loadKend() {
 }
 function renderKend() {
   const el = $('#ms-body'); if (!el) return;
-  if (!kend) { el.innerHTML = '<div class="loading">Memuat data kendaraan…</div>'; loadKend(); return; }
+  if (!kend) { el.innerHTML = loaderHTML('Memuat data kendaraan…'); loadKend(); return; }
   const q = kendQ.toLowerCase();
   const list = kend.filter(k => !q || [k.nopol, k.nama, k.hp, k.tipe].join(' ').toLowerCase().includes(q));
   el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, HP, tipe" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div>
    <div id="ms-kform"></div>
-   <div class="tw"><table><thead><tr><th>Nopol</th><th>Pemilik</th><th>No. HP</th><th>Motor</th><th>Servis terakhir</th></tr></thead><tbody>${list.slice(0, 200).map(k => `<tr class="row-click" tabindex="0" data-act="ms-kedit" data-id="${esc(k.id)}"><td class="mono">${esc(k.nopol)}</td><td>${esc(k.nama || '–')}</td><td class="mono small">${esc(k.hp || '')}</td><td>${esc(k.tipe || '')}${k.tahun ? ' · ' + esc(k.tahun) : ''}${k.warna ? ' · ' + esc(k.warna) : ''}</td><td class="small">${esc((k.updated || '').slice(0, 10))}${k.woTerakhir ? ' · ' + esc(k.woTerakhir) : ''}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Belum ada kendaraan. Kendaraan otomatis tercatat saat registrasi servis.</td></tr>'}</tbody></table></div>
+   <div class="tw"><table><thead><tr><th>Nopol</th><th>Pemilik</th><th>No. HP</th><th>Motor</th><th>Servis terakhir</th></tr></thead><tbody>${list.slice(0, 200).map(k => `<tr class="row-click" tabindex="0" data-act="ms-kedit" data-id="${esc(k.id)}"><td class="mono">${esc(k.nopol)}</td><td>${esc(k.nama || '–')}</td><td class="mono small">${esc(k.hp || '')} ${waButton(k.hp, 'Halo ' + (k.nama || '') + ', ')}</td><td>${esc(k.tipe || '')}${k.tahun ? ' · ' + esc(k.tahun) : ''}${k.warna ? ' · ' + esc(k.warna) : ''}</td><td class="small">${esc((k.updated || '').slice(0, 10))}${k.woTerakhir ? ' · ' + esc(k.woTerakhir) : ''}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Belum ada kendaraan. Kendaraan otomatis tercatat saat registrasi servis.</td></tr>'}</tbody></table></div>
    <p class="small muted" style="margin:0">${list.length} kendaraan${list.length > 200 ? ' (ditampilkan 200, persempit pencarian)' : ''}.</p>`;
   renderKForm();
 }
@@ -152,7 +154,7 @@ async function loadLogins() {
 const ROLE_NON_MEK = Object.entries(ROLES).filter(([k]) => k !== 'mekanik');
 function renderStaff() {
   const el = $('#ms-body');
-  if (!logins) { el.innerHTML = '<div class="loading">Memuat petugas…</div>'; loadLogins(); return; }
+  if (!logins) { el.innerHTML = loaderHTML('Memuat petugas…'); loadLogins(); return; }
   const roleSel = (id, v) => `<select class="inline-input" id="${id}" style="width:auto" aria-label="Peran">${ROLE_NON_MEK.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   el.innerHTML = intro('Petugas masuk dengan memilih nama lalu PIN 6 angka, dan bisa mengganti PIN sendiri. Peran menentukan menu: Registrasi (motor masuk), Sparepart (order part &amp; pembelian), Kasir (pembayaran, status mekanik, penjualan), Admin (semua). Login mekanik diatur di tab Mekanik.') + `
    <div class="tw"><table><thead><tr><th>Nama</th><th>Peran</th><th></th></tr></thead><tbody>
@@ -164,6 +166,21 @@ function renderStaff() {
     <div class="form"><label class="f" for="sf-nama">Nama<input id="sf-nama" autocomplete="off"></label><label class="f" for="sf-peran">Peran${roleSel('sf-peran', 'kasir')}</label><label class="f" for="sf-pin">PIN awal (6 angka)<input id="sf-pin" class="num" inputmode="numeric" maxlength="6" autocomplete="off"></label></div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="sf-add">Tambah petugas</button></div></div>
    <p class="small muted" style="margin:8px 0 0">Super admin (cashflow.amu@gmail.com) masuk dengan email dan kata sandi lewat tombol "Masuk sebagai super admin".</p>`;
+}
+
+/* ---------- Logo (hanya super admin) ---------- */
+let logoDraft = null;
+function renderLogo() {
+  const cur = logoDraft ?? getBrand().logo;
+  $('#ms-body').innerHTML = intro('Logo tampil di sisi kiri halaman login dan di atas menu samping. Gunakan PNG berlatar transparan atau putih; gambar otomatis diperkecil.') + `
+   <div class="row" style="align-items:flex-start;gap:20px">
+    <div class="auth-logo" style="width:160px;box-shadow:none;border:1px solid var(--line)">${cur ? `<img src="${cur}" alt="Pratinjau logo">` : '<span class="brand-ph">AMU</span>'}</div>
+    <div style="display:flex;flex-direction:column;gap:10px;flex:1 1 220px">
+     <label class="f" for="lg-file">Pilih gambar logo<input id="lg-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+     <div class="row"><button class="btn pri" type="button" data-act="lg-save" ${logoDraft == null ? 'disabled' : ''}>Simpan logo</button>${getBrand().logo ? '<button class="btn ghost" type="button" data-act="lg-del">Hapus logo</button>' : ''}${logoDraft != null ? '<button class="btn" type="button" data-act="lg-cancel">Batal</button>' : ''}</div>
+     ${logoDraft != null ? '<p class="small muted" style="margin:0">Pratinjau. Klik Simpan logo untuk memasang.</p>' : ''}
+    </div>
+   </div>`;
 }
 
 views.master = renderMaster;
@@ -199,6 +216,9 @@ Object.assign(actions, {
   'sf-save': async el => { const i = +el.dataset.i, s = logins[i]; try { await ubahPetugas(s.id, { nama: $('#sf-n-' + i).value.trim() || s.nama, peran: $('#sf-r-' + i).value }); toast('Petugas ' + s.nama + ' disimpan'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } },
   'sf-pin': el => { const s = logins[+el.dataset.i]; askPin('PIN baru untuk ' + s.nama, async pin => { await resetPin(s.id, pin); toast('PIN ' + s.nama + ' diganti'); logins = null; setTimeout(renderStaff, 50); }); },
   'sf-del': el => { const s = logins[+el.dataset.i]; confirmTwice(el, 's' + s.id, async () => { try { await hapusPetugas(s.id); toast(s.nama + ' dihapus, tidak bisa login lagi'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } }); },
+  'lg-save': async () => { try { await saveLogo(logoDraft); logoDraft = null; toast('Logo dipasang'); renderLogo(); } catch (e) { toast(errMsg(e)); } },
+  'lg-cancel': () => { logoDraft = null; renderLogo(); },
+  'lg-del': el => confirmTwice(el, 'logo', async () => { try { await saveLogo(''); logoDraft = null; toast('Logo dihapus'); renderLogo(); } catch (e) { toast(errMsg(e)); } }),
   'sf-add': async () => {
     const nama = $('#sf-nama').value.trim(), peran = $('#sf-peran').value, pin = $('#sf-pin').value.trim();
     if (!nama) { toast('Isi nama petugas'); return; }
@@ -214,4 +234,8 @@ inputHandlers.push(e => {
   if (t.id === 'ms-kq') { kendQ = t.value; const pos = t.selectionStart; renderKend(); const n = $('#ms-kq'); n.focus(); n.setSelectionRange(pos, pos); }
   if (t.dataset.kf && kendEdit) kendEdit[t.dataset.kf] = t.value;
   if (['sf-pin', 'mm-p-new', 'pin-new'].includes(t.id)) t.value = t.value.replace(/\D/g, '').slice(0, 6);
+});
+changeHandlers.push(async e => {
+  if (e.target.id !== 'lg-file' || !e.target.files[0]) return;
+  try { logoDraft = await resizeImage(e.target.files[0]); renderLogo(); } catch (err) { toast(err.message); }
 });

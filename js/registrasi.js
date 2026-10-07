@@ -1,5 +1,6 @@
 // Menu Registrasi Servis: data konsumen & kendaraan, keluhan, jenis servis (Reguler/KSB/KSG), jasa, mekanik.
-import { $, esc, rp, dkey, stamp, clone, toast, errMsg } from './util.js';
+import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton } from './util.js';
+import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, setDoc } from './firebase.js';
@@ -9,6 +10,7 @@ export const nopolKey = n => String(n || '').replace(/\s+/g, '').toUpperCase();
 const KEND_FIELDS = ['nopol', 'nama', 'hp', 'alamat', 'tipe', 'tahun', 'warna', 'noRangka', 'noMesin'];
 const blank = () => ({ no: null, tgl: stamp(new Date()), nopol: '', nama: '', hp: '', alamat: '', tipe: '', tahun: '', warna: '', noRangka: '', noMesin: '', km: '', keluhan: '', jenisServis: 'Reguler', ksgKe: '', noKartu: '', jasa: [], mekanikId: '', mekanik: '', parts: [], biaya: [], catatanPart: '', status: 'Antri' });
 let filter = 'aktif';
+const waMsg = w => `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol || ''}${w.no ? ' (' + w.no + ')' : ''}. `;
 
 function listWo() {
   const t = dkey(new Date());
@@ -47,7 +49,7 @@ function renderRegistrasi() {
     <div class="form">
      ${inp('nopol', 'No. Polisi', 'class="mono" placeholder="BL 1234 XX" autocomplete="off"')}
      ${inp('nama', 'Nama pemilik')}
-     ${inp('hp', 'No. HP', 'inputmode="tel"')}
+     <label class="f" for="r-hp"><span class="f-wa">No. HP<span id="r-wa">${waButton(w.hp, waMsg(w))}</span></span><input id="r-hp" data-rf="hp" inputmode="tel" value="${esc(w.hp)}" ${dis}></label>
      <label class="f" for="r-tipe">Tipe motor<select id="r-tipe" data-rf="tipe" ${dis}><option value="">Pilih tipe</option>${[...new Set([...tipeList(), w.tipe].filter(Boolean))].map(t => `<option ${t === w.tipe ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
      ${inp('tahun', 'Tahun', 'inputmode="numeric" class="num"')}
      ${inp('warna', 'Warna')}
@@ -132,7 +134,10 @@ Object.assign(actions, {
   'reg-save': save,
   'reg-lanjut': () => { st.regDraft._lanjut = true; save(); }
 });
-inputHandlers.push(e => { const t = e.target; if (t.dataset.rf && st.regDraft) st.regDraft[t.dataset.rf] = t.value; });
+inputHandlers.push(e => {
+  const t = e.target; if (t.dataset.rf && st.regDraft) st.regDraft[t.dataset.rf] = t.value;
+  if ((t.id === 'r-hp' || t.id === 'r-nama') && $('#r-wa')) $('#r-wa').innerHTML = waButton(st.regDraft.hp, waMsg(st.regDraft));
+});
 changeHandlers.push(e => {
   const t = e.target, w = st.regDraft; if (!w) return;
   if (t.dataset.rf) w[t.dataset.rf] = t.value;

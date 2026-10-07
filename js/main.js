@@ -4,6 +4,7 @@ import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
 import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can } from './state.js';
 import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
 import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
+import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
 import { showNota } from './nota.js';
 import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
@@ -52,7 +53,10 @@ let loginMsg = '', unsubs = [], ready = {}, need = [], loginList = [], emailMode
 function setLoginMode(email) {
   emailMode = email;
   $('#login-pin-mode').hidden = email; $('#login-email-mode').hidden = !email;
-  $('#login-switch').textContent = email ? 'Masuk dengan nama & PIN' : 'Masuk sebagai super admin';
+  $('#login-switch').textContent = email ? 'Login petugas' : 'Super admin';
+  $('#login-back').hidden = !email || !loginList.length;
+  $('#login-title').textContent = email ? 'Super admin' : 'Selamat datang';
+  $('#login-sub').textContent = email ? 'Masuk dengan email dan kata sandi.' : 'Pilih nama Anda lalu masukkan PIN.';
   (email ? $('#login-email') : ($('#login-nama').value ? $('#login-pin') : $('#login-nama')))?.focus();
 }
 async function fillLoginList() {
@@ -65,13 +69,18 @@ async function fillLoginList() {
     : '<option value="">Belum ada petugas</option>';
   if (!loginList.length) setLoginMode(true);
 }
+const bootDone = () => { $('#boot')?.remove(); };
+function setBusy(b) { const btn = $('#login-btn'); btn.disabled = b; btn.innerHTML = b ? gearsSVG() + 'Memeriksa…' : 'Masuk'; }
 function showLogin(msg) {
+  bootDone(); setBusy(false);
   $('#app-shell').hidden = true; $('#login-screen').hidden = false;
   const m = msg || loginMsg; loginMsg = '';
   $('#login-err').hidden = !m; $('#login-err').textContent = m || '';
-  $('#login-btn').disabled = false; $('#login-pin').value = ''; $('#login-pass').value = '';
+  $('#login-pin').value = ''; $('#login-pass').value = '';
 }
 $('#login-switch').addEventListener('click', () => setLoginMode(!emailMode));
+$('#login-back').addEventListener('click', () => setLoginMode(false));
+loadBrand();
 $('#login-pin').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); if (e.target.value.length === 6 && $('#login-nama').value) $('#login-form').requestSubmit(); });
 $('#login-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -84,7 +93,7 @@ $('#login-form').addEventListener('submit', async e => {
     email = p.email; pass = $('#login-pin').value;
     try { localStorage.setItem('amu-login-id', p.id); } catch (e) {}
   }
-  $('#login-btn').disabled = true; $('#login-err').hidden = true;
+  setBusy(true); $('#login-err').hidden = true;
   try { await signInWithEmailAndPassword(auth, email, pass); }
   catch (err) {
     const m = { 'auth/invalid-credential': emailMode ? 'Email atau kata sandi salah.' : 'PIN salah.', 'auth/wrong-password': 'PIN salah.', 'auth/too-many-requests': 'Terlalu banyak percobaan salah. Tunggu beberapa menit.', 'auth/network-request-failed': 'Tidak ada koneksi internet.' };
@@ -126,7 +135,7 @@ onAuthStateChanged(auth, async u => {
     st.role = ROLES[st.petugas.peran] ? st.petugas.peran : null;
     if (!st.role) { loginMsg = 'Peran "' + (st.petugas.peran || '') + '" tidak dikenal. Peran yang valid: ' + Object.keys(ROLES).join(', ') + '.'; await signOut(auth); return; }
   } catch (e) { loginMsg = 'Tidak bisa membaca data petugas: ' + errMsg(e); await signOut(auth); return; }
-  $('#login-screen').hidden = true; $('#app-shell').hidden = false;
+  bootDone(); $('#login-screen').hidden = true; $('#app-shell').hidden = false;
   $('#who').textContent = st.petugas.nama || st.petugas.email;
   $('#who-role').textContent = st.petugas.super ? 'Super Admin' : ROLES[st.role];
   $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
@@ -134,7 +143,7 @@ onAuthStateChanged(auth, async u => {
   let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
   st.view = last && can(last) ? last : HOME[st.role];
   go(st.view);
-  $('#view').innerHTML = '<div class="loading">Memuat data…</div>';
+  $('#view').innerHTML = loaderHTML('Memuat data bengkel…');
   subscribe();
 });
 
@@ -172,6 +181,20 @@ async function seedMaster() {
     toast('Data awal jasa, mekanik, dan tipe motor dibuat. Ubah di Master Data.');
   } catch (e) { toast(errMsg(e)); }
 }
+
+/* ---------- HURUF KAPITAL OTOMATIS ----------
+   Semua isian teks diubah ke huruf kapital saat diketik (dijalankan sebelum handler lain).
+   Dikecualikan: email, kata sandi/PIN, angka, tanggal, dan isian bertanda data-nocaps. */
+const NO_CAPS = new Set(['email', 'password', 'number', 'date', 'file', 'checkbox', 'radio', 'range', 'color', 'time']);
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
+  if (t.tagName === 'INPUT' && NO_CAPS.has(t.type)) return;
+  if (t.dataset.nocaps != null || t.getAttribute('inputmode') === 'numeric') return;
+  const up = t.value.toUpperCase(); if (up === t.value) return;
+  const a = t.selectionStart, b = t.selectionEnd; t.value = up;
+  try { t.setSelectionRange(a, b); } catch (err) {}
+}, true);
 
 /* ---------- EVENT ---------- */
 $('#modal-root').addEventListener('click', e => { if (e.target.dataset.close) closeModal(); });

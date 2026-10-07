@@ -1,5 +1,6 @@
 // Fungsi bersama untuk work order (WO) servis: hitung biaya, tampilan ringkas, simpan.
-import { esc, rp, clone } from './util.js';
+import { esc, rp, clone, waButton } from './util.js';
+import { APP_NAME } from './config.js';
 import { S, part, mekanikById, namaPetugas } from './state.js';
 import { db, doc, runTransaction, updateDoc } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
@@ -56,7 +57,7 @@ export function woCard(o, current, act = 'pick-wo') {
 
 export function woHeader(w) {
   return `<div class="note"><div class="row spread"><b class="mono">${esc(w.nopol)}</b><span class="row">${jenisBadge(w)}${statusPill(w.status)}</span></div>
-    <div>${esc(w.tipe)}${w.km ? ' · ' + esc(w.km) + ' km' : ''} · ${esc(w.nama || 'Umum')}${w.hp ? ' · ' + esc(w.hp) : ''}</div>
+    <div>${esc(w.tipe)}${w.km ? ' · ' + esc(w.km) + ' km' : ''} · ${esc(w.nama || 'Umum')}${w.hp ? ' · ' + esc(w.hp) + ' ' + waButton(w.hp, `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol} (${w.no}). `) : ''}</div>
     <div class="small muted">Mekanik: ${esc(mekanikNama(w) || 'belum ditentukan')}${w.noKartu ? ' · No. kartu ' + esc(w.noKartu) : ''}</div>
     ${w.keluhan ? `<div class="small" style="margin-top:4px"><b>Keluhan:</b> ${esc(w.keluhan)}</div>` : ''}
     ${w.catatanPart ? `<div class="small"><b>Permintaan mekanik:</b> ${esc(w.catatanPart)}</div>` : ''}</div>`;

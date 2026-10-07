@@ -1,7 +1,8 @@
 // Menu Pembayaran & Status Servis (kasir):
 // 1. Mekanik melapor ke kasir: motor Selesai, atau harus Lanjut lama (Ditunda). Keduanya membuat mekanik bebas lagi.
 // 2. Motor Selesai: cek jasa, sparepart, biaya lain, diskon, terima pembayaran cash / transfer / campur.
-import { $, esc, rp, stamp, clone, toast, errMsg } from './util.js';
+import { $, esc, rp, stamp, clone, toast, errMsg, waButton } from './util.js';
+import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
@@ -56,7 +57,7 @@ function renderDetail() {
     <h3>Pembayaran</h3>
     ${payFields('bay', d.pay)}
     <div id="bay-tot"></div>
-    <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="bay-confirm">Terima pembayaran &amp; cetak nota [F2]</button></div>`
+    <div class="row" style="justify-content:flex-end">${waButton(w.hp, `Halo ${w.nama || 'Bapak/Ibu'}, motor ${w.nopol} (${w.tipe}) di ${APP_NAME} sudah selesai diservis. Total biaya ${rp(grandTotal())}. Silakan diambil. Terima kasih.`, 'Kabari konsumen')}<button class="btn pri" type="button" data-act="bay-confirm">Terima pembayaran &amp; cetak nota [F2]</button></div>`
     : `<div class="totals"><span class="muted">Estimasi tagihan</span><span class="num">${rp(c.total)}</span></div>`}`;
   renderTot();
 }
