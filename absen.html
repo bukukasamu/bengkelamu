@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Layar Absen · Aceh Mandiri Utama</title>
+<meta name="description" content="Layar QR absensi karyawan Aceh Mandiri Utama. Satu perangkat terdaftar per cabang.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<meta name="theme-color" content="#06112a">
+<link rel="icon" type="image/png" href="icons/favicon-48.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  html,body{margin:0;min-height:100%}[hidden]{display:none!important}
+  .ab-body{background:#06112a;color:#f3f6fc;font-family:var(--f-body);min-height:100vh}
+  .ab-login{max-width:380px;margin:12vh auto 0;padding:24px;background:#0d1f45;border:1px solid #1d3366;border-radius:14px;display:flex;flex-direction:column;gap:12px}
+  .ab-login h1{font-family:var(--f-display);margin:0;font-size:1.5rem}
+  .ab-login p{margin:0;color:#93a6cf;font-size:.92rem}
+  .ab-login input,.ab-login select{font-size:1rem;padding:10px;border-radius:8px;border:1px solid #1d3366;background:#06112a;color:#f3f6fc;width:100%;box-sizing:border-box}
+  .ab-login button{font-size:1rem;padding:11px;border-radius:8px;border:0;background:#ffc531;color:#06112a;font-weight:700;cursor:pointer}
+  .ab-login .err{color:#ff8a8a;font-size:.9rem}
+  .ab-kode{font-family:var(--f-mono);font-size:3.2rem;font-weight:700;letter-spacing:.2em;text-align:center;color:#ffc531;margin:6px 0}
+  .ab-tutup{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px}
+  .ab-main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:3vw;align-items:center;min-height:100vh;padding:3vh 4vw;box-sizing:border-box}
+  .ab-qr{background:#fff;border-radius:18px;padding:2.2vh;aspect-ratio:1;width:min(78vh,100%);justify-self:center;box-sizing:border-box;position:relative}
+  .ab-qr svg{width:100%;height:100%;display:block}
+  .ab-bar{position:absolute;left:0;bottom:-14px;height:6px;border-radius:3px;background:#ffc531;transition:width 1s linear}
+  .ab-side{display:flex;flex-direction:column;gap:2vh}
+  .ab-name{font-family:var(--f-display);font-size:clamp(1.4rem,3.2vw,2.6rem);font-weight:700;letter-spacing:.02em}
+  .ab-cab{color:#93a6cf;text-transform:uppercase;letter-spacing:.16em;font-size:clamp(.8rem,1.3vw,1.05rem)}
+  .ab-clock{font-family:var(--f-mono);font-size:clamp(2.4rem,7vw,5.6rem);font-weight:700;line-height:1}
+  .ab-date{color:#93a6cf;font-size:clamp(.9rem,1.5vw,1.2rem)}
+  .ab-step{font-size:clamp(.95rem,1.6vw,1.3rem);line-height:1.5;color:#dbe4f7}
+  .ab-list{background:#0d1f45;border:1px solid #1d3366;border-radius:12px;padding:1.4vh 1.4vw;max-height:30vh;overflow:auto}
+  .ab-list h3{margin:0 0 .6vh;font-size:clamp(.85rem,1.3vw,1rem);color:#93a6cf;letter-spacing:.1em;text-transform:uppercase}
+  .ab-row{display:flex;justify-content:space-between;gap:1em;padding:.45vh 0;border-bottom:1px solid #1d3366;font-size:clamp(.9rem,1.4vw,1.15rem)}
+  .ab-row:last-child{border-bottom:0}.ab-row b{font-family:var(--f-mono)}.ab-telat{color:#ffc531}
+  .ab-tools{display:flex;gap:8px;flex-wrap:wrap}
+  .ab-tools button{background:transparent;color:#93a6cf;border:1px solid #1d3366;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.85rem}
+  .ab-msg{color:#93a6cf;font-size:.85rem;min-height:1.2em}
+  .ab-pause{position:fixed;inset:0;background:rgba(6,17,42,.92);display:flex;align-items:center;justify-content:center;font-size:1.4rem;text-align:center;padding:24px}
+  .ab-foot{color:#4f6699;font-size:.75rem}
+  @media (max-width:760px){.ab-main{grid-template-columns:1fr;padding:16px}.ab-qr{width:100%}}
+</style>
+</head>
+<body class="ab-body">
+<section class="ab-login" id="ab-setup" hidden>
+  <h1>Layar QR Absen</h1>
+  <div id="ab-setup-isi"><p>Memeriksa perangkat…</p></div>
+  <div class="err" id="ab-err" hidden></div>
+  <p class="ab-foot">Copyright SRISP 2026</p>
+</section>
+<main class="ab-main" id="ab-main" hidden>
+  <div class="ab-qr"><div id="ab-qr"></div><div class="ab-bar" id="ab-bar"></div></div>
+  <div class="ab-side">
+    <div><div class="ab-name" id="ab-name">ACEH MANDIRI UTAMA</div><div class="ab-cab" id="ab-cabnama"></div></div>
+    <div><div class="ab-clock" id="ab-jam">--:--</div><div class="ab-date" id="ab-tgl"></div></div>
+    <div class="ab-step">1. Buka aplikasi di HP Anda → <b>Absensi Saya</b> → <b>Scan QR</b><br>(atau scan dengan kamera HP)<br>2. Selfie, selesai. QR berganti setiap 15 detik.</div>
+    <div class="ab-list"><h3>Layar ini</h3><div id="ab-info" class="ab-row" style="border:0"></div></div>
+    <div class="ab-tools"><button type="button" id="ab-lokasi">📍 Simpan lokasi bengkel</button><button type="button" id="ab-layar">⛶ Layar penuh</button></div>
+    <div class="ab-msg" id="ab-msg"></div>
+  </div>
+</main>
+<div class="ab-tutup" id="ab-tutup" hidden><div class="ab-clock" id="ab-jam2">--:--</div><div class="ab-step" id="ab-tutup-teks"></div></div>
+<div class="ab-pause" id="ab-pause" hidden>QR dijeda karena layar tidak aktif.<br>Ketuk layar untuk melanjutkan.</div>
+<script>window.AMU_PUBLIC = true; window.AMU_ABSEN = true;</script>
+<script type="module" src="js/absen-layar.js"></script>
+</body>
+</html>

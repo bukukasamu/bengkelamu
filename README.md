@@ -1,9 +1,94 @@
-# Aceh Mandiri Utama POS · versi 3.4.0
+# Aceh Mandiri Utama POS · versi 4.1.1
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 4.1.1 — layar QR absen tanpa kata sandi
+
+**Update:** upload semua file, **publish ulang `firestore.rules`**, lalu **sekali saja** di Firebase Console → **Authentication → Sign-in method → Anonymous → Enable** (identitas perangkat layar QR).
+
+Satu cabang = **satu perangkat layar QR**. Perangkat lain yang membuka link ditolak ("sudah aktif di perangkat lain").
+1. Di TV/tablet cabang buka **www.amuservice.id/absen** → pilih cabang → **Minta aktivasi layar ini** → layar menampilkan **kode 4 angka**.
+2. **Super admin atau admin** membuka menu **Persetujuan** di HP/komputernya (di mana saja), mencocokkan kode, lalu **Setujui**. Admin hanya melihat permintaan layar ini, bukan persetujuan lain.
+3. Selesai. Setiap kali perangkat itu dinyalakan, QR langsung tampil tanpa login. Lokasi bengkel otomatis diambil dari perangkat ini.
+- **Jam QR aktif** bawaan 07.00–18.00 (di luar jam itu QR tidak tampil), bisa diubah super admin per cabang di **Absensi Karyawan → Layar QR**. Di sana juga terlihat kapan layar terakhir menyala.
+- **Ganti perangkat** (rusak/hilang/data browser terhapus): super admin menekan **Cabut** (kata sandi), lalu perangkat baru meminta aktivasi lagi.
+- Perangkat layar memakai identitas anonim tersendiri: **tidak bisa membuka data apa pun** (konsumen, nota, gaji, bahkan daftar absen); hanya bisa memperbarui kode QR cabangnya. Tidak bercampur dengan login petugas walau di perangkat yang sama dibuka aplikasi petugas.
+
+## Fitur baru 4.1.0 — absensi scan QR + selfie
+
+**Cara pakai karyawan:** (sudah login di HP-nya) buka **Absensi Saya → Scan QR**, atau scan QR dengan aplikasi Kamera HP lalu ketuk link-nya → **selfie** (kamera depan, tidak bisa dari galeri) → tercatat. Scan pertama = masuk, scan berikutnya = pulang.
+
+**Pengamanan**
+- Kode QR hanya berlaku ±45 detik dan dicek oleh database (bukan oleh HP), jadi foto QR yang dikirim lewat WA cepat kedaluwarsa.
+- Jam absen memakai **jam server** (WIB); mengubah jam HP tidak berpengaruh.
+- **Satu karyawan = satu HP**: HP pertama yang dipakai absen menjadi HP terdaftar. Absen dari HP lain ditolak; ganti HP → super admin **Reset HP** (menu Absensi Karyawan → HP terdaftar).
+- **Selfie** di setiap scan + **lokasi** GPS (wajib aktif). Super admin melihat foto per hari; scan yang jauh dari bengkel ditandai 📍 merah.
+- Super admin bisa mengubah status per hari (hadir manual / izin / sakit / tidak hadir) dengan catatan + kata sandi, misalnya bila HP karyawan rusak.
+
+**Aturan (Absensi Karyawan → Pengaturan, super admin + kata sandi)**
+Bawaan: jam 08.00–17.00, toleransi 5 menit, wajib scan pulang, **uang hadir Rp 10.000/hari**, **potongan Rp 5.000 per terlambat**, hari kerja Senin–Sabtu, radius 150 m, foto disimpan 90 hari. Bisa diubah, termasuk jam khusus per cabang dan potongan pulang cepat.
+
+**Ke gaji:** uang hadir & potongan terlambat otomatis masuk **Penghasilan** dan **slip gaji** (hari tanpa scan pulang tidak dapat uang hadir bila "wajib scan pulang" aktif). Ikut terkunci saat bulan dikunci.
+
+**Penyimpanan:** selfie dikecilkan ±5–20 KB dan disimpan di Firestore (tanpa Firebase Storage, tetap paket gratis); foto lebih lama dari batas hari dihapus otomatis saat super admin membuka menu Absensi. Layar QR menulis 1 data setiap 15 detik hanya selama jam aktif & layar menyala (±2.400 tulis per 10 jam, jatah gratis 20.000/hari). Foto tidak ikut file backup; data absen ikut.
+
+## Fitur baru 4.0.0 — kontrol, keamanan data, dan keuangan
+
+### ⚠️ Urutan update ke 4.0.0 (wajib berurutan)
+1. Upload **semua** file ke GitHub (banyak file baru di `js/`).
+2. Buka aplikasi, **login sebagai super admin** (`cashflow.amu@gmail.com`). Di Beranda muncul kotak **"Pembaruan data versi 4 diperlukan"** → klik **Perbarui data sekarang** → masukkan kata sandi. Tunggu sampai selesai.
+3. **Baru setelah itu** publish `firestore.rules` versi 4 di Firebase Console → Firestore → Rules → Publish. (Kalau rules dipublish duluan, karyawan tidak bisa membaca nota lama sampai langkah 2 dijalankan.)
+4. Langsung lakukan **Backup Data** pertama (menu Pengaturan → Backup Data).
+5. Super admin: cek **Master Data → Insentif & Gaji**. Gaji pokok sudah dipindah ke tempat privat; pastikan angkanya benar.
+
+Firestore akan meminta beberapa **indeks satu kolom** yang dibuat otomatis (tidak perlu apa-apa). Bila ada pesan "requires an index" dengan link, cukup klik link itu sekali.
+
+### Otorisasi super admin (kata sandi)
+Tindakan penting **wajib memasukkan ulang kata sandi super admin**: import Excel, ubah gaji/insentif, kunci/buka bulan gaji, setujui pembatalan nota & stok opname, hapus pengeluaran, buka ulang kas yang sudah ditutup, pulihkan backup.
+- **Import Excel** hanya untuk super admin. User Sparepart tidak lagi punya tombol import, tetapi tetap bisa menambah part baru satu per satu, pembelian stok, opname, dan transfer.
+- Stok di form part tidak bisa diketik langsung (hanya saat part baru = stok awal). Perubahan stok selalu lewat pembelian, penjualan, opname, transfer, atau pembatalan, dan semuanya tercatat di **Kartu stok**.
+
+### Pembatalan nota (persetujuan super admin)
+- Kasir/admin membuka nota → **Ajukan pembatalan** + alasan. Nota tetap dihitung sampai disetujui.
+- Super admin melihat badge di menu **Persetujuan** → Setujui (catatan + kata sandi) atau Tolak (catatan).
+- Bila disetujui: stok part kembali, WO servis kembali ke status *Selesai* (bisa dibayar ulang dengan benar), nota diberi cap **DIBATALKAN** dan tidak masuk laporan/penghasilan. Nota tidak pernah dihapus.
+
+### Stok opname, kartu stok, transfer kirim/terima
+- **Stok Opname** (menu Sparepart): mulai opname → isi stok fisik per part (tersimpan otomatis) → **Ajukan**. Super admin memeriksa di Persetujuan lalu menyetujui; yang diterapkan adalah **selisihnya**, jadi penjualan selama penghitungan tetap aman.
+- **Kartu stok** di form part: riwayat masuk/keluar per cabang (penjualan, servis, pembelian, transfer, opname, batal).
+- **Transfer stok dua langkah**: cabang asal **mengirim** (bisa beberapa part sekaligus, stok asal langsung berkurang), cabang tujuan menekan **Terima** saat barang datang (stok tujuan bertambah).
+
+### Gaji & insentif privat, kunci bulanan
+- Gaji pokok & komisi disimpan di koleksi privat `gaji/`: **hanya karyawan ybs. dan super admin** yang bisa membaca (dikunci di database, bukan hanya tampilan). Admin biasa tidak bisa melihat atau mengubah gaji, insentif, maupun aturan insentif.
+- **Kunci bulan** (super admin, kata sandi): slip semua karyawan disimpan sebagai angka final. Mengubah aturan sesudahnya tidak mengubah bulan yang dikunci. Membuka kunci juga perlu kata sandi.
+- **Dasar perhitungan per peran bisa diatur**: penjualan sebagai kasir, servis sebagai mekanik, registrasi, order part, atau omzet cabang.
+
+### Data dikunci per cabang
+Karyawan (selain admin/pemilik) hanya bisa membaca **nota, WO, pembelian, mutasi, opname, kas, pengeluaran, dan klaim cabangnya sendiri** — dikunci oleh `firestore.rules`. Riwayat servis konsumen lintas cabang tetap bisa dilihat dari ringkasan riwayat (tanpa membuka data cabang lain). Data KTP/kendaraan tetap bersama.
+
+### Kas & Pengeluaran (menu Keuangan, admin & kasir)
+- **Kas harian**: *Buka kas* dengan uang awal (otomatis disarankan dari sisa kemarin) → penjualan cash & pengeluaran tunai terhitung otomatis → *Tutup kas*: isi uang fisik, setoran/diambil pemilik, catatan wajib bila ada selisih. Kas yang sudah ditutup terkunci (hanya super admin bisa membuka ulang). Rekap kas sebulan di bawahnya.
+- **Pengeluaran**: listrik, sewa, konsumsi, BBM, perlengkapan, dll. — tunai (mengurangi laci) atau transfer. Per kategori + Excel. Hanya super admin yang bisa menghapus.
+
+### Laba bersih (Laporan Penjualan)
+Laba kotor − pengeluaran operasional − **gaji & insentif** (dari slip bulan yang sudah dikunci; hanya terlihat oleh super admin, untuk laporan bulanan/tahunan). Ikut di Excel & PDF.
+
+### Klaim KSG (menu Keuangan)
+Daftar nota servis KSG per bulan → pilih → **Ajukan klaim** (nomor KL-…, no. surat ke main dealer) → saat dana masuk **Tandai dibayar** dengan jumlah diterima (selisih terlihat).
+
+### Insight Konsumen per bulan
+Insight sekarang hanya membaca **bulan yang dipilih** (bisa diperluas 3/6/12 bulan), kendaraan yang servis di periode itu, kendaraan baru terdaftar, dan maks. 300 kendaraan yang lama tidak servis. Seluruh database kendaraan hanya dibaca bila tombol **Muat seluruh database kendaraan** ditekan. Data kendaraan kini menyimpan tanggal terdaftar (`dibuat`) dan `servisTerakhir`.
+
+### Backup Data (super admin)
+- **Backup sekarang** mengunduh satu file `.json` berisi seluruh data. Simpan di **dua tempat** (Google Drive + flashdisk/laptop). Beranda super admin mengingatkan bila backup terakhir > 7 hari.
+- **Pulihkan**: pilih file, centang data yang dikembalikan, ketik PULIHKAN + kata sandi. Data dengan ID sama ditimpa; data lain tidak dihapus.
+- File berisi data pribadi (KTP, HP, gaji) — jangan dibagikan.
+
+### Koleksi Firestore baru
+`gaji`, `slip`, `penghasilan`, `penghasilanBulan`, `mutasi`, `transfer`, `opname`, `kas`, `pengeluaran`, `klaim`. File JS baru: `otorisasi.js`, `kontrol.js`, `opname.js`, `persetujuan.js`, `data-trx.js`, `migrasi.js`, `keuangan.js`, `backup.js`.
 
 ## Fitur baru 3.4.0
 
@@ -378,6 +463,8 @@ Periode: hari ini, 7 hari, bulan ini, bulan lalu, atau pilih tanggal. Klik kotak
 ## Keamanan
 
 Halaman cek servis membaca dokumen `pantau/{kunci}`, dengan kunci = SHA-256 dari nopol + nomor HP. Dokumen hanya bisa dibuka bila tahu keduanya dan tidak bisa didaftar/ditelusuri (lihat `firestore.rules`). Isinya ringkasan servis kendaraan itu saja.
+
+Sejak 4.0.0: admin tidak bisa mengubah akunnya sendiri, nota tidak bisa diubah isinya, stok hanya bisa diubah untuk cabang sendiri, dan gaji/slip hanya terbaca oleh karyawan ybs. + super admin. Batas yang tersisa: siapa pun yang boleh **membuat/mereset PIN** karyawan (admin) secara teknis bisa masuk sebagai karyawan itu. Bila ingin benar-benar tertutup, serahkan reset PIN hanya ke super admin.
 
 `apiKey` di `js/firebase-config.js` memang publik; data dilindungi `firestore.rules` (akses per peran) + koleksi `staff`.
 

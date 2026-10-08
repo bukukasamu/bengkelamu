@@ -2,89 +2,244 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Super admin: selalu admin, masuk dengan email + kata sandi.
-    // Petugas lain: akun PIN, dengan dokumen staff/{email-akun}. Field "peran": admin | registrasi | sparepart | kasir | mekanik
+    // ---------- Siapa pengguna ini ----------
+    // Super admin: satu email, masuk dengan kata sandi. Petugas lain: akun PIN dengan dokumen staff/{email}
+    // berisi peran (admin | registrasi | sparepart | kasir | mekanik), cabang, loginId, dan (mekanik) mekanikId.
     function signedIn() { return request.auth != null; }
-    function isSuper() { return signedIn() && request.auth.token.email == 'cashflow.amu@gmail.com'; }
-    function staffDoc() { return /databases/$(database)/documents/staff/$(request.auth.token.email); }
-    function isStaff() { return isSuper() || (signedIn() && exists(staffDoc())); }
-    function hasRole(roles) { return isSuper() || (signedIn() && exists(staffDoc()) && get(staffDoc()).data.peran in roles); }
+    // Perangkat layar absen masuk secara anonim (tanpa email): tidak pernah dianggap super admin / karyawan
+    function emailKu() { return request.auth.token.get('email', ''); }
+    function isSuper() { return signedIn() && emailKu() == 'cashflow.amu@gmail.com'; }
+    function staffDoc() { return /databases/$(database)/documents/staff/$(emailKu()); }
+    function isStaff() { return isSuper() || (signedIn() && emailKu() != '' && exists(staffDoc())); }
+    function me() { return get(staffDoc()).data; }
+    function hasRole(roles) { return isSuper() || (signedIn() && emailKu() != '' && exists(staffDoc()) && me().peran in roles); }
 
-    // Dibaca sebelum login: daftar nama petugas (nama, peran, akun) dan logo toko
-    match /publik/login {
-      allow read: if true;
-      allow write: if hasRole(['admin']);
+    // ---------- Kunci cabang ----------
+    // Admin/pemilik & super admin melihat semua cabang; karyawan lain hanya cabangnya sendiri.
+    function semuaCabang() { return isSuper() || hasRole(['admin']); }
+    function myCab() { return me().get('cabang', 'UTM'); }
+    function bolehCabang(c) { return semuaCabang() || (isStaff() && c == myCab()); }
+
+    // Perubahan stok part oleh karyawan hanya boleh untuk stok cabangnya sendiri
+    // (cabang utama = kolom stok, cabang lain = stokC.KODE)
+    function stokCabangSendiri() {
+      let d = request.resource.data.diff(resource.data).affectedKeys();
+      return (!d.hasAny(['stok']) || myCab() == 'UTM')
+        && (!d.hasAny(['stokC']) || request.resource.data.get('stokC', {}).diff(resource.data.get('stokC', {})).affectedKeys().hasOnly([myCab()]));
     }
-    match /publik/brand {
-      allow read: if true;
-      allow write: if isSuper();
-    }
-    // Layar TV ruang tunggu (tanpa login): nomor antrian, nopol, tipe, mekanik. Ditulis aplikasi petugas.
-    // publik/layar = cabang utama, publik/layar-KODE = cabang lain.
+
+    // ---------- Gaji pribadi ----------
+    // Kunci gaji karyawan: loginId (petugas) atau 'M:' + id mekanik.
+    function gajiKey() { return me().peran == 'mekanik' ? 'M:' + me().get('mekanikId', '') : me().get('loginId', ''); }
+
+    // ---------- Dibaca tanpa login ----------
+    match /publik/login   { allow read: if true; allow write: if hasRole(['admin']); }
+    match /publik/brand   { allow read: if true; allow write: if isSuper(); }
+    match /publik/cabang  { allow read: if true; allow write: if hasRole(['admin']); }
+    // Layar TV: publik/layar (cabang utama), publik/layar-KODE (cabang lain)
     match /publik/{id} {
-      allow read: if id == 'layar' || id.matches('layar-[A-Z0-9]+');
+      allow list: if isSuper();   // backup
+      allow get: if id == 'layar' || id.matches('layar-[A-Z0-9]+');
       allow write: if isStaff() && (id == 'layar' || id.matches('layar-[A-Z0-9]+'));
     }
-    // Daftar cabang (nama, alamat, telp): dibaca halaman login, cek servis, dan layar TV.
-    match /publik/cabang {
-      allow read: if true;
-      allow write: if hasRole(['admin']);
-    }
-
-    // Halaman cek servis konsumen: dokumen hanya bisa dibuka bila tahu ID-nya (hash nopol + no. HP),
-    // tidak bisa ditelusuri/didaftar. Ditulis otomatis oleh aplikasi petugas.
+    // Cek servis konsumen: hanya bisa dibuka bila tahu ID-nya (hash nopol + no. HP), tidak bisa didaftar.
     match /pantau/{id} {
       allow get: if true;
       allow list: if false;
       allow write: if isStaff();
     }
 
-    // Daftar petugas: tiap orang membaca datanya sendiri; admin mengelola semua.
+    // ---------- Petugas ----------
+    // Admin boleh mengelola akun karyawan lain, tetapi tidak dokumennya sendiri, dan loginId harus sesuai email akun
+    // (supaya tidak bisa "meminjam" identitas karyawan lain untuk membuka gaji).
     match /staff/{email} {
-      allow read: if signedIn() && (request.auth.token.email == email || hasRole(['admin']));
-      allow write: if hasRole(['admin']);
+      allow read: if signedIn() && (emailKu() == email || hasRole(['admin']));
+      allow create, update: if isSuper() || (hasRole(['admin']) && emailKu() != email
+        && request.resource.data.get('loginId', '') == email.split('@')[0].split('-')[0]);
+      allow delete: if isSuper() || (hasRole(['admin']) && emailKu() != email);
     }
 
-    // Master part: semua petugas membaca; stok berubah lewat penjualan (kasir) dan pembelian (sparepart).
+    // ---------- Data bersama semua cabang ----------
     match /parts/{id} {
       allow read: if isStaff();
-      allow write: if hasRole(['admin', 'sparepart', 'kasir']);
-    }
-
-    // Nota penjualan & servis: dibuat kasir, hanya admin yang boleh mengubah/menghapus.
-    match /trx/{id} {
-      allow read: if isStaff();
-      allow create: if hasRole(['admin', 'kasir']);
-      allow update, delete: if hasRole(['admin']);
-    }
-
-    // Work order: dibuat registrasi; diperbarui sparepart (order), mekanik (status), kasir (lunas).
-    match /wo/{id} {
-      allow read: if isStaff();
-      allow create: if hasRole(['admin', 'registrasi']);
-      allow update: if isStaff();
+      allow create: if hasRole(['admin', 'sparepart']);
+      allow update: if semuaCabang()
+        || (hasRole(['sparepart']) && stokCabangSendiri())
+        || (hasRole(['kasir']) && stokCabangSendiri() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stok', 'stokC']));
       allow delete: if hasRole(['admin']);
     }
-
     match /kendaraan/{id} {
       allow read: if isStaff();
-      allow write: if hasRole(['admin', 'registrasi', 'kasir']);
+      allow create, update: if hasRole(['admin', 'registrasi', 'kasir']);
+      allow delete: if hasRole(['admin']);
     }
-
-    match /pembelian/{id} { allow read, write: if hasRole(['admin', 'sparepart']); }
-    match /imports/{id}   { allow read, write: if hasRole(['admin', 'sparepart']); }
-    match /masuk/{id}     { allow read, write: if hasRole(['admin', 'sparepart']); }
-
-    // Master jasa, mekanik, pengaturan: dibaca semua petugas, diubah admin.
     match /jasa/{id}      { allow read: if isStaff(); allow write: if hasRole(['admin']); }
     match /mekanik/{id}   { allow read: if isStaff(); allow write: if hasRole(['admin']); }
     match /meta/settings  { allow read: if isStaff(); allow write: if hasRole(['admin']); }
+    match /imports/{id}   { allow read, write: if isSuper(); }
+    match /masuk/{id}     { allow read, write: if hasRole(['admin', 'sparepart']); }
 
-    // Penomoran otomatis nota / WO / pembelian
-    match /meta/counter   { allow read, write: if isStaff(); }
-    // Penghitung nomor cabang lain: meta/counter-KODE
-    match /meta/{id}      { allow read, write: if isStaff() && id.matches('counter-[A-Z0-9]+'); }
-    // Catatan transfer stok antar cabang
-    match /transfer/{id}  { allow read: if isStaff(); allow create: if hasRole(['admin', 'sparepart']); }
+    // ---------- Data per cabang ----------
+    // Nota: dibuat kasir/admin di cabangnya. Isi nota tidak bisa diubah; pembatalan hanya diajukan
+    // (status "diminta") oleh kasir/admin dan disetujui/ditolak oleh super admin. Nota tidak bisa dihapus.
+    match /trx/{id} {
+      allow read: if isStaff() && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang);
+      // Karyawan hanya boleh mengubah: pengajuan batal (status "diminta", dan hanya bila belum pernah / pernah ditolak)
+      // serta status klaim KSG. Isi nota lainnya tidak bisa diubah.
+      allow update: if isSuper() || (hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['batal', 'klaimStatus', 'klaimId', 'klaimNo'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['batal'])
+            || (request.resource.data.batal.status == 'diminta' && (!('batal' in resource.data) || resource.data.batal.status == 'ditolak'))));
+      allow delete: if false;
+    }
+    match /wo/{id} {
+      allow read: if isStaff() && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'registrasi']) && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper() || (isStaff() && bolehCabang(resource.data.cabang) && request.resource.data.get('cabang', '') == resource.data.get('cabang', ''));
+      allow delete: if hasRole(['admin']);
+    }
+    match /pembelian/{id} {
+      allow read: if hasRole(['admin', 'sparepart']) && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'sparepart']) && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper() || (hasRole(['admin', 'sparepart']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang);
+      allow delete: if hasRole(['admin']);
+    }
+    // Kartu stok (mutasi keluar/masuk): hanya ditambah, tidak bisa diubah/dihapus
+    match /mutasi/{id} {
+      allow read: if isStaff() && bolehCabang(resource.data.cabang);
+      allow create: if isStaff() && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper();   // hanya untuk pemulihan dari backup
+      allow delete: if false;
+    }
+    // Transfer stok: dikirim cabang asal, diterima cabang tujuan
+    match /transfer/{id} {
+      allow read: if isStaff() && (semuaCabang() || resource.data.dari == myCab() || resource.data.ke == myCab());
+      allow create: if hasRole(['admin', 'sparepart']) && bolehCabang(request.resource.data.dari);
+      allow update: if hasRole(['admin', 'sparepart']) && (semuaCabang() || resource.data.ke == myCab());
+    }
+    // Stok opname: dihitung & diajukan petugas, disetujui super admin
+    match /opname/{id} {
+      allow read: if hasRole(['admin', 'sparepart']) && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'sparepart']) && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper() || (hasRole(['admin', 'sparepart']) && bolehCabang(resource.data.cabang)
+        && request.resource.data.cabang == resource.data.cabang
+        && resource.data.status in ['draft', 'ditolak'] && request.resource.data.status in ['draft', 'ditolak', 'diajukan']);
+      allow delete: if isSuper() || (hasRole(['admin', 'sparepart']) && bolehCabang(resource.data.cabang) && resource.data.status == 'draft');
+    }
+    // Keuangan cabang: pengeluaran, kas harian, klaim KSG
+    match /pengeluaran/{id} {
+      allow read: if hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang);
+      allow update, delete: if isSuper();
+    }
+    // Kas harian: dibuka & ditutup kasir/admin. Setelah ditutup hanya super admin yang bisa membuka ulang.
+    match /kas/{id} {
+      // ID = KODECABANG_tanggal, jadi kas yang belum dibuka pun bisa dicek tanpa membuka cabang lain
+      allow get: if hasRole(['admin', 'kasir']) && (semuaCabang() || id.split('_')[0] == myCab());
+      allow list: if hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang);
+      allow create: if isSuper() || hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang) && id.split('_')[0] == request.resource.data.cabang && !('tutup' in request.resource.data);
+      allow update: if isSuper() || (hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang)
+        && request.resource.data.cabang == resource.data.cabang && !('tutup' in resource.data));
+      allow delete: if isSuper();
+    }
+    // Klaim KSG ke main dealer (nota terkait diberi klaimStatus / klaimId / klaimNo)
+    match /klaim/{id} {
+      allow read: if hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper() || (hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang);
+      allow delete: if isSuper();
+    }
+
+    // Penomoran: cabang utama meta/counter, cabang lain meta/counter-KODE
+    match /meta/counter   { allow read, write: if isStaff() && (semuaCabang() || myCab() == 'UTM'); }
+    match /meta/{id}      { allow read, write: if isStaff() && id.matches('counter-[A-Z0-9]+') && (semuaCabang() || id == 'counter-' + myCab()); allow list: if isSuper(); }
+
+    // ---------- Absensi (scan QR + selfie) ----------
+    // Tanggal hari ini (WIB) dari jam server, mis. 20261009 — jam HP karyawan tidak dipakai.
+    function hariIni() { let t = request.time + duration.value(7, 'h'); return t.year() * 10000 + t.month() * 100 + t.day(); }
+    // Kode QR sah = kode yang sedang tampil atau sebelumnya, maksimal 45 detik sejak QR terakhir berganti
+    function kodeSah(cab, kode) {
+      let k = get(/databases/$(database)/documents/absenKode/$(cab)).data;
+      return (kode == k.kode || kode == k.kodeLama) && request.time < k.waktu + duration.value(45, 's');
+    }
+    // Hanya dari HP yang terdaftar untuk karyawan ini
+    function hpSah(hp) {
+      let r = /databases/$(database)/documents/absenPerangkat/$(gajiKey());
+      return exists(r) && get(r).data.device == hp;
+    }
+    // Lokasi GPS wajib ada (jaraknya ke bengkel diperiksa super admin di menu Absensi)
+    function scanSah(sc, cab) { return sc.ts == request.time && sc.lat is number && sc.lng is number && kodeSah(cab, sc.kode) && hpSah(sc.perangkat); }
+    // Foto hanya bisa disimpan bersamaan dengan scan yang sah (dokumen absen sesudah batch berisi scan pada detik yang sama)
+    function fotoSah(id) {
+      let a = getAfter(/databases/$(database)/documents/absen/$(id[0:id.size() - 2])).data;
+      return (id.matches('.*_m$') && 'masuk' in a && a.masuk.ts == request.time)
+        || (id.matches('.*_p$') && 'pulang' in a && a.pulang.ts == request.time);
+    }
+    // Layar QR absen: satu perangkat (identitas anonim) per cabang. Perangkat meminta aktivasi,
+    // super admin / admin menyetujui, hanya super admin yang bisa mencabut.
+    function layarAktif(cab) {
+      let p = /databases/$(database)/documents/layarAbsen/$(cab);
+      return signedIn() && exists(p) && get(p).data.status == 'aktif' && get(p).data.uid == request.auth.uid;
+    }
+    match /layarAbsen/{cab} {
+      allow get: if hasRole(['admin']) || (signedIn() && (resource == null || resource.data.uid == request.auth.uid));
+      allow list: if hasRole(['admin']);
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'menunggu' && request.resource.data.cabang == cab;
+      allow update: if isSuper()
+        // admin menyetujui / menolak permintaan yang menunggu (tidak bisa mencabut layar aktif)
+        || (hasRole(['admin']) && resource.data.status == 'menunggu' && request.resource.data.status in ['aktif', 'ditolak']
+            && request.resource.data.uid == resource.data.uid && request.resource.data.kode == resource.data.kode && request.resource.data.cabang == cab)
+        // perangkat baru meminta aktivasi bila belum ada layar aktif
+        || (signedIn() && resource.data.status != 'aktif' && request.resource.data.uid == request.auth.uid
+            && request.resource.data.status == 'menunggu' && request.resource.data.cabang == cab)
+        // layar aktif hanya memperbarui tanda "terakhir aktif" & lokasinya
+        || (layarAktif(cab) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['terakhir', 'lokasi']));
+      allow delete: if isSuper();
+    }
+    // Kode QR aktif: ditulis layar yang disetujui, dibaca hanya oleh aturan ini (dan super admin)
+    match /absenKode/{cab} {
+      allow read: if isSuper();
+      allow write: if isSuper() || (layarAktif(cab) && request.resource.data.cabang == cab && request.resource.data.waktu == request.time);
+    }
+    match /absenPerangkat/{key} {
+      allow get: if isSuper() || (isStaff() && key == gajiKey());
+      allow list, delete: if isSuper();
+      allow create: if isStaff() && key == gajiKey() && request.resource.data.kunci == key;
+      allow update: if isSuper();
+    }
+    match /absen/{id} {
+      allow get: if isSuper() || (isStaff() && id.split('_')[0] == gajiKey());
+      allow list: if isSuper() || (isStaff() && resource.data.kunci == gajiKey());
+      // Scan masuk: dokumen hari ini milik sendiri, di cabangnya sendiri
+      allow create: if isSuper() || (isStaff() && gajiKey() != '' && request.resource.data.kunci == gajiKey()
+        && id == gajiKey() + '_' + string(hariIni()) && request.resource.data.hari == hariIni()
+        && int(request.resource.data.tgl.replace('-', '')) == hariIni() && request.resource.data.bulan == request.resource.data.tgl[0:7]
+        && bolehCabang(request.resource.data.cabang) && !('pulang' in request.resource.data) && !('manual' in request.resource.data)
+        && scanSah(request.resource.data.masuk, request.resource.data.cabang));
+      // Scan pulang: hanya menambah/mengganti "pulang"
+      allow update: if isSuper() || (isStaff() && resource.data.kunci == gajiKey() && resource.data.hari == hariIni()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pulang'])
+        && scanSah(request.resource.data.pulang, resource.data.cabang));
+      allow delete: if isSuper();
+    }
+    // Foto selfie kecil (±20 KB), dihapus otomatis setelah beberapa hari oleh super admin
+    match /absenFoto/{id} {
+      allow read: if isSuper() || (isStaff() && resource.data.kunci == gajiKey());
+      allow delete: if isSuper();
+      allow create, update: if isSuper() || (isStaff() && request.resource.data.kunci == gajiKey() && id.split('_')[0] == gajiKey()
+        && request.resource.data.foto is string && request.resource.data.foto.size() < 150000 && fotoSah(id));
+    }
+
+    // ---------- Gaji & insentif (hanya karyawan ybs. dan super admin) ----------
+    // Aturan insentif & potongan: dibaca karyawan (untuk melihat target), diubah hanya super admin.
+    match /penghasilan/{id}      { allow read: if isStaff(); allow write: if isSuper(); }
+    // Gaji pokok per karyawan: hanya pemiliknya dan super admin. Admin pun tidak bisa membaca/mengubah.
+    match /gaji/{key}            { allow read: if isSuper() || (isStaff() && key == gajiKey()); allow write: if isSuper(); }
+    // Slip gaji bulan yang sudah dikunci
+    match /slip/{id}             { allow read: if isSuper() || (isStaff() && resource.data.kunci == gajiKey()); allow write: if isSuper(); }
+    // Status kunci bulan (dibaca semua karyawan). Total biaya gaji disimpan di slip/{ym}__REKAP (kunci '__rekap'),
+    // jadi hanya super admin yang bisa membacanya.
+    match /penghasilanBulan/{ym} { allow read: if isStaff(); allow write: if isSuper(); }
   }
 }

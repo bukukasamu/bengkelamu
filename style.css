@@ -506,3 +506,6 @@ tr[aria-current="true"] td{background:var(--accent-soft)}
 .slip .muted{color:#5b6474}
 .lap-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .lap-nav b{font-family:var(--f-display);font-size:1.1rem;min-width:12ch;text-align:center}
+.migrasi{border:2px solid var(--warn);background:var(--warn-bg)}
+.sb-badge{display:inline-block;min-width:1.4em;padding:0 6px;border-radius:999px;background:#ffc531;color:#1a1300;font-size:.75rem;font-weight:700;text-align:center;margin-left:6px}
+.batal-on{border:1px solid var(--bad);color:var(--bad)}

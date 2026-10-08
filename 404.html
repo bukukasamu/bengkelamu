@@ -9,10 +9,10 @@
 <meta property="og:description" content="Pantau status servis, nomor antrian, dan riwayat nota motor Anda.">
 <meta property="og:image" content="https://www.amuservice.id/icons/og-cek.jpg">
 <script>
-  // Alamat pendek: /cek → cek.html, /layar → layar.html, /pos atau /petugas → aplikasi petugas
+  // Alamat pendek: /cek → cek.html, /layar → layar.html, /pos atau /petugas → aplikasi petugas, /absen → layar QR absen
   (function () {
     var p = location.pathname.replace(/\/+$/, '').toLowerCase(), q = location.search + location.hash;
-    var peta = { cek: './', servis: './', layar: 'layar.html', tv: 'layar.html', antrian: 'layar.html', pos: 'pos.html', petugas: 'pos.html', login: 'pos.html', admin: 'pos.html', kasir: 'pos.html' };
+    var peta = { cek: './', servis: './', layar: 'layar.html', tv: 'layar.html', antrian: 'layar.html', pos: 'pos.html', petugas: 'pos.html', login: 'pos.html', admin: 'pos.html', kasir: 'pos.html', absen: 'absen.html', absensi: 'absen.html' };
     var akhir = p.split('/').pop(), dasar = location.pathname.replace(/[^/]*\/?$/, '');
     if (peta[akhir]) location.replace(dasar + peta[akhir] + (peta[akhir] === 'pos.html' ? '' : q));
   })();
