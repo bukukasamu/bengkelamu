@@ -1,9 +1,25 @@
-# Aceh Mandiri Utama POS · versi 4.1.1
+# Aceh Mandiri Utama POS · versi 4.2.1
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 4.2.1 — hak akses menu per peran
+
+**Update:** upload semua file, lalu **publish ulang `firestore.rules`** (koleksi baru `pengaturan`).
+
+Super admin: **Master Data → Hak Akses Menu**. Centang menu yang boleh dibuka tiap peran (Admin, Registrasi, Sparepart, Kasir, Mekanik); tombol ✓/✕ di judul kolom untuk centang/kosongkan semua. Simpan dengan kata sandi; menu karyawan berubah langsung. Contoh admin cabang yang hanya menyetujui layar absen: centang **Persetujuan, Absensi Saya, Penghasilan Saya** saja. Tombol "Kembalikan ke bawaan" membuka lagi semua menu bawaan. Super admin selalu melihat semua menu.
+
+## Fitur baru 4.2.0
+
+**Update:** upload semua file (baru: `js/hapus-semua.js`, `js/cari-pilihan.js`), lalu **publish ulang `firestore.rules`**.
+
+- **Pilihan dengan pencarian:** daftar pilihan yang panjang (provinsi, kabupaten/kota, kecamatan, kelurahan, tipe motor, dan pilihan lain yang lebih dari 10) tidak lagi dibuka semua. Ketik dulu, mis. "A" → muncul ACEH …; pilih dengan klik atau panah + Enter. Kotak saran part, kategori, supplier juga baru muncul setelah mengetik.
+- **Excel berkotak:** semua file Excel yang diunduh (laporan, stok, konsumen, insight, penghasilan, absensi, pengeluaran, template) memakai garis kotak, judul kolom tebal berlatar, angka berpemisah ribuan, dan lebar kolom menyesuaikan isi.
+- **Riwayat servis** menampilkan tempat servis (📍 PUSAT / nama cabang) di setiap kartu, baik di aplikasi petugas maupun halaman cek servis konsumen.
+- Tulisan "Pemilik" diganti: peran **Admin**, slip gaji "Disetujui, Manajemen", menu **Konsumen & Kendaraan**.
+- **Hapus semua data (tersembunyi, khusus super admin):** klik tulisan **versi** di bawah menu sebanyak **7 kali** → kotak peringatan → ketik kalimat yang diberikan → kata sandi super admin. Menghapus semua data (cabang, karyawan & login PIN, konsumen, kendaraan, part, nota, absensi, gaji, pengaturan, logo, dll.); yang tersisa hanya akun super admin. Akun login karyawan di Firebase Authentication sudah tidak bisa dipakai, dan bisa dibersihkan manual di Firebase Console → Authentication → Users. **Unduh backup dulu.**
 
 ## Fitur baru 4.1.1 — layar QR absen tanpa kata sandi
 
@@ -13,7 +29,7 @@ Satu cabang = **satu perangkat layar QR**. Perangkat lain yang membuka link dito
 1. Di TV/tablet cabang buka **www.amuservice.id/absen** → pilih cabang → **Minta aktivasi layar ini** → layar menampilkan **kode 4 angka**.
 2. **Super admin atau admin** membuka menu **Persetujuan** di HP/komputernya (di mana saja), mencocokkan kode, lalu **Setujui**. Admin hanya melihat permintaan layar ini, bukan persetujuan lain.
 3. Selesai. Setiap kali perangkat itu dinyalakan, QR langsung tampil tanpa login. Lokasi bengkel otomatis diambil dari perangkat ini.
-- **Jam QR aktif** bawaan 07.00–18.00 (di luar jam itu QR tidak tampil), bisa diubah super admin per cabang di **Absensi Karyawan → Layar QR**. Di sana juga terlihat kapan layar terakhir menyala.
+- **Jam QR aktif** bawaan 07.00–18.00 (di luar jam itu QR tidak tampil) dan **pergantian QR** bawaan setiap 15 detik (bisa 10 detik s/d 10 menit, mis. 80 = 1 menit 20 detik), diatur super admin per cabang di **Absensi Karyawan → Layar QR**. Makin lama pergantiannya, makin hemat kuota tapi makin lama juga kode bisa diteruskan lewat WA. Di sana juga terlihat kapan layar terakhir menyala.
 - **Ganti perangkat** (rusak/hilang/data browser terhapus): super admin menekan **Cabut** (kata sandi), lalu perangkat baru meminta aktivasi lagi.
 - Perangkat layar memakai identitas anonim tersendiri: **tidak bisa membuka data apa pun** (konsumen, nota, gaji, bahkan daftar absen); hanya bisa memperbarui kode QR cabangnya. Tidak bercampur dengan login petugas walau di perangkat yang sama dibuka aplikasi petugas.
 
@@ -22,7 +38,7 @@ Satu cabang = **satu perangkat layar QR**. Perangkat lain yang membuka link dito
 **Cara pakai karyawan:** (sudah login di HP-nya) buka **Absensi Saya → Scan QR**, atau scan QR dengan aplikasi Kamera HP lalu ketuk link-nya → **selfie** (kamera depan, tidak bisa dari galeri) → tercatat. Scan pertama = masuk, scan berikutnya = pulang.
 
 **Pengamanan**
-- Kode QR hanya berlaku ±45 detik dan dicek oleh database (bukan oleh HP), jadi foto QR yang dikirim lewat WA cepat kedaluwarsa.
+- Kode QR hanya berlaku sekitar (waktu pergantian QR + 30 detik) dan dicek oleh database (bukan oleh HP), jadi foto QR yang dikirim lewat WA cepat kedaluwarsa.
 - Jam absen memakai **jam server** (WIB); mengubah jam HP tidak berpengaruh.
 - **Satu karyawan = satu HP**: HP pertama yang dipakai absen menjadi HP terdaftar. Absen dari HP lain ditolak; ganti HP → super admin **Reset HP** (menu Absensi Karyawan → HP terdaftar).
 - **Selfie** di setiap scan + **lokasi** GPS (wajib aktif). Super admin melihat foto per hari; scan yang jauh dari bengkel ditandai 📍 merah.

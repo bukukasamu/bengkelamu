@@ -4,7 +4,7 @@
 // - Pustaka dari CDN (Firebase, PDF, Excel, QR, font) bernomor versi tetap, jadi disimpan sekali lalu dipakai ulang.
 // - Data Firestore & login TIDAK lewat sini (ditangani Firebase sendiri).
 // Ganti VERSI setiap ada update besar supaya salinan lama dibersihkan.
-const VERSI = 'amu-4.1.1';
+const VERSI = 'amu-4.2.1';
 const INTI = [
   './',
   'index.html',
@@ -33,12 +33,14 @@ const INTI = [
   'js/brand.js',
   'js/cabang.js',
   'js/cari-kendaraan.js',
+  'js/cari-pilihan.js',
   'js/cek.js',
   'js/config.js',
   'js/data-trx.js',
   'js/excel-parser.js',
   'js/firebase-config.js',
   'js/firebase.js',
+  'js/hapus-semua.js',
   'js/import-excel.js',
   'js/insight.js',
   'js/kasir.js',
@@ -75,7 +77,7 @@ const INTI = [
   'js/wilayah.js',
   'js/wo-common.js'
 ];
-const CDN = ['www.gstatic.com', 'cdnjs.cloudflare.com', 'cdn.sheetjs.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+const CDN = ['www.gstatic.com', 'cdnjs.cloudflare.com', 'cdn.sheetjs.com', 'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSI).then(c => Promise.all(INTI.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => null)))).then(() => self.skipWaiting()));

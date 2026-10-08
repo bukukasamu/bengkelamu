@@ -45,7 +45,7 @@ service cloud.firestore {
     // Cek servis konsumen: hanya bisa dibuka bila tahu ID-nya (hash nopol + no. HP), tidak bisa didaftar.
     match /pantau/{id} {
       allow get: if true;
-      allow list: if false;
+      allow list: if isSuper();   // hanya untuk "hapus semua data"
       allow write: if isStaff();
     }
 
@@ -91,7 +91,7 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['batal', 'klaimStatus', 'klaimId', 'klaimNo'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['batal'])
             || (request.resource.data.batal.status == 'diminta' && (!('batal' in resource.data) || resource.data.batal.status == 'ditolak'))));
-      allow delete: if false;
+      allow delete: if isSuper();   // nota tidak bisa dihapus, kecuali "hapus semua data" oleh super admin
     }
     match /wo/{id} {
       allow read: if isStaff() && bolehCabang(resource.data.cabang);
@@ -110,13 +110,14 @@ service cloud.firestore {
       allow read: if isStaff() && bolehCabang(resource.data.cabang);
       allow create: if isStaff() && bolehCabang(request.resource.data.cabang);
       allow update: if isSuper();   // hanya untuk pemulihan dari backup
-      allow delete: if false;
+      allow delete: if isSuper();
     }
     // Transfer stok: dikirim cabang asal, diterima cabang tujuan
     match /transfer/{id} {
       allow read: if isStaff() && (semuaCabang() || resource.data.dari == myCab() || resource.data.ke == myCab());
       allow create: if hasRole(['admin', 'sparepart']) && bolehCabang(request.resource.data.dari);
       allow update: if hasRole(['admin', 'sparepart']) && (semuaCabang() || resource.data.ke == myCab());
+      allow delete: if isSuper();
     }
     // Stok opname: dihitung & diajukan petugas, disetujui super admin
     match /opname/{id} {
@@ -158,10 +159,11 @@ service cloud.firestore {
     // ---------- Absensi (scan QR + selfie) ----------
     // Tanggal hari ini (WIB) dari jam server, mis. 20261009 — jam HP karyawan tidak dipakai.
     function hariIni() { let t = request.time + duration.value(7, 'h'); return t.year() * 10000 + t.month() * 100 + t.day(); }
-    // Kode QR sah = kode yang sedang tampil atau sebelumnya, maksimal 45 detik sejak QR terakhir berganti
+    // Kode QR sah = kode yang sedang tampil atau sebelumnya, maksimal (jeda pergantian QR + 30 detik) sejak QR terakhir berganti
     function kodeSah(cab, kode) {
       let k = get(/databases/$(database)/documents/absenKode/$(cab)).data;
-      return (kode == k.kode || kode == k.kodeLama) && request.time < k.waktu + duration.value(45, 's');
+      let j = get(/databases/$(database)/documents/layarAbsen/$(cab)).data.get('jedaQr', 15);
+      return (kode == k.kode || kode == k.kodeLama) && request.time < k.waktu + duration.value(j + 30, 's');
     }
     // Hanya dari HP yang terdaftar untuk karyawan ini
     function hpSah(hp) {
@@ -240,6 +242,8 @@ service cloud.firestore {
     match /slip/{id}             { allow read: if isSuper() || (isStaff() && resource.data.kunci == gajiKey()); allow write: if isSuper(); }
     // Status kunci bulan (dibaca semua karyawan). Total biaya gaji disimpan di slip/{ym}__REKAP (kunci '__rekap'),
     // jadi hanya super admin yang bisa membacanya.
+    // Hak akses menu per peran (diatur super admin)
+    match /pengaturan/{id}       { allow read: if isStaff(); allow write: if isSuper(); }
     match /penghasilanBulan/{ym} { allow read: if isStaff(); allow write: if isSuper(); }
   }
 }

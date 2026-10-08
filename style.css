@@ -509,3 +509,11 @@ tr[aria-current="true"] td{background:var(--accent-soft)}
 .migrasi{border:2px solid var(--warn);background:var(--warn-bg)}
 .sb-badge{display:inline-block;min-width:1.4em;padding:0 6px;border-radius:999px;background:#ffc531;color:#1a1300;font-size:.75rem;font-weight:700;text-align:center;margin-left:6px}
 .batal-on{border:1px solid var(--bad);color:var(--bad)}
+
+/* Pilihan dengan pencarian (js/cari-pilihan.js) */
+.cari-pil{position:relative;display:block;width:100%}
+.cari-pil-asli{position:absolute!important;left:0;bottom:0;width:1px!important;height:1px!important;opacity:0;pointer-events:none;padding:0!important;border:0!important}
+.cari-pil-list{position:absolute;z-index:60;left:0;right:0;top:calc(100% + 2px);max-height:260px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(10,20,40,.18)}
+.cari-pil-op{padding:7px 10px;cursor:pointer;font-size:.92rem;text-transform:none;letter-spacing:0;font-weight:400}
+.cari-pil-op.on,.cari-pil-op:hover{background:var(--accent-soft);color:var(--accent)}
+.cari-pil-kosong{padding:8px 10px;color:var(--muted);font-size:.88rem}
