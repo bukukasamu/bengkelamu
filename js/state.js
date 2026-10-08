@@ -3,7 +3,8 @@ import { $ } from './util.js';
 import { MENUS, HOME, KAT, DEFAULT_TIPE } from './config.js';
 
 /* ---- Data dari Firestore (diisi oleh main.js) ---- */
-export const S = { parts: [], map: new Map(), trx: [], wo: [], jasa: [], mekanik: [], settings: {}, pembelian: [] };
+// trx/wo/mekanik/pembelian = cabang yang sedang dibuka; trxSemua/woSemua/mekanikSemua = semua cabang
+export const S = { parts: [], map: new Map(), trx: [], wo: [], jasa: [], mekanik: [], settings: {}, pembelian: [], trxSemua: [], woSemua: [], mekanikSemua: [] };
 export const part = k => S.map.get(k);
 export function setParts(list) {
   S.parts = list.sort((a, b) => a.kode.localeCompare(b.kode));

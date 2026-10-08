@@ -2,6 +2,7 @@
 import { $, esc, rp, dkey, stamp, toast, modal, closeModal, errMsg } from './util.js';
 import { S, st, namaPetugas, actions, changeHandlers } from './state.js';
 import { db, doc, collection, writeBatch, addDoc } from './firebase.js';
+import { CABANG_UTAMA, cabAktif, stokSet } from './cabang.js';
 import { parseSheet, planImport, LABEL } from './excel-parser.js';
 
 let XLSX = null;
@@ -75,7 +76,13 @@ async function runImport() {
   try {
     for (let i = 0; i < ops.length; i += BATCH) {
       const b = writeBatch(db);
-      ops.slice(i, i + BATCH).forEach(([kode, data]) => b.set(doc(db, 'parts', kode), data, { merge: true }));
+      // Kolom stok di file Excel = stok cabang yang sedang dibuka
+      ops.slice(i, i + BATCH).forEach(([kode, data]) => {
+        const cab = cabAktif();
+        if (cab === CABANG_UTAMA || data.stok === undefined) { b.set(doc(db, 'parts', kode), data, { merge: true }); return; }
+        const { stok, ...rest } = data;
+        b.set(doc(db, 'parts', kode), { ...rest, ...(S.map.has(kode) ? {} : { stok: 0 }), ...stokSet(stok) }, { merge: true });
+      });
       await b.commit();
       done = Math.min(ops.length, i + BATCH);
       $('#imp-status') && ($('#imp-status').textContent = `Menyimpan ${done.toLocaleString('id-ID')} / ${ops.length.toLocaleString('id-ID')}…`);

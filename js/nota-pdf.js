@@ -61,7 +61,7 @@ function layout(pdf, rows, logo, draw) {
     if (r.type === 'sub') { if (draw) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.text(r.l, W / 2, y, { align: 'center' }); } y += LH; continue; }
     if (r.type === 'line') { if (draw) { pdf.setLineDashPattern([0.8, 0.8], 0); pdf.setDrawColor(150); pdf.line(M, y - 1.4, W - M, y - 1.4); pdf.setLineDashPattern([], 0); } y += 2.6; continue; }
     if (r.type === 'head') { if (draw) { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.5); pdf.text(r.l, M, y); } y += LH; continue; }
-    if (r.type === 'center') { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(r.small ? 7 : 8.5); const ls = pdf.splitTextToSize(r.l, W - 2 * M); if (draw) pdf.text(ls, W / 2, y, { align: 'center' }); y += ls.length * (r.small ? 3.4 : LH); continue; }
+    if (r.type === 'center') { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(r.small ? 7 : 8.5); const ls = pdf.splitTextToSize(r.l, W - 2 * M); if (draw) pdf.text(ls, W / 2, y, { align: 'center' }); y += ls.length * (r.small ? 3.4 : LH) + (r.small ? 0.8 : 0); continue; }
     if (r.type === 'item') {
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); const ls = pdf.splitTextToSize(r.l, W - 2 * M);
       if (draw) pdf.text(ls, M, y); y += ls.length * LH;

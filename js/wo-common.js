@@ -1,9 +1,10 @@
 // Fungsi bersama untuk work order (WO) servis: hitung biaya, tampilan ringkas, simpan.
 import { esc, rp, clone, stamp, waButton, waNumber, toast } from './util.js';
 import { APP_NAME } from './config.js';
-import { S, part, mekanikById, namaPetugas } from './state.js';
+import { S, part, mekanikById, namaPetugas, can } from './state.js';
 import { db, doc, getDoc, getDocs, setDoc, runTransaction, updateDoc, collection, query, where } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
+import { cabAktif, cabangOf, namaCabang, layarDocId, multiCabang } from './cabang.js';
 
 // Antri = belum ada mekanik · Dikerjakan = mekanik sedang mengerjakan (mekanik sibuk)
 // Ditunda = lanjut lama, mis. menunggu part (mekanik bebas lagi) · Selesai = menunggu bayar · Lunas = sudah dibayar
@@ -60,7 +61,7 @@ export function woCard(o, current, act = 'pick-wo') {
 }
 
 export function woHeader(w) {
-  return `<div class="note"><div class="row spread"><span class="row" style="gap:8px">${antriBadge(w)}<b class="mono">${esc(w.nopol)}</b></span><span class="row">${jenisBadge(w)}${statusPill(w.status)}</span></div>
+  return `<div class="note"><div class="row spread"><span class="row" style="gap:8px">${antriBadge(w)}<b class="mono">${esc(w.nopol)}</b>${can('riwayat') ? `<button class="btn sm ghost" type="button" data-act="rw-buka" data-np="${esc(w.nopol)}">Riwayat motor</button>` : ''}</span><span class="row">${jenisBadge(w)}${statusPill(w.status)}</span></div>
     <div>${esc(w.tipe)}${w.km ? ' · ' + esc(w.km) + ' km' : ''} · ${esc(w.nama || 'Umum')}${w.hp ? ' · ' + esc(w.hp) + ' ' + waButton(w.hp, `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol} (${w.no}). `) : ''}</div>
     <div class="small muted">Mekanik: ${esc(mekanikNama(w) || 'belum ditentukan')}${w.noKartu ? ' · No. kartu ' + esc(w.noKartu) : ''}</div>
     ${w.keluhan ? `<div class="small" style="margin-top:4px"><b>Keluhan:</b> ${esc(w.keluhan)}</div>` : ''}
@@ -84,7 +85,7 @@ export async function saveWo(w) {
       // nomor antrian harian ikut dibuat di transaksi yang sama supaya tidak pernah kembar
       counter.AN = (counter.AN || 0) + 1; w.antrian = counter.AN; w.antrianTgl = counter.day;
       tx.set(counterRef(), counter);
-      tx.set(doc(db, 'wo', no), { ...clone({ ...w, no }), dibuatOleh: namaPetugas() });
+      tx.set(doc(db, 'wo', no), { ...clone({ ...w, no, cabang: w.cabang || cabAktif() }), dibuatOleh: namaPetugas() });
       return no;
     });
   }
@@ -136,7 +137,7 @@ export async function pantauKey(nopol, hp) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k + '|' + n));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
-const ringkasWo = w => ({ no: w.no, antrian: fmtAntri(w.antrian), tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
+const ringkasWo = w => ({ no: w.no, cabang: multiCabang() ? namaCabang(cabangOf(w)) : '', antrian: fmtAntri(w.antrian), tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
   jasa: normJasa(w).map(j => j.nama), parts: (w.parts || []).map(x => ({ nama: part(x.kode)?.nama || x.kode, qty: x.qty })),
   biaya: (w.biaya || []).filter(b => b.jumlah).map(b => ({ ket: b.ket, jumlah: b.jumlah })), diskon: w.diskon || 0,
   estimasi: Math.max(0, woCalc(w).total - (w.diskon || 0)), alasanTunda: w.alasanTunda || '' });
@@ -162,7 +163,7 @@ function pantauGagal(e) {
 // onProgress(n, total) dipanggil per kendaraan. Mengembalikan jumlah kendaraan yang ditulis.
 export async function rebuildPantau(onProgress) {
   const grup = new Map();
-  for (const w of S.wo) {
+  for (const w of (S.woSemua || S.wo)) {
     const key = await pantauKey(w.nopol, w.hp); if (!key) continue;
     const g = grup.get(key) || { wo: [] }; g.wo.push(w); grup.set(key, g);
   }
@@ -202,10 +203,11 @@ export function syncLayar(terbaru, segera) {
   if (terbaru?.no) layarBaru.set(terbaru.no, { ...terbaru });
   clearTimeout(layarTimer);
   const run = async () => {
+    const cab = cabAktif();
     const list = S.wo.map(w => layarBaru.has(w.no) ? { ...w, ...layarBaru.get(w.no) } : w);
     layarBaru.forEach((b, no) => { if (!list.find(w => w.no === no)) list.push(b); });
     layarBaru.clear();
-    try { await setDoc(doc(db, 'publik', 'layar'), dataLayar(list), { merge: true }); }
+    try { await setDoc(doc(db, 'publik', layarDocId(cab)), dataLayar(list.filter(w => cabangOf(w) === cab)), { merge: true }); }
     catch (e) { console.warn('Gagal memperbarui layar TV', e); }
   };
   if (segera) return run();
@@ -213,7 +215,7 @@ export function syncLayar(terbaru, segera) {
 }
 // Panggil nomor antrian ke layar TV (bunyi + suara). Dipanggil otomatis saat motor ditandai Selesai.
 export async function panggilLayar(w, ke = 'KASIR') {
-  const ref = doc(db, 'publik', 'layar');
+  const ref = doc(db, 'publik', layarDocId(cabangOf(w)));
   const s = await getDoc(ref), lama = (s.exists() && s.data().panggil) || [];
   const p = { id: Date.now() + '-' + Math.random().toString(36).slice(2, 6), a: fmtAntri(w.antrian), nopol: w.nopol, tipe: w.tipe || '', ke, t: stamp(new Date()) };
   await setDoc(ref, { panggil: [p, ...lama.filter(x => x.nopol !== w.nopol)].slice(0, 6) }, { merge: true });

@@ -3,6 +3,7 @@ import { $, esc, rp, stamp, toast, errMsg } from './util.js';
 import { S, st, part, emptyCart, namaPetugas, views, refreshers, actions, inputHandlers, fkeys } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
+import { cabAktif, stokOf, stokField } from './cabang.js';
 import { showNota } from './nota.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { dipesan } from './wo-common.js';
@@ -77,21 +78,22 @@ async function saveSale() {
   try {
     const diskon = c.diskon || 0;
     const t = await runTransaction(db, async tx => {
-      const cs = await tx.get(counterRef());
+      const cab = cabAktif();
+      const cs = await tx.get(counterRef(cab));
       const refs = c.items.map(x => doc(db, 'parts', x.kode));
       const ps = await Promise.all(refs.map(r => tx.get(r)));
       const items = c.items.map((x, i) => {
         if (!ps[i].exists()) throw new Error('Part ' + x.kode + ' sudah dihapus');
         const p = ps[i].data();
-        if (p.stok < x.qty) throw new Error('Stok ' + p.nama + ' tinggal ' + p.stok);
+        if (stokOf(p, cab) < x.qty) throw new Error('Stok ' + p.nama + ' tinggal ' + stokOf(p, cab));
         return { kode: p.kode, nama: p.nama, qty: x.qty, harga: p.jual, beli: p.beli || 0 };
       });
       const total = Math.max(0, items.reduce((a, x) => a + x.qty * x.harga, 0) - diskon);
       const pay = payStatus(c.pay, total); if (pay.err) throw new Error(pay.err);
-      const { no, counter } = nextNumber(cs, 'PJ');
-      const trx = { no, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', nopol: '', items, jasa: [], diskon, total, ...payRecord(c.pay, total), kasir: namaPetugas() };
-      tx.set(counterRef(), counter);
-      items.forEach((x, i) => tx.update(refs[i], { stok: ps[i].data().stok - x.qty }));
+      const { no, counter } = nextNumber(cs, 'PJ', cab);
+      const trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', nopol: '', items, jasa: [], diskon, total, ...payRecord(c.pay, total), kasir: namaPetugas() };
+      tx.set(counterRef(cab), counter);
+      items.forEach((x, i) => tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }));
       tx.set(doc(db, 'trx', no), { ...trx, dibuat: serverTimestamp() });
       return trx;
     });

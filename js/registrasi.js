@@ -8,7 +8,8 @@ import { AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, s
 import { showAntrian } from './antrian.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
 
-export const nopolKey = n => String(n || '').replace(/\s+/g, '').toUpperCase();
+import { cariKendaraan, nopolKey } from './cari-kendaraan.js';
+export { nopolKey };
 // Data konsumen sesuai KTP + data kendaraan sesuai STNK (disimpan bersama per kendaraan di koleksi kendaraan)
 export const KONSUMEN_FIELDS = ['nik', 'nama', 'tempatLahir', 'tglLahir', 'jk', 'pekerjaan', 'hp', 'rtrw', ...WIL_FIELDS];
 const UNIT_FIELDS = ['nopol', 'namaStnk', 'stnkSama', 'tipe', 'tahun', 'warna', 'noRangka', 'noMesin'];
@@ -49,7 +50,7 @@ function renderRegistrasi() {
     <div class="seg" role="group" aria-label="Tampilkan">${[['aktif', 'Aktif'], ['hari', 'Hari ini'], ['semua', 'Semua']].map(([k, l]) => `<button type="button" data-act="reg-filter" data-f="${k}" aria-pressed="${k === filter}">${l}</button>`).join('')}</div>
     <div class="wolist" id="reg-list"></div>
    </div>
-   <div class="panel"><div class="row spread"><h2 class="row" style="gap:10px">${w.no ? `<span>Antrian ${fmtAntri(w.antrian) || '–'}</span> <span class="small muted mono" title="Nomor kartu kerja (work order)">${esc(w.no)}</span>` : 'Registrasi motor masuk'}</h2>${w.no ? `<span class="row">${kurangBadge(w)}${jenisBadge(w)}${statusPill(w.status)}</span>` : ''}</div>
+   <div class="panel"><div class="row spread"><h2 class="row" style="gap:10px">${w.no ? `<span>Antrian ${fmtAntri(w.antrian) || '–'}</span> <span class="small muted mono" title="Nomor kartu kerja (work order)">${esc(w.no)}</span><button class="btn sm ghost" type="button" data-act="rw-buka" data-np="${esc(w.nopol)}">Riwayat motor</button>` : 'Registrasi motor masuk'}</h2>${w.no ? `<span class="row">${kurangBadge(w)}${jenisBadge(w)}${statusPill(w.status)}</span>` : ''}</div>
     ${locked ? '' : `<div class="cari-box"><label class="f" for="r-cari">Pernah servis di sini? Cari data lama<span class="row" style="gap:6px"><input id="r-cari" placeholder="No. polisi, nama, no. HP, NIK, no. rangka, atau no. mesin — boleh sebagian" autocomplete="off" style="flex:1 1 220px"><button class="btn" type="button" data-act="reg-cari">Cari</button></span></label><div id="r-cari-hasil"></div></div>`}
     <h3>1. Data konsumen <span class="h-sub">sesuai KTP</span></h3>
     <div class="form">
@@ -113,32 +114,12 @@ async function lookupKendaraan(nopol) {
 // Cukup sebagian depannya (mis. "BL123" menemukan BL 1234 NN). Data servis yang sudah dimuat juga dicocokkan
 // di bagian mana pun (mis. "1234" atau "NN").
 let hasilCari = [];
-const hpAwal = d => d.startsWith('0') ? '62' + d.slice(1) : d.startsWith('8') ? '62' + d : d;   // 0812… → 62812…
 async function cariData() {
-  const raw = ($('#r-cari')?.value || '').trim().toUpperCase().replace(/\s+/g, ' '), box = $('#r-cari-hasil');
-  if (raw.replace(/\s/g, '').length < 3) { toast('Ketik minimal 3 huruf/angka'); return; }
-  const rapat = raw.replace(/[\s.\-]/g, ''), digit = raw.replace(/\D/g, ''), hanyaAngka = /^[\d\s.\-+]+$/.test(raw);
+  const box = $('#r-cari-hasil');
   box.innerHTML = '<div class="small muted">Mencari…</div>';
-  const found = new Map();
-  const add = (id, d) => { if (!found.has(id)) found.set(id, { id, ...d }); };
-  const awalan = (f, v) => getDocs(query(collection(db, 'kendaraan'), where(f, '>=', v), where(f, '<=', v + '\uf8ff'), limit(10))).catch(e => { console.warn('Cari kendaraan', e); return { docs: [] }; });
-  try {
-    const idKey = rapat.replace(/[^A-Z0-9]/g, '');
-    const qs = [idKey ? awalan(documentId(), idKey) : null, awalan('noRangka', rapat), awalan('noMesin', rapat)];
-    if (!hanyaAngka) qs.push(awalan('nama', raw));
-    if (hanyaAngka && digit.length >= 4) { qs.push(awalan('nik', digit), awalan('hpNorm', hpAwal(digit))); }
-    const snaps = await Promise.all(qs.filter(Boolean));
-    snaps.forEach(sn => sn.docs.forEach(d => add(d.id, d.data())));
-  } catch (e) { console.warn('Cari kendaraan', e); }
-  // Data servis yang sudah dimuat: cocok di bagian mana pun
-  const cocok = w => {
-    const teks = [nopolKey(w.nopol), (w.noRangka || '').replace(/\s+/g, ''), (w.noMesin || '').replace(/\s+/g, ''), w.nik || '', String(w.nama || '').toUpperCase()];
-    if (teks.some(t => t && t.includes(rapat)) || (!hanyaAngka && String(w.nama || '').toUpperCase().includes(raw))) return true;
-    const hp = String(w.hp || '').replace(/\D/g, '');
-    return hanyaAngka && digit.length >= 4 && hp && (hp.includes(digit) || hpAwal(hp).includes(hpAwal(digit)));
-  };
-  [...S.wo].reverse().forEach(w => { if (w.nopol && cocok(w)) add(nopolKey(w.nopol), w); });
-  hasilCari = [...found.values()].slice(0, 15);
+  const hasil = await cariKendaraan($('#r-cari')?.value || '');
+  if (!hasil) { box.innerHTML = ''; toast('Ketik minimal 3 huruf/angka'); return; }
+  hasilCari = hasil;
   box.innerHTML = hasilCari.length ? `<div class="small muted">${hasilCari.length} ditemukan${hasilCari.length === 15 ? ' (ketik lebih lengkap untuk mempersempit)' : ''}</div><div class="cari-hasil">${hasilCari.map((k, i) => `<div class="cari-item"><div><b class="mono">${esc(k.nopol)}</b> · ${esc(k.tipe || '')} ${esc(k.warna || '')}<div class="small muted">${esc(k.nama || '–')}${k.nik ? ' · NIK ' + esc(k.nik) : ''}${k.hp ? ' · ' + esc(k.hp) : ''}</div><div class="small muted">${k.noRangka ? 'Rangka ' + esc(k.noRangka) : ''}${k.noMesin ? ' · Mesin ' + esc(k.noMesin) : ''}</div></div><div class="row" style="gap:6px"><button class="btn sm" type="button" data-act="reg-pakai" data-i="${i}" data-m="semua">Pakai data</button><button class="btn sm ghost" type="button" data-act="reg-pakai" data-i="${i}" data-m="konsumen" title="Untuk motor lain milik konsumen yang sama">Konsumen saja</button></div></div>`).join('')}</div>`
     : '<div class="small muted">Tidak ditemukan. Coba ketik bagian lain (mis. angka plat saja, nama, atau no. HP), atau isi data baru di bawah.</div>';
 }

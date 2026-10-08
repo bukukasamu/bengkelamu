@@ -7,6 +7,7 @@ import { db, doc, getDoc, collection, getDocs, writeBatch, query, orderBy, limit
 import { nopolKey } from './registrasi.js';
 import { statusPill, rebuildPantau, syncLayar } from './wo-common.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
+import { CABANG_UTAMA, cabangList, namaCabang, multiCabang, cabAktif, simpanCabang, layarDocId } from './cabang.js';
 import { loadXLSX } from './import-excel.js';
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
 
@@ -19,6 +20,7 @@ const TABS = [
   ['tipe', 'Tipe Motor', ['admin']],
   ['petugas', 'Petugas & PIN', ['admin']],
   ['layar', 'Layar TV', ['admin']],
+  ['cabang', 'Cabang', ['admin']],
   ['logo', 'Logo', ['admin'], 'super']
 ];
 const tabsFor = () => TABS.filter(t => isRole(...t[2]) && (t[3] !== 'super' || st.petugas?.super));
@@ -36,7 +38,7 @@ const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p
 function renderMaster() {
   const tabs = tabsFor(); if (!tabs.find(t => t[0] === st.masterTab)) st.masterTab = tabs[0][0];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="ms-tab" data-t="${k}" aria-selected="${k === st.masterTab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
-  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, logo: renderLogo })[st.masterTab]();
+  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, logo: renderLogo })[st.masterTab]();
 }
 
 /* ---------- Pemilik & kendaraan ---------- */
@@ -162,7 +164,7 @@ function renderMek() {
     <td>${id === 'new' ? `<input class="inline-input num" id="mm-p-new" inputmode="numeric" maxlength="6" placeholder="PIN 6 angka" style="width:110px" aria-label="PIN login">` : m.loginId ? `<span class="pill p-good">Aktif</span> <button class="btn sm ghost" type="button" data-act="mm-pin" data-id="${id}">Reset PIN</button>` : `<button class="btn sm" type="button" data-act="mm-pin" data-id="${id}">Buat PIN</button>`}</td>
     <td>${id === 'new' ? '' : `<input type="checkbox" id="mm-a-${id}" style="width:auto" ${m.aktif !== false ? 'checked' : ''} aria-label="Aktif">`}</td>
     <td class="r" style="white-space:nowrap">${id === 'new' ? '<button class="btn sm pri" type="button" data-act="mm-add">Tambah</button>' : `<button class="btn sm" type="button" data-act="mm-save" data-id="${id}">Simpan</button> <button class="btn sm ghost" type="button" data-act="mm-del" data-id="${id}">Hapus</button>`}</td></tr>`;
-  $('#ms-body').innerHTML = intro('Mekanik login dengan memilih namanya lalu memasukkan PIN, untuk melihat performa dan gajinya. Estimasi gaji = gaji pokok + komisi % × nilai jasa (klaim KSG memakai tarif main dealer).') + `
+  $('#ms-body').innerHTML = (multiCabang() ? `<p class="note small" style="margin:12px 0 0">Mekanik cabang <b>${esc(namaCabang(cabAktif()))}</b>. Untuk cabang lain, pindah cabang di kanan atas.</p>` : '') + intro('Mekanik login dengan memilih namanya lalu memasukkan PIN, untuk melihat performa dan gajinya. Estimasi gaji = gaji pokok + komisi % × nilai jasa (klaim KSG memakai tarif main dealer).') + `
    <div class="tw"><table><thead><tr><th>Nama</th><th class="r">Gaji pokok / bulan</th><th class="r">Komisi %</th><th>Login PIN</th><th>Aktif</th><th></th></tr></thead><tbody>${list.map(m => row(m, m.id)).join('')}${row({}, 'new')}</tbody></table></div>`;
 }
 function askPin(title, onOk) {
@@ -179,7 +181,7 @@ async function mekPin(id) {
   const m = S.mekanik.find(x => x.id === id); if (!m) return;
   askPin((m.loginId ? 'PIN baru untuk ' : 'Buat PIN untuk ') + m.nama, async pin => {
     if (m.loginId) await resetPin(m.loginId, pin);
-    else { const { id: loginId } = await tambahPetugas({ nama: m.nama, peran: 'mekanik', pin, mekanikId: m.id }); await updateDoc(doc(db, 'mekanik', m.id), { loginId }); }
+    else { const { id: loginId } = await tambahPetugas({ nama: m.nama, peran: 'mekanik', pin, mekanikId: m.id, cabang: m.cabang || CABANG_UTAMA }); await updateDoc(doc(db, 'mekanik', m.id), { loginId }); }
     toast('PIN ' + m.nama + ' disimpan'); logins = null;
   });
 }
@@ -209,15 +211,17 @@ const ROLE_NON_MEK = Object.entries(ROLES).filter(([k]) => k !== 'mekanik');
 function renderStaff() {
   const el = $('#ms-body');
   if (!logins) { el.innerHTML = loaderHTML('Memuat petugas…'); loadLogins(); return; }
+  const multi = multiCabang();
+  const cabSel = (id, v) => `<select class="inline-input" id="${id}" style="width:auto" aria-label="Cabang">${cabangList().map(c => `<option value="${esc(c.id)}" ${c.id === (v || CABANG_UTAMA) ? 'selected' : ''}>${esc(c.nama)}</option>`).join('')}</select>`;
   const roleSel = (id, v) => `<select class="inline-input" id="${id}" style="width:auto" aria-label="Peran">${ROLE_NON_MEK.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   el.innerHTML = intro('Petugas masuk dengan memilih nama lalu PIN 6 angka, dan bisa mengganti PIN sendiri. Peran menentukan menu: Registrasi (motor masuk), Sparepart (order part &amp; pembelian), Kasir (pembayaran, status mekanik, penjualan), Admin (semua). Login mekanik diatur di tab Mekanik.') + `
-   <div class="tw"><table><thead><tr><th>Nama</th><th>Peran</th><th></th></tr></thead><tbody>
+   <div class="tw"><table><thead><tr><th>Nama</th><th>Peran</th>${multi ? '<th>Cabang</th>' : ''}<th></th></tr></thead><tbody>
    ${logins.map((s, i) => s.peran === 'mekanik'
-      ? `<tr><td>${esc(s.nama)}</td><td><span class="small muted">Mekanik (atur di tab Mekanik)</span></td><td class="r"><button class="btn sm ghost" type="button" data-act="sf-pin" data-i="${i}">Reset PIN</button></td></tr>`
-      : `<tr><td><input class="inline-input" id="sf-n-${i}" value="${esc(s.nama)}" aria-label="Nama"></td><td>${roleSel('sf-r-' + i, s.peran)}</td><td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="sf-save" data-i="${i}">Simpan</button> <button class="btn sm ghost" type="button" data-act="sf-pin" data-i="${i}">Reset PIN</button> <button class="btn sm ghost" type="button" data-act="sf-del" data-i="${i}">Hapus</button></td></tr>`).join('') || '<tr><td colspan="3" class="empty">Belum ada petugas.</td></tr>'}
+      ? `<tr><td>${esc(s.nama)}</td><td><span class="small muted">Mekanik (atur di tab Mekanik)</span></td>${multi ? `<td class="small">${esc(namaCabang(s.cabang))}</td>` : ''}<td class="r"><button class="btn sm ghost" type="button" data-act="sf-pin" data-i="${i}">Reset PIN</button></td></tr>`
+      : `<tr><td><input class="inline-input" id="sf-n-${i}" value="${esc(s.nama)}" aria-label="Nama"></td><td>${roleSel('sf-r-' + i, s.peran)}</td>${multi ? `<td>${cabSel('sf-c-' + i, s.cabang)}</td>` : ''}<td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="sf-save" data-i="${i}">Simpan</button> <button class="btn sm ghost" type="button" data-act="sf-pin" data-i="${i}">Reset PIN</button> <button class="btn sm ghost" type="button" data-act="sf-del" data-i="${i}">Hapus</button></td></tr>`).join('') || '<tr><td colspan="3" class="empty">Belum ada petugas.</td></tr>'}
    </tbody></table></div>
    <div class="panel" style="background:var(--panel-2);box-shadow:none;margin-top:12px"><h3>Tambah petugas</h3>
-    <div class="form"><label class="f" for="sf-nama">Nama<input id="sf-nama" autocomplete="off"></label><label class="f" for="sf-peran">Peran${roleSel('sf-peran', 'kasir')}</label><label class="f" for="sf-pin">PIN awal (6 angka)<input id="sf-pin" class="num" inputmode="numeric" maxlength="6" autocomplete="off"></label></div>
+    <div class="form"><label class="f" for="sf-nama">Nama<input id="sf-nama" autocomplete="off"></label><label class="f" for="sf-peran">Peran${roleSel('sf-peran', 'kasir')}</label>${multi ? `<label class="f" for="sf-cabang">Cabang${cabSel('sf-cabang', cabAktif())}</label>` : ''}<label class="f" for="sf-pin">PIN awal (6 angka)<input id="sf-pin" class="num" inputmode="numeric" maxlength="6" autocomplete="off"></label></div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="sf-add">Tambah petugas</button></div></div>
    <p class="small muted" style="margin:8px 0 0">Super admin (cashflow.amu@gmail.com) masuk dengan email dan kata sandi lewat tombol "Masuk sebagai super admin".</p>`;
 }
@@ -239,12 +243,12 @@ function renderLogo() {
 
 // Layar TV ruang tunggu: teks berjalan + petunjuk pemasangan
 async function renderLayar() {
-  const url = publicUrl('layar');
+  const cab = cabAktif(), url = publicUrl('layar', cab === CABANG_UTAMA ? {} : { c: cab });
   $('#ms-body').innerHTML = loaderHTML('Memuat pengaturan layar…');
   let info = '';
-  try { const s = await getDoc(doc(db, 'publik', 'layar')); info = (s.exists() && s.data().info) || ''; } catch (e) { /* tetap tampilkan form */ }
+  try { const s = await getDoc(doc(db, 'publik', layarDocId(cab))); info = (s.exists() && s.data().info) || ''; } catch (e) { /* tetap tampilkan form */ }
   if (st.masterTab !== 'layar') return;
-  $('#ms-body').innerHTML = intro('Layar untuk konsumen di ruang tunggu: nomor antrian yang dipanggil, motor yang sedang dikerjakan, yang menunggu, dan yang siap diambil. Tidak menampilkan nama, no. HP, maupun biaya. Tidak perlu login.') + `
+  $('#ms-body').innerHTML = (multiCabang() ? `<p class="note small" style="margin:12px 0 0">Layar TV cabang <b>${esc(namaCabang(cab))}</b>. Setiap cabang punya alamat layar sendiri.</p>` : '') + intro('Layar untuk konsumen di ruang tunggu: nomor antrian yang dipanggil, motor yang sedang dikerjakan, yang menunggu, dan yang siap diambil. Tidak menampilkan nama, no. HP, maupun biaya. Tidak perlu login.') + `
    <div class="form" style="grid-template-columns:minmax(0,1fr)">
     <label class="f" for="ly-info">Teks berjalan di bawah layar (jam buka, promo, info KSG, dll.)<textarea id="ly-info" rows="3" data-nocaps placeholder="Buka Senin–Sabtu 08.00–17.00 · Ganti oli gratis cek rem · Bawa buku KSG Anda">${esc(info)}</textarea></label>
    </div>
@@ -258,12 +262,40 @@ async function renderLayar() {
    </ol>`;
 }
 
+/* ---------- Cabang ----------
+   Kode cabang (2–4 huruf/angka) dipakai di nomor dokumen dan tidak bisa diubah. Cabang tidak dihapus,
+   cukup dinonaktifkan, supaya data lamanya tetap terbaca. */
+function renderCabang() {
+  const list = cabangList(true);
+  const row = (c, i) => `<tr><td class="mono">${esc(c.id)}${c.id === CABANG_UTAMA ? '<div class="small muted">utama</div>' : ''}</td>
+    <td><input class="inline-input" id="cb-n-${i}" value="${esc(c.nama)}" aria-label="Nama cabang"></td>
+    <td><input class="inline-input" id="cb-a-${i}" value="${esc(c.alamat || '')}" placeholder="Alamat untuk nota" aria-label="Alamat"></td>
+    <td><input class="inline-input" id="cb-t-${i}" value="${esc(c.telp || '')}" inputmode="tel" placeholder="No. telp/WA" aria-label="Telepon" style="width:140px"></td>
+    <td>${c.id === CABANG_UTAMA ? '<span class="small muted">selalu aktif</span>' : `<input type="checkbox" id="cb-x-${i}" style="width:auto" ${c.aktif !== false ? 'checked' : ''} aria-label="Aktif">`}</td></tr>`;
+  $('#ms-body').innerHTML = intro('Setiap cabang punya stok, nomor nota/WO/antrian, mekanik, petugas, dan layar TV sendiri. Master part &amp; harga, jasa, tarif KSG, tipe motor, rekening, dan data konsumen dipakai bersama. Alamat & telepon cabang tercetak di nota.') + `
+   <div class="tw"><table><thead><tr><th>Kode</th><th>Nama cabang</th><th>Alamat</th><th>Telp / WA</th><th>Aktif</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
+   <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="cb-save">Simpan perubahan</button></div>
+   <div class="panel" style="background:var(--panel-2);box-shadow:none"><h3>Tambah cabang</h3>
+    <div class="form"><label class="f" for="cb-kode">Kode (2–4 huruf, mis. LSK)<input id="cb-kode" maxlength="4" autocomplete="off" class="mono"></label><label class="f wide-2" for="cb-nama">Nama cabang<input id="cb-nama" placeholder="mis. LHOKSEUMAWE" autocomplete="off"></label><label class="f wide-2" for="cb-alamat">Alamat<input id="cb-alamat" autocomplete="off"></label><label class="f" for="cb-telp">Telp / WA<input id="cb-telp" inputmode="tel" autocomplete="off"></label></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="cb-add">Tambah cabang</button></div>
+    <p class="small muted" style="margin:0">Setelah ditambah: pindah ke cabang baru di kanan atas, lalu isi mekaniknya (tab Mekanik), tambahkan petugas dengan cabang tersebut (tab Petugas &amp; PIN), dan kirim stok awal lewat <b>Stok Part → Transfer stok</b> atau Pembelian Stok.</p></div>`;
+}
+const cabangDariForm = () => cabangList(true).map((c, i) => ({ ...c, nama: ($('#cb-n-' + i)?.value || c.nama).trim().toUpperCase(), alamat: ($('#cb-a-' + i)?.value || '').trim(), telp: ($('#cb-t-' + i)?.value || '').trim(), aktif: c.id === CABANG_UTAMA ? true : !!$('#cb-x-' + i)?.checked }));
+
 views.master = renderMaster;
 refreshers.master = () => {};   // jangan timpa isian yang sedang diketik saat data berubah
 fkeys.master = { baru: () => st.masterTab === 'kendaraan' ? 'ms-kadd' : null, simpan: () => st.masterTab === 'kendaraan' && kendEdit ? 'ms-ksave' : st.masterTab === 'tipe' ? 'tp-save' : st.masterTab === 'ksg' ? 'kt-save' : null };
 Object.assign(actions, {
-  'ly-save': async () => { try { await setDoc(doc(db, 'publik', 'layar'), { info: ($('#ly-info')?.value || '').trim() }, { merge: true }); toast('Teks layar disimpan'); } catch (e) { toast(errMsg(e)); } },
+  'ly-save': async () => { try { await setDoc(doc(db, 'publik', layarDocId()), { info: ($('#ly-info')?.value || '').trim() }, { merge: true }); toast('Teks layar disimpan'); } catch (e) { toast(errMsg(e)); } },
   'ly-sync': async () => { await syncLayar(null, true); toast('Isi layar TV diperbarui'); },
+  'cb-save': async () => { try { await simpanCabang(cabangDariForm()); toast('Data cabang disimpan'); } catch (e) { toast(errMsg(e)); } },
+  'cb-add': async () => {
+    const id = ($('#cb-kode').value || '').trim().toUpperCase(), nama = ($('#cb-nama').value || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,4}$/.test(id)) { toast('Kode cabang 2–4 huruf/angka, mis. LSK'); $('#cb-kode').focus(); return; }
+    if (cabangList(true).some(c => c.id === id) || id === CABANG_UTAMA) { toast('Kode ' + id + ' sudah dipakai'); return; }
+    if (!nama) { toast('Isi nama cabang'); $('#cb-nama').focus(); return; }
+    try { await simpanCabang([...cabangDariForm(), { id, nama, alamat: ($('#cb-alamat').value || '').trim(), telp: ($('#cb-telp').value || '').trim(), aktif: true }]); toast('Cabang ' + nama + ' ditambahkan'); setTimeout(renderCabang, 100); } catch (e) { toast(errMsg(e)); }
+  },
   'ms-tab': el => { st.masterTab = el.dataset.t; kendEdit = null; renderMaster(); },
   'ms-kadd': () => { kendEdit = { nopol: '' }; renderKForm(); $('#mk-nopol')?.focus(); },
   'ms-kedit': el => { const k = kend.find(x => x.id === el.dataset.id); if (k) { kendEdit = { ...k }; renderKForm(); $('#ms-kform').scrollIntoView({ block: 'nearest' }); } },
@@ -288,8 +320,8 @@ Object.assign(actions, {
     const nama = $('#mm-n-new').value.trim(), pin = $('#mm-p-new').value.trim(); if (!nama) { toast('Isi nama mekanik'); return; }
     if (pin && !validPin(pin)) { toast('PIN harus 6 angka (atau kosongkan dulu)'); return; }
     try {
-      const ref = await addDoc(collection(db, 'mekanik'), { nama, gaji: +$('#mm-g-new').value || 0, komisi: +$('#mm-k-new').value || 0, aktif: true });
-      if (pin) { const { id: loginId } = await tambahPetugas({ nama, peran: 'mekanik', pin, mekanikId: ref.id }); await updateDoc(ref, { loginId }); }
+      const ref = await addDoc(collection(db, 'mekanik'), { nama, cabang: cabAktif(), gaji: +$('#mm-g-new').value || 0, komisi: +$('#mm-k-new').value || 0, aktif: true });
+      if (pin) { const { id: loginId } = await tambahPetugas({ nama, peran: 'mekanik', pin, mekanikId: ref.id, cabang: cabAktif() }); await updateDoc(ref, { loginId }); }
       toast('Mekanik ' + nama + ' ditambahkan' + (pin ? ' dengan PIN' : '')); logins = null; renderMek();
     } catch (e) { toast(pinErr(e)); }
   },
@@ -299,7 +331,7 @@ Object.assign(actions, {
   'rk-save': async el => { const i = +el.dataset.i, list = [...(S.settings.rekening || [])]; list[i] = { ...list[i], ...rekData(i), aktif: $('#rk-x-' + i).checked }; try { await saveSettings({ rekening: list }); toast('Rekening disimpan'); } catch (e) { toast(errMsg(e)); } },
   'rk-del': el => confirmTwice(el, 'r' + el.dataset.i, async () => { const list = (S.settings.rekening || []).filter((_, i) => i !== +el.dataset.i); try { await saveSettings({ rekening: list }); toast('Rekening dihapus (transaksi lama tetap tercatat)'); setTimeout(renderRek, 50); } catch (e) { toast(errMsg(e)); } }),
   'tp-save': async () => { const tipe = [...new Set($('#tp-list').value.split('\n').map(s => s.trim()).filter(Boolean))]; if (!tipe.length) { toast('Isi minimal satu tipe'); return; } try { await saveSettings({ tipe }); toast(tipe.length + ' tipe motor disimpan'); } catch (e) { toast(errMsg(e)); } },
-  'sf-save': async el => { const i = +el.dataset.i, s = logins[i]; try { await ubahPetugas(s.id, { nama: $('#sf-n-' + i).value.trim() || s.nama, peran: $('#sf-r-' + i).value }); toast('Petugas ' + s.nama + ' disimpan'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } },
+  'sf-save': async el => { const i = +el.dataset.i, s = logins[i]; try { await ubahPetugas(s.id, { nama: $('#sf-n-' + i).value.trim() || s.nama, peran: $('#sf-r-' + i).value, cabang: $('#sf-c-' + i)?.value || s.cabang || CABANG_UTAMA }); toast('Petugas ' + s.nama + ' disimpan'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } },
   'sf-pin': el => { const s = logins[+el.dataset.i]; askPin('PIN baru untuk ' + s.nama, async pin => { await resetPin(s.id, pin); toast('PIN ' + s.nama + ' diganti'); logins = null; setTimeout(renderStaff, 50); }); },
   'sf-del': el => { const s = logins[+el.dataset.i]; confirmTwice(el, 's' + s.id, async () => { try { await hapusPetugas(s.id); toast(s.nama + ' dihapus, tidak bisa login lagi'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } }); },
   'lg-save': async () => { try { await saveLogo(logoDraft); logoDraft = null; toast('Logo dipasang'); renderLogo(); } catch (e) { toast(errMsg(e)); } },
@@ -311,7 +343,7 @@ Object.assign(actions, {
     if (!validPin(pin)) { toast('PIN harus 6 angka'); return; }
     if ((logins || []).some(x => x.nama.toLowerCase() === nama.toLowerCase())) { toast('Nama ' + nama + ' sudah dipakai, bedakan supaya tidak tertukar saat login'); return; }
     $('[data-act="sf-add"]').disabled = true;
-    try { await tambahPetugas({ nama, peran, pin }); toast(nama + ' ditambahkan sebagai ' + ROLES[peran]); logins = null; renderStaff(); }
+    try { await tambahPetugas({ nama, peran, pin, cabang: $('#sf-cabang')?.value || cabAktif() }); toast(nama + ' ditambahkan sebagai ' + ROLES[peran] + (multiCabang() ? ' di cabang ' + namaCabang($('#sf-cabang')?.value || cabAktif()) : '')); logins = null; renderStaff(); }
     catch (e) { toast(pinErr(e)); $('[data-act="sf-add"]').disabled = false; }
   }
 });

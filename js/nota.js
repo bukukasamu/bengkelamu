@@ -2,12 +2,14 @@
 import { $, esc, toast, modal, waLink, waNumber, publicUrl } from './util.js';
 import { S, st, actions, inputHandlers } from './state.js';
 import { APP_NAME, APP_SUB } from './config.js';
+import { cabangById, cabangOf, multiCabang } from './cabang.js';
 
 const n = x => Math.round(x || 0).toLocaleString('id-ID');
 
 // Baris-baris nota. type: 'title' | 'sub' | 'lr' (kiri-kanan) | 'item' | 'line' | 'center' | 'head'
 export function notaRows(t) {
-  const r = [{ type: 'title', l: APP_NAME.toUpperCase() }, { type: 'sub', l: APP_SUB }, { type: 'line' },
+  const cb = cabangById(cabangOf(t)), infoCabang = cb ? [multiCabang() ? 'Cabang ' + cb.nama : '', cb.alamat, cb.telp ? 'Telp/WA ' + cb.telp : ''].filter(Boolean).join(' | ') : '';
+  const r = [{ type: 'title', l: APP_NAME.toUpperCase() }, { type: 'sub', l: APP_SUB }, ...(infoCabang ? [{ type: 'center', small: true, l: infoCabang }] : []), { type: 'line' },
     { type: 'lr', l: 'No', r: t.no }, { type: 'lr', l: 'Tanggal', r: t.tgl }, { type: 'lr', l: 'Pelanggan', r: (t.pelanggan || 'Umum').slice(0, 26) }];
   if (t.nopol) r.push({ type: 'lr', l: 'Nopol', r: t.nopol + (t.tipe ? ' · ' + t.tipe : '') });
   if (t.km) r.push({ type: 'lr', l: 'Kilometer', r: t.km });
@@ -30,6 +32,19 @@ export function notaRows(t) {
   if (t.jenisServis === 'KSG') r.push({ type: 'center', l: 'Jasa servis KSG gratis' });
   r.push({ type: 'center', l: 'Terima kasih' }, { type: 'center', l: 'Barang yang sudah dibeli tidak dapat dikembalikan', small: true });
   return r;
+}
+
+// Pratinjau nota berbentuk struk (HTML) — dipakai di halaman cek servis sebelum PDF diunduh
+export function notaHTML(t) {
+  return `<div class="struk">${notaRows(t).map(x => {
+    if (x.type === 'title') return `<div class="s-title">${esc(x.l)}</div>`;
+    if (x.type === 'sub') return `<div class="s-sub">${esc(x.l)}</div>`;
+    if (x.type === 'line') return '<hr>';
+    if (x.type === 'head') return `<div class="s-head">${esc(x.l)}</div>`;
+    if (x.type === 'center') return `<div class="s-center${x.small ? ' small' : ''}">${esc(x.l)}</div>`;
+    if (x.type === 'item') return `<div class="s-item"><div>${esc(x.l)}</div><div class="s-lr"><span class="muted">${esc(x.sub)}</span><span>${esc(x.r)}</span></div></div>`;
+    return `<div class="s-lr${x.bold ? ' s-total' : ''}"><span>${esc(String(x.l).trim())}</span><span>${esc(x.r)}</span></div>`;
+  }).join('')}</div>`;
 }
 
 // Versi teks 38 kolom untuk layar & printer struk

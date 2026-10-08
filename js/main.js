@@ -8,11 +8,13 @@ import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.j
 import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
 import { showNota } from './nota.js';
 import { pasangTombol } from './pwa.js';
+import { CABANG_UTAMA, cabangList, cabangById, namaCabang, multiCabang, cabAktif, diCabang, stokOf, stokTotal, watchCabang, loadCabang } from './cabang.js';
 import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
 // Modul menu: cukup diimpor, masing-masing mendaftarkan tampilan & aksinya sendiri.
 import './beranda.js';
 import './registrasi.js';
+import './riwayat.js';
 import './order.js';
 import './bayar.js';
 import './mekanik.js';
@@ -62,12 +64,16 @@ function setLoginMode(email) {
   (email ? $('#login-email') : ($('#login-nama').value ? $('#login-pin') : $('#login-nama')))?.focus();
 }
 async function fillLoginList() {
-  try { loginList = await loadLoginList(); } catch (e) { loginList = []; }
-  const groups = {};
-  loginList.forEach(p => { (groups[p.peran] = groups[p.peran] || []).push(p); });
+  try { [loginList] = await Promise.all([loadLoginList(), loadCabang()]); } catch (e) { loginList = loginList || []; }
+  // Dikelompokkan per peran; bila ada beberapa cabang, per cabang + peran (admin/pemilik tidak terikat cabang)
+  const multi = multiCabang(), groups = new Map();
+  const urut = multi ? [['', 'admin'], ...cabangList().flatMap(c => Object.keys(ROLES).filter(r => r !== 'admin').map(r => [c.id, r]))] : Object.keys(ROLES).map(r => ['', r]);
+  urut.forEach(k => groups.set(k.join('|'), []));
+  loginList.forEach(p => { const key = (multi && p.peran !== 'admin' ? (p.cabang || CABANG_UTAMA) : '') + '|' + p.peran; (groups.get(key) || groups.set(key, []).get(key)).push(p); });
+  const label = key => { const [c, r] = key.split('|'); return (c ? namaCabang(c) + ' · ' : '') + (ROLES[r] || r); };
   let last = ''; try { last = localStorage.getItem('amu-login-id') || ''; } catch (e) {}
   $('#login-nama').innerHTML = loginList.length
-    ? '<option value="">Pilih nama</option>' + Object.keys(ROLES).filter(r => groups[r]).map(r => `<optgroup label="${esc(ROLES[r])}">${groups[r].map(p => `<option value="${esc(p.id)}" ${p.id === last ? 'selected' : ''}>${esc(p.nama)}</option>`).join('')}</optgroup>`).join('')
+    ? '<option value="">Pilih nama</option>' + [...groups.entries()].filter(([, l]) => l.length).map(([k, l]) => `<optgroup label="${esc(label(k))}">${l.map(p => `<option value="${esc(p.id)}" ${p.id === last ? 'selected' : ''}>${esc(p.nama)}</option>`).join('')}</optgroup>`).join('')
     : '<option value="">Belum ada petugas</option>';
   if (!loginList.length) setLoginMode(true);
 }
@@ -149,7 +155,13 @@ onAuthStateChanged(auth, async u => {
       : 'Tidak bisa membaca data petugas: ' + errMsg(e);
     await signOut(auth); return;
   }
+  // Cabang: karyawan terikat cabangnya; admin/pemilik bisa berpindah (pilihan terakhir diingat di perangkat ini)
+  await loadCabang();
+  if (st.role === 'admin') { let c = null; try { c = localStorage.getItem('amu-cabang'); } catch (e) {} st.cabang = cabangById(c) ? c : CABANG_UTAMA; }
+  else st.cabang = st.petugas.cabang || CABANG_UTAMA;
+  if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA;
   bootDone(); $('#login-screen').hidden = true; $('#app-shell').hidden = false;
+  renderCabangBox();
   $('#who').textContent = st.petugas.nama || st.petugas.email;
   $('#who-role').textContent = st.petugas.super ? 'Super Admin' : ROLES[st.role];
   $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
@@ -173,15 +185,45 @@ function subscribe() {
     ready[k] = true;
     if (need.every(n => ready[n])) { if (!st.loaded) { st.loaded = true; seedMaster(); go(st.view); } else refresh(); }
   };
-  const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); mark(k); }, fail));
-  sub(collection(db, 'parts'), 'parts', s => setParts(s.docs.map(d => d.data())));
-  sub(query(collection(db, 'trx'), where('tgl', '>=', from)), 'trx', s => { S.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
-  sub(query(collection(db, 'wo'), orderBy('tgl', 'desc'), limit(200)), 'wo', s => { S.wo = s.docs.map(d => d.data()).reverse(); });
+  const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, fail));
+  sub(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
+  sub(query(collection(db, 'trx'), where('tgl', '>=', from)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+  // Semua cabang dimuat lalu disaring di perangkat (tanpa indeks tambahan di Firestore)
+  sub(query(collection(db, 'wo'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
   sub(collection(db, 'jasa'), 'jasa', s => { S.jasa = s.docs.map(d => ({ id: d.id, ...d.data() })); });
-  sub(collection(db, 'mekanik'), 'mekanik', s => { S.mekanik = s.docs.map(d => ({ id: d.id, ...d.data() })); });
+  sub(collection(db, 'mekanik'), 'mekanik', s => { raw.mekanik = s.docs.map(d => ({ id: d.id, ...d.data() })); });
   sub(doc(db, 'meta', 'settings'), 'settings', s => { S.settings = s.exists() ? s.data() : {}; });
-  if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(200)), 'pembelian', s => { S.pembelian = s.docs.map(d => d.data()); });
+  if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(300)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()); });
+  unsubs.push(watchCabang(() => { if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA; renderCabangBox(); if (st.loaded) { terapkanCabang(); refresh(); } }));
 }
+
+/* ---------- CABANG ----------
+   Data mentah semua cabang disimpan di "raw"; S.* berisi data cabang yang sedang dipakai.
+   S.woSemua / S.trxSemua tetap berisi semua cabang (untuk laporan gabungan dan pencarian konsumen). */
+const raw = { parts: [], trx: [], wo: [], mekanik: [], pembelian: [] };
+function terapkanCabang() {
+  const cab = cabAktif(), ini = d => diCabang(d, cab);
+  setParts(raw.parts.map(p => ({ ...p, stok: stokOf(p, cab), stokSemua: stokTotal(p) })));
+  S.trxSemua = raw.trx; S.trx = raw.trx.filter(ini);
+  S.woSemua = raw.wo; S.wo = raw.wo.filter(ini);
+  S.mekanikSemua = raw.mekanik; S.mekanik = raw.mekanik.filter(ini);
+  S.pembelian = raw.pembelian.filter(ini);
+}
+function renderCabangBox() {
+  const el = $('#cabang-box'); if (!el) return;
+  if (!multiCabang() && cabAktif() === CABANG_UTAMA) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = st.role === 'admin'
+    ? `<label class="cabang-pilih"><span>Cabang</span><select id="cabang-pilih" aria-label="Pindah cabang">${cabangList().map(c => `<option value="${esc(c.id)}" ${c.id === cabAktif() ? 'selected' : ''}>${esc(c.nama)}</option>`).join('')}</select></label>`
+    : `<span class="cabang-tag" title="Cabang Anda">${esc(namaCabang(cabAktif()))}</span>`;
+}
+document.addEventListener('change', e => {
+  if (e.target.id !== 'cabang-pilih') return;
+  st.cabang = e.target.value; try { localStorage.setItem('amu-cabang', st.cabang); } catch (err) {}
+  // draf yang sedang diisi milik cabang sebelumnya
+  st.regDraft = null; st.orderNo = null; st.orderDraft = null; st.bayarNo = null; st.bayarDraft = null; st.pbDraft = null; st.partEdit = null;
+  terapkanCabang(); go(st.view); toast('Pindah ke cabang ' + namaCabang(st.cabang));
+});
 
 // Admin pertama kali: isi jasa, mekanik, tipe motor default supaya registrasi langsung bisa dipakai
 async function seedMaster() {

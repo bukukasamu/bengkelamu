@@ -6,6 +6,11 @@ import { trxIn, sums } from './stats.js';
 import { db, collection, getDocs, query, where } from './firebase.js';
 import { jenisBadge } from './wo-common.js';
 import { loadXLSX } from './import-excel.js';
+import { cabAktif, cabangOf, namaCabang, multiCabang, cabangList } from './cabang.js';
+import { isRole } from './state.js';
+
+// Admin/pemilik bisa melihat laporan gabungan semua cabang
+const gabungan = () => st.lap.semuaCabang && isRole('admin') && multiCabang();
 
 const RANGES = [['hari', 'Hari ini'], ['7', '7 hari'], ['bulan', 'Bulan ini'], ['lalu', 'Bulan lalu'], ['pilih', 'Pilih tanggal']];
 let loadedFrom = '';   // batas awal data transaksi yang sudah dimuat realtime (diisi main.js)
@@ -37,16 +42,17 @@ function applyFilter(list) {
   if (f.type === 'kode') return list.filter(t => t.items.some(x => x.kode === f.value));
   if (f.type === 'mekanik') return list.filter(t => t.mekanik === f.value);
   if (f.type === 'kasir') return list.filter(t => (t.kasir || '') === f.value);
+  if (f.type === 'cabang') return list.filter(t => cabangOf(t) === f.value);
   if (f.type === 'rek') return list.filter(t => (t.transfer || 0) > 0 && (t.rekeningId || '?') === f.value);
   return list;
 }
-const filterLabel = f => FILTERS[f.type]?.label || (f.type === 'kode' ? 'Part: ' + f.label : f.type === 'mekanik' ? 'Mekanik: ' + f.value : f.type === 'rek' ? 'Transfer ke ' + f.label : 'Kasir: ' + f.value);
+const filterLabel = f => FILTERS[f.type]?.label || (f.type === 'cabang' ? 'Cabang ' + namaCabang(f.value) : f.type === 'kode' ? 'Part: ' + f.label : f.type === 'mekanik' ? 'Mekanik: ' + f.value : f.type === 'rek' ? 'Transfer ke ' + f.label : 'Kasir: ' + f.value);
 
 async function source(from, to) {
-  if (from >= loadedFrom) return trxIn(from, to);
+  if (from >= loadedFrom) return trxIn(from, to, gabungan() ? S.trxSemua : S.trx);
   // Periode di luar data realtime: ambil sekali dari server
   const s = await getDocs(query(collection(db, 'trx'), where('tgl', '>=', from), where('tgl', '<=', to + ' 99')));
-  return s.docs.map(d => d.data());
+  return s.docs.map(d => d.data()).filter(t => gabungan() || cabangOf(t) === cabAktif());
 }
 
 async function renderLaporan() {
@@ -62,11 +68,12 @@ async function renderLaporan() {
   const topL = Object.entries(top).sort((a, b) => b[1].qty - a[1].qty).slice(0, 8), mx = topL.length ? topL[0][1].qty : 1;
   const per = (key) => { const m = {}; base.forEach(t => { const k = t[key]; if (k) { m[k] = m[k] || { n: 0, total: 0 }; m[k].n++; m[k].total += t.total; } }); return Object.entries(m).sort((a, b) => b[1].total - a[1].total); };
   const mek = per('mekanik'), kas = per('kasir');
+  const perCab = gabungan() ? cabangList(true).map(c => { const l = base.filter(t => cabangOf(t) === c.id); return [c.id, { n: l.length, total: l.reduce((a, t) => a + t.total, 0) }]; }).filter(([, v]) => v.n).sort((a, b) => b[1].total - a[1].total) : [];
   const tile = (type, lbl, val, sub, color) => `<button class="tile click" type="button" data-act="lap-f" data-t="${type}" aria-pressed="${L.filter?.type === type}"><span class="lbl">${lbl}</span><span class="val"${color ? ` style="color:${color}"` : ''}>${val}</span><span class="sub">${sub}</span></button>`;
   $('#view').innerHTML = `<div class="grid">
    <div class="row spread">
     <div class="seg" role="group" aria-label="Periode">${RANGES.map(([k, l]) => `<button type="button" data-act="lap-r" data-r="${k}" aria-pressed="${k === L.range}">${l}</button>`).join('')}</div>
-    <button class="btn" type="button" data-act="lap-xlsx">Export Excel</button>
+    <div class="row">${isRole('admin') && multiCabang() ? `<select id="lap-cab" style="width:auto" aria-label="Cabang"><option value="ini" ${gabungan() ? '' : 'selected'}>Cabang ${esc(namaCabang(cabAktif()))}</option><option value="semua" ${gabungan() ? 'selected' : ''}>Semua cabang</option></select>` : ''}<button class="btn" type="button" data-act="lap-xlsx">Export Excel</button></div>
    </div>
    ${L.range === 'pilih' ? `<div class="row"><label class="f" for="lap-from">Dari<input id="lap-from" type="date" value="${esc(L.from)}"></label><label class="f" for="lap-to">Sampai<input id="lap-to" type="date" value="${esc(L.to)}"></label><button class="btn pri" type="button" data-act="lap-go" style="align-self:flex-end">Tampilkan</button></div>` : ''}
    <p class="small muted" style="margin:0">${from === to ? from : from + ' s/d ' + to} · klik angka, part, mekanik, atau kasir untuk menyaring daftar transaksi.</p>
@@ -77,6 +84,7 @@ async function renderLaporan() {
     ${tile('ksg', 'Klaim KSG', rp(all.klaim), all.ksg + ' servis KSG')}
     <div class="tile"><span class="lbl">Laba kotor</span><span class="val" style="color:var(--good)">${rp(all.laba)}</span><span class="sub">diskon ${rp(all.dis)}</span></div>
    </div>
+   ${perCab.length ? `<div class="panel"><h3>Omzet per cabang</h3><div class="tw"><table><thead><tr><th>Cabang</th><th class="r">Nota</th><th class="r">Total</th></tr></thead><tbody>${perCab.map(([id, v]) => `<tr class="row-click" tabindex="0" data-act="lap-f" data-t="cabang" data-v="${esc(id)}"><td>${esc(namaCabang(id))}</td><td class="r num">${v.n}</td><td class="r num">${rp(v.total)}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
    <div class="grid g2">
     <div class="panel"><h3>Part terlaris</h3>${topL.length ? topL.map(([k, v]) => `<button class="bar-row" type="button" data-act="lap-f" data-t="kode" data-v="${esc(k)}" data-l="${esc(v.nama)}"><span class="row spread small"><span class="bar-lbl">${esc(v.nama)}</span><span class="num">${v.qty} pcs · ${rp(v.nilai)}</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${v.qty / mx * 100}%"></span></span></button>`).join('') : '<div class="empty">Belum ada penjualan part.</div>'}</div>
     <div class="panel"><h3>Uang masuk</h3>
@@ -101,7 +109,7 @@ async function exportXlsx() {
   if (!list.length) { toast('Tidak ada transaksi untuk diexport'); return; }
   try {
     const X = await loadXLSX();
-    const rows = list.map(t => ({ nota: t.no, waktu: t.tgl, jenis: t.jenis === 'SERVIS' ? 'Servis ' + (t.jenisServis || 'Reguler') : 'Part', pelanggan: t.pelanggan, nopol: t.nopol || '', mekanik: t.mekanik || '', kasir: t.kasir || '',
+    const rows = list.map(t => ({ nota: t.no, ...(multiCabang() ? { cabang: namaCabang(cabangOf(t)) } : {}), waktu: t.tgl, jenis: t.jenis === 'SERVIS' ? 'Servis ' + (t.jenisServis || 'Reguler') : 'Part', pelanggan: t.pelanggan, nopol: t.nopol || '', mekanik: t.mekanik || '', kasir: t.kasir || '',
       sparepart: t.items.reduce((a, x) => a + x.qty * x.harga, 0), jasa: (t.jasa || []).reduce((a, j) => a + j.harga, 0), klaim_ksg: t.jasaKlaim || 0, biaya_lain: (t.biaya || []).reduce((a, b) => a + b.jumlah, 0), diskon: t.diskon || 0, total: t.total, metode: t.metode || 'Cash', cash_bersih: t.cash == null ? t.total : (t.cash || 0) - (t.kembali || 0), transfer: t.transfer || 0, rekening: t.rekening || '' }));
     const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Penjualan');
     const [from, to] = range();
@@ -121,4 +129,5 @@ Object.assign(actions, {
   'lap-clear': () => { st.lap.filter = null; renderLaporan(); },
   'lap-xlsx': exportXlsx
 });
+changeHandlers.push(e => { if (e.target.id === 'lap-cab') { st.lap.semuaCabang = e.target.value === 'semua'; st.lap.filter = null; renderLaporan(); } });
 changeHandlers.push(e => { if (e.target.id === 'lap-from') st.lap.from = e.target.value; if (e.target.id === 'lap-to') st.lap.to = e.target.value; });

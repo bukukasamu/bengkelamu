@@ -7,6 +7,10 @@ import { loadBrand } from './brand.js';
 import { APP_NAME, APP_SUB } from './config.js';
 import { qrSvg } from './qr.js';
 import './pwa.js';
+import { CABANG_UTAMA, layarDocId, loadCabang, cabangById, multiCabang } from './cabang.js';
+
+// Cabang layar ini: layar.html?c=KODE (tanpa c = cabang utama)
+const CAB = (new URLSearchParams(location.search).get('c') || CABANG_UTAMA).toUpperCase();
 
 const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -119,7 +123,7 @@ function cekPanggilan() {
 function online(ok) { const el = $('#tv-online'); el.classList.toggle('off', !ok); el.title = ok ? 'Tersambung' : 'Koneksi terputus, mencoba lagi…'; }
 function langganan() {
   unsub?.();
-  unsub = onSnapshot(doc(db, 'publik', 'layar'), s => { data = s.exists() ? s.data() : {}; online(true); render(); cekPanggilan(); },
+  unsub = onSnapshot(doc(db, 'publik', layarDocId(CAB)), s => { data = s.exists() ? s.data() : {}; online(true); render(); cekPanggilan(); },
     () => { online(false); setTimeout(langganan, 10000); });
 }
 
@@ -142,6 +146,7 @@ $('#tv').addEventListener('dblclick', () => document.documentElement.requestFull
 document.title = 'Layar Antrian · ' + APP_NAME;
 $('#tv-name').textContent = APP_NAME.toUpperCase();
 $('#tv-sub').textContent = APP_SUB;
+loadCabang().then(() => { const c = cabangById(CAB); if (c && (multiCabang() || CAB !== CABANG_UTAMA)) { $('#tv-sub').textContent = 'Cabang ' + c.nama; document.title = 'Layar Antrian ' + c.nama + ' · ' + APP_NAME; } });
 jam(); setInterval(jam, 5000);
 setInterval(pager, 7000);
 pilihSuara();

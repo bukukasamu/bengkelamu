@@ -9,6 +9,7 @@ import { counterRef, nextNumber } from './numbering.js';
 import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo, logStatus, timelineHTML, durasi, syncPantau, panggilLayar, fmtAntri } from './wo-common.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { showNota, cekLink } from './nota.js';
+import { cabangOf, stokOf, stokField } from './cabang.js';
 
 const ORDER = { Dikerjakan: 0, Selesai: 1, Ditunda: 2, Antri: 3 };
 
@@ -123,7 +124,8 @@ async function confirm() {
   st.saving = true;
   try {
     const t = await runTransaction(db, async tx => {
-      const cs = await tx.get(counterRef());
+      const cab = cabangOf(w);
+      const cs = await tx.get(counterRef(cab));
       const woRef = doc(db, 'wo', w.no), ws = await tx.get(woRef);
       if (ws.data().status === 'Lunas') throw new Error('Work order ini sudah dibayar');
       const parts = ws.data().parts || [];
@@ -132,7 +134,7 @@ async function confirm() {
       const items = parts.map((x, i) => {
         if (!ps[i].exists()) throw new Error('Part ' + x.kode + ' tidak ada di master');
         const p = ps[i].data();
-        if (p.stok < x.qty) throw new Error('Stok ' + p.nama + ' tinggal ' + p.stok);
+        if (stokOf(p, cab) < x.qty) throw new Error('Stok ' + p.nama + ' tinggal ' + stokOf(p, cab));
         return { kode: p.kode, nama: p.nama, qty: x.qty, harga: p.jual, beli: p.beli || 0 };
       });
       const ksg = w.jenisServis === 'KSG', jasaAsli = normJasa(ws.data());
@@ -141,12 +143,12 @@ async function confirm() {
       const sub = items.reduce((a, x) => a + x.qty * x.harga, 0) + jasa.reduce((a, j) => a + j.harga, 0) + biaya.reduce((a, b) => a + b.jumlah, 0);
       const diskon = Math.min(d.diskon || 0, sub), total = sub - diskon;
       const pay = payStatus(d.pay, total); if (pay.err) throw new Error(pay.err);
-      const { no, counter } = nextNumber(cs, 'SV');
+      const { no, counter } = nextNumber(cs, 'SV', cab);
       const log = logStatus(ws.data().log, 'Lunas'), waktu = durasi({ log });
-      const trx = { no, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', hp: w.hp || '', nopol: w.nopol, tipe: w.tipe || '', km: w.km || '', waktu, mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
-        jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas() };
-      tx.set(counterRef(), counter);
-      items.forEach((x, i) => tx.update(refs[i], { stok: ps[i].data().stok - x.qty }));
+      const trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', hp: w.hp || '', nopol: w.nopol, tipe: w.tipe || '', km: w.km || '', waktu, mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
+        jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', keluhan: w.keluhan || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas() };
+      tx.set(counterRef(cab), counter);
+      items.forEach((x, i) => tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }));
       tx.set(doc(db, 'trx', no), { ...trx, dibuat: serverTimestamp() });
       tx.update(woRef, { status: 'Lunas', nota: no, biaya, log });
       return trx;
