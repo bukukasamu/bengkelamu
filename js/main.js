@@ -234,6 +234,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.classList?.contains('row-click')) { actions[e.target.dataset.act]?.(e.target); return; }
   if (e.key === 'Escape') { if ($('#modal-root').innerHTML) closeModal(); else if (document.body.classList.contains('sb-open')) toggleSidebar(); return; }
   if (e.key === 'Enter' && e.target.id === 'k-q') { e.preventDefault(); onSearchEnter(e.target); return; }
+  if (e.key === 'Enter' && e.target.id === 'r-cari') { e.preventDefault(); actions['reg-cari'](); return; }
   if (e.key === 'F1') { e.preventDefault(); fk('baru'); }
   if (e.key === 'F2') { e.preventDefault(); fk('simpan'); }
   if (e.key === 'F8') { e.preventDefault(); fk('cetak'); }

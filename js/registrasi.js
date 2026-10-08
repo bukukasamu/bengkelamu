@@ -1,15 +1,18 @@
 // Menu Registrasi Servis: data konsumen & kendaraan, keluhan, jenis servis (Reguler/KSB/KSG), jasa, mekanik.
-import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton } from './util.js';
+import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole } from './state.js';
 import { JENIS_SERVIS } from './config.js';
-import { db, doc, getDoc, setDoc } from './firebase.js';
+import { db, doc, getDoc, getDocs, setDoc, collection, query, where, limit } from './firebase.js';
 import { AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau } from './wo-common.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
 
 export const nopolKey = n => String(n || '').replace(/\s+/g, '').toUpperCase();
-const KEND_FIELDS = ['nopol', 'nama', 'hp', 'tipe', 'tahun', 'warna', 'noRangka', 'noMesin', ...WIL_FIELDS];
-const blank = () => ({ no: null, tgl: stamp(new Date()), nopol: '', nama: '', hp: '', provinsi: '', kabKode: '', kabupaten: '', kecamatan: '', kelurahan: '', alamat: '', tipe: '', tahun: '', warna: '', noRangka: '', noMesin: '', km: '', keluhan: '', jenisServis: 'Reguler', ksgKe: '', noKartu: '', jasa: [], mekanikId: '', mekanik: '', parts: [], biaya: [], catatanPart: '', status: 'Antri' });
+// Data konsumen sesuai KTP + data kendaraan sesuai STNK (disimpan bersama per kendaraan di koleksi kendaraan)
+export const KONSUMEN_FIELDS = ['nik', 'nama', 'tempatLahir', 'tglLahir', 'jk', 'pekerjaan', 'hp', 'rtrw', ...WIL_FIELDS];
+const UNIT_FIELDS = ['nopol', 'namaStnk', 'stnkSama', 'tipe', 'tahun', 'warna', 'noRangka', 'noMesin'];
+const KEND_FIELDS = [...KONSUMEN_FIELDS, ...UNIT_FIELDS];
+const blank = () => ({ no: null, tgl: stamp(new Date()), nik: '', nama: '', tempatLahir: '', tglLahir: '', jk: '', pekerjaan: '', hp: '', rtrw: '', namaStnk: '', stnkSama: true, nopol: '', provinsi: '', kabKode: '', kabupaten: '', kecamatan: '', kelurahan: '', alamat: '', tipe: '', tahun: '', warna: '', noRangka: '', noMesin: '', km: '', keluhan: '', jenisServis: 'Reguler', ksgKe: '', noKartu: '', jasa: [], mekanikId: '', mekanik: '', parts: [], biaya: [], catatanPart: '', status: 'Antri' });
 let filter = 'aktif';
 const waMsg = w => `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol || ''}${w.no ? ' (' + w.no + ')' : ''}. `;
 
@@ -46,21 +49,31 @@ function renderRegistrasi() {
     <div class="wolist" id="reg-list"></div>
    </div>
    <div class="panel"><div class="row spread"><h2>${w.no ? esc(w.no) : 'Registrasi motor masuk'}</h2>${w.no ? `<span class="row">${jenisBadge(w)}${statusPill(w.status)}</span>` : ''}</div>
-    <h3>Pemilik &amp; kendaraan</h3>
+    ${locked ? '' : `<div class="cari-box"><label class="f" for="r-cari">Pernah servis di sini? Cari data lama<span class="row" style="gap:6px"><input id="r-cari" placeholder="No. polisi, no. rangka, no. mesin, NIK, atau no. HP" autocomplete="off" style="flex:1 1 220px"><button class="btn" type="button" data-act="reg-cari">Cari</button></span></label><div id="r-cari-hasil"></div></div>`}
+    <h3>1. Data konsumen <span class="h-sub">sesuai KTP</span></h3>
+    <div class="form">
+     ${inp('nik', 'NIK (16 angka)', 'inputmode="numeric" maxlength="16" class="num" autocomplete="off"')}
+     <label class="f wide-2" for="r-nama">Nama lengkap<input id="r-nama" data-rf="nama" value="${esc(w.nama)}" ${dis}></label>
+     ${inp('tempatLahir', 'Tempat lahir')}
+     <label class="f" for="r-tglLahir">Tanggal lahir<input id="r-tglLahir" data-rf="tglLahir" type="date" value="${esc(w.tglLahir)}" ${dis}></label>
+     <label class="f" for="r-jk">Jenis kelamin<select id="r-jk" data-rf="jk" ${dis}><option value="">–</option>${['LAKI-LAKI', 'PEREMPUAN'].map(x => `<option ${x === w.jk ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+     ${inp('pekerjaan', 'Pekerjaan')}
+     <label class="f" for="r-hp"><span class="f-wa">No. HP / WA<span id="r-wa">${waButton(w.hp, waMsg(w))}</span></span><input id="r-hp" data-rf="hp" inputmode="tel" value="${esc(w.hp)}" ${dis}></label>
+    </div>
+    <div class="form form-wil">${wilayahHTML('rw', w, locked)}
+     ${inp('rtrw', 'RT / RW', 'placeholder="mis. 002/005" class="num"')}</div>
+    <h3>2. Data kendaraan <span class="h-sub">sesuai STNK</span></h3>
     <div class="form">
      ${inp('nopol', 'No. Polisi', 'class="mono" placeholder="BL 1234 XX" autocomplete="off"')}
-     ${inp('nama', 'Nama pemilik')}
-     <label class="f" for="r-hp"><span class="f-wa">No. HP<span id="r-wa">${waButton(w.hp, waMsg(w))}</span></span><input id="r-hp" data-rf="hp" inputmode="tel" value="${esc(w.hp)}" ${dis}></label>
+     <div class="f wide-2"><span class="f-wa"><label for="r-namaStnk">Nama pemilik di STNK</label><label class="chk small" for="r-stnkSama"><input type="checkbox" id="r-stnkSama" ${w.stnkSama !== false ? 'checked' : ''} ${dis}>sama dengan konsumen</label></span><input id="r-namaStnk" data-rf="namaStnk" value="${esc(w.stnkSama !== false ? w.nama : w.namaStnk)}" ${w.stnkSama !== false || locked ? 'disabled' : ''}></div>
      <label class="f" for="r-tipe">Tipe motor<select id="r-tipe" data-rf="tipe" ${dis}><option value="">Pilih tipe</option>${[...new Set([...tipeList(), w.tipe].filter(Boolean))].map(t => `<option ${t === w.tipe ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
-     ${inp('tahun', 'Tahun', 'inputmode="numeric" class="num"')}
+     ${inp('tahun', 'Tahun pembuatan', 'inputmode="numeric" class="num" maxlength="4"')}
      ${inp('warna', 'Warna')}
      ${inp('noRangka', 'No. rangka', 'class="mono"')}
      ${inp('noMesin', 'No. mesin', 'class="mono"')}
-     ${inp('km', 'Kilometer', 'inputmode="numeric" class="num" placeholder="mis. 12.500"')}
+     ${inp('km', 'Kilometer saat ini', 'inputmode="numeric" class="num" placeholder="mis. 12500"')}
     </div>
-    <h3>Alamat konsumen</h3>
-    <div class="form form-wil">${wilayahHTML('rw', w, locked)}</div>
-    <h3>Servis</h3>
+    <h3>3. Servis</h3>
     <div class="form">
      <label class="f" for="r-jenis">Jenis servis<select id="r-jenis" data-rf="jenisServis" ${dis}>${Object.entries(JENIS_SERVIS).map(([k, l]) => `<option value="${k}" ${k === w.jenisServis ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
      ${w.jenisServis === 'KSG' ? `<label class="f" for="r-ksgke">KSG ke-<select id="r-ksgke" data-rf="ksgKe" ${dis}><option value="">Pilih</option>${[1, 2, 3, 4].map(n => `<option ${String(n) === String(w.ksgKe) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
@@ -90,16 +103,51 @@ async function lookupKendaraan(nopol) {
     if (!s.exists()) return;
     const k = s.data(), w = st.regDraft;
     let filled = false;
-    KEND_FIELDS.forEach(f => { if (f !== 'nopol' && !w[f] && k[f]) { w[f] = k[f]; filled = true; } });
+    KEND_FIELDS.forEach(f => { if (f !== 'nopol' && (w[f] === '' || w[f] == null) && k[f] != null && k[f] !== '') { w[f] = k[f]; filled = true; } });
     if (filled) { renderRegistrasi(); toast('Kendaraan terdaftar: data ' + (k.nama || k.nopol) + ' diisi otomatis'); }
   } catch (e) { /* lookup gagal tidak menghalangi registrasi */ }
+}
+
+// Cari data servis sebelumnya dengan salah satu: nopol, no. rangka, no. mesin, NIK, atau no. HP
+let hasilCari = [];
+async function cariData() {
+  const raw = ($('#r-cari')?.value || '').trim().toUpperCase(), box = $('#r-cari-hasil');
+  if (raw.length < 4) { toast('Ketik minimal 4 karakter'); return; }
+  const rapat = raw.replace(/\s+/g, ''), digit = raw.replace(/\D/g, ''), hpN = waNumber(raw);
+  box.innerHTML = '<div class="small muted">Mencari…</div>';
+  const found = new Map();
+  const add = (id, d) => { if (!found.has(id)) found.set(id, { id, ...d }); };
+  try {
+    const byId = await getDoc(doc(db, 'kendaraan', rapat)); if (byId.exists()) add(byId.id, byId.data());
+    const qs = [['noRangka', rapat], ['noRangka', raw], ['noMesin', rapat], ['noMesin', raw]];
+    if (/^\d{16}$/.test(digit)) qs.push(['nik', digit]);
+    if (hpN) qs.push(['hpNorm', hpN], ['hp', raw]);
+    const snaps = await Promise.all(qs.map(([f, v]) => getDocs(query(collection(db, 'kendaraan'), where(f, '==', v), limit(10)))));
+    snaps.forEach(sn => sn.docs.forEach(d => add(d.id, d.data())));
+  } catch (e) { box.innerHTML = `<div class="err">${esc(errMsg(e))}</div>`; return; }
+  // Data lama (sebelum ada kolom hpNorm) juga dicocokkan dari work order yang sudah dimuat
+  S.wo.forEach(w => { if ((hpN && waNumber(w.hp) === hpN) || (rapat && [nopolKey(w.nopol), (w.noRangka || '').replace(/\s+/g, ''), (w.noMesin || '').replace(/\s+/g, '')].includes(rapat)) || (digit.length === 16 && w.nik === digit)) add(nopolKey(w.nopol), w); });
+  hasilCari = [...found.values()];
+  box.innerHTML = hasilCari.length ? `<div class="cari-hasil">${hasilCari.map((k, i) => `<div class="cari-item"><div><b class="mono">${esc(k.nopol)}</b> · ${esc(k.tipe || '')} ${esc(k.warna || '')}<div class="small muted">${esc(k.nama || '–')}${k.nik ? ' · NIK ' + esc(k.nik) : ''}${k.hp ? ' · ' + esc(k.hp) : ''}</div><div class="small muted">${k.noRangka ? 'Rangka ' + esc(k.noRangka) : ''}${k.noMesin ? ' · Mesin ' + esc(k.noMesin) : ''}</div></div><div class="row" style="gap:6px"><button class="btn sm" type="button" data-act="reg-pakai" data-i="${i}" data-m="semua">Pakai data</button><button class="btn sm ghost" type="button" data-act="reg-pakai" data-i="${i}" data-m="konsumen" title="Untuk motor lain milik konsumen yang sama">Konsumen saja</button></div></div>`).join('')}</div>`
+    : '<div class="small muted">Tidak ditemukan. Isi data baru di bawah.</div>';
+}
+function pakaiData(el) {
+  const k = hasilCari[+el.dataset.i]; if (!k) return;
+  const w = st.regDraft, fields = el.dataset.m === 'konsumen' ? KONSUMEN_FIELDS : KEND_FIELDS;
+  fields.forEach(f => { if (k[f] != null && k[f] !== '') w[f] = k[f]; });
+  if (el.dataset.m !== 'konsumen' && !k.namaStnk) { w.namaStnk = k.nama || ''; w.stnkSama = true; }
+  renderRegistrasi(); toast('Data ' + (k.nama || k.nopol) + ' dipakai. Periksa dan ubah bila ada yang berbeda.');
 }
 
 async function save() {
   if (st.saving) return;
   const w = st.regDraft; w.nopol = w.nopol.trim().toUpperCase().replace(/\s+/g, ' ');
   if (!w.nopol) { toast('Isi nomor polisi dulu'); $('#r-nopol')?.focus(); return; }
+  if (!w.nama.trim()) { toast('Isi nama konsumen sesuai KTP'); $('#r-nama')?.focus(); return; }
+  if (w.nik && !/^\d{16}$/.test(w.nik)) { toast('NIK harus 16 angka (atau kosongkan)'); $('#r-nik')?.focus(); return; }
   if (!w.tipe) { toast('Pilih tipe motor'); $('#r-tipe')?.focus(); return; }
+  w.noRangka = (w.noRangka || '').replace(/\s+/g, ''); w.noMesin = (w.noMesin || '').replace(/\s+/g, '');
+  if (w.stnkSama !== false) w.namaStnk = w.nama;
   if (w.jenisServis === 'KSG' && !w.ksgKe) { toast('Pilih KSG ke berapa'); $('#r-ksgke')?.focus(); return; }
   const mek = mekanikById(w.mekanikId);
   if (w._lanjut && !mek) { toast('Pilih mekanik yang kosong untuk melanjutkan'); delete w._lanjut; return; }
@@ -124,8 +172,8 @@ async function save() {
   try {
     const no = await saveWo(w);
     w.no = no;
-    const kend = Object.fromEntries(KEND_FIELDS.map(f => [f, w[f] || '']));
-    await setDoc(doc(db, 'kendaraan', nopolKey(w.nopol)), { ...kend, km: w.km || '', updated: stamp(new Date()), woTerakhir: no }, { merge: true });
+    const kend = Object.fromEntries(KEND_FIELDS.map(f => [f, f === 'stnkSama' ? w[f] !== false : (w[f] || '')]));
+    await setDoc(doc(db, 'kendaraan', nopolKey(w.nopol)), { ...kend, nopolKey: nopolKey(w.nopol), hpNorm: waNumber(w.hp), km: w.km || '', updated: stamp(new Date()), woTerakhir: no }, { merge: true });
     syncPantau(w);
     toast('Work order ' + no + ' disimpan');
     renderRegistrasi();
@@ -140,11 +188,15 @@ Object.assign(actions, {
   'reg-pick': el => { const o = findWo(el.dataset.no); if (o) { st.regDraft = { ...blank(), ...clone(o), jasa: normJasa(o) }; renderRegistrasi(); } },
   'reg-filter': el => { filter = el.dataset.f; document.querySelectorAll('[data-act="reg-filter"]').forEach(b => b.setAttribute('aria-pressed', b === el)); renderList(); },
   'reg-save': save,
+  'reg-cari': cariData,
+  'reg-pakai': pakaiData,
   'reg-lanjut': () => { st.regDraft._lanjut = true; save(); }
 });
 inputHandlers.push(e => {
   const t = e.target; if (t.dataset.rf && st.regDraft) st.regDraft[t.dataset.rf] = t.value;
   if ((t.id === 'r-hp' || t.id === 'r-nama') && $('#r-wa')) $('#r-wa').innerHTML = waButton(st.regDraft.hp, waMsg(st.regDraft));
+  if (t.id === 'r-nama' && st.regDraft.stnkSama !== false && $('#r-namaStnk')) $('#r-namaStnk').value = t.value;
+  if (t.id === 'r-nik') t.value = t.value.replace(/\D/g, '').slice(0, 16), st.regDraft.nik = t.value;
 });
 changeHandlers.push(e => {
   const t = e.target, w = st.regDraft; if (!w) return;
@@ -157,5 +209,6 @@ changeHandlers.push(e => {
     renderRegistrasi();
   }
   if (t.id === 'r-status') { w.status = t.value; w._manual = true; }
+  if (t.id === 'r-stnkSama') { w.stnkSama = t.checked; if (!t.checked && !w.namaStnk) w.namaStnk = w.nama; const n = $('#r-namaStnk'); n.disabled = t.checked; n.value = t.checked ? w.nama : w.namaStnk; if (!t.checked) n.focus(); }
   if (t.id === 'r-nopol' && !w.no) { t.value = t.value.trim().toUpperCase(); w.nopol = t.value; lookupKendaraan(w.nopol); }
 });

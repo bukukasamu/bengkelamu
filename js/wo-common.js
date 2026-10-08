@@ -131,7 +131,9 @@ export async function pantauKey(nopol, hp) {
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 const ringkasWo = w => ({ no: w.no, tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
-  jasa: normJasa(w).map(j => j.nama), parts: (w.parts || []).map(x => ({ nama: part(x.kode)?.nama || x.kode, qty: x.qty })), estimasi: woCalc(w).total, alasanTunda: w.alasanTunda || '' });
+  jasa: normJasa(w).map(j => j.nama), parts: (w.parts || []).map(x => ({ nama: part(x.kode)?.nama || x.kode, qty: x.qty })),
+  biaya: (w.biaya || []).filter(b => b.jumlah).map(b => ({ ket: b.ket, jumlah: b.jumlah })), diskon: w.diskon || 0,
+  estimasi: Math.max(0, woCalc(w).total - (w.diskon || 0)), alasanTunda: w.alasanTunda || '' });
 // Dipanggil setelah WO disimpan / status berubah / dibayar. Gagal di sini tidak membatalkan pekerjaan kasir.
 export async function syncPantau(w, trx) {
   try {

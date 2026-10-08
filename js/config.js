@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '2.3.2';
+export const APP_VERSION = '2.4.0';
 
 // Super admin masuk dengan email + kata sandi; petugas lain masuk dengan pilih nama + PIN 6 digit.
 export const SUPER_ADMIN = 'cashflow.amu@gmail.com';

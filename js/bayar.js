@@ -8,7 +8,7 @@ import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo, logStatus, timelineHTML, durasi, syncPantau } from './wo-common.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
-import { showNota } from './nota.js';
+import { showNota, cekLink } from './nota.js';
 
 const ORDER = { Dikerjakan: 0, Selesai: 1, Ditunda: 2, Antri: 3 };
 
@@ -58,12 +58,37 @@ function renderDetail() {
     <h3>Pembayaran</h3>
     ${payFields('bay', d.pay)}
     <div id="bay-tot"></div>
-    <div class="row" style="justify-content:flex-end">${waButton(w.hp, `Halo ${w.nama || 'Bapak/Ibu'}, motor ${w.nopol} (${w.tipe}) di ${APP_NAME} sudah selesai diservis. Total biaya ${rp(grandTotal())}. Silakan diambil. Terima kasih.`, 'Kabari konsumen')}<button class="btn pri" type="button" data-act="bay-confirm">Terima pembayaran &amp; cetak nota [F2]</button></div>`
+    <div class="row" style="justify-content:flex-end"><span id="bay-wa">${waKabari()}</span><button class="btn pri" type="button" data-act="bay-confirm">Terima pembayaran &amp; cetak nota [F2]</button></div>`
     : `<div class="totals"><span class="muted">Estimasi tagihan</span><span class="num">${rp(c.total)}</span></div>`}`;
   renderTot();
 }
 
+// Pesan WA "motor selesai" selalu memakai total terbaru (termasuk biaya tambahan & diskon)
+function waKabari() {
+  const w = draftWo(), d = st.bayarDraft;
+  const lain = d.biaya.filter(b => b.jumlah).map(b => `${b.ket || 'Biaya lain'} ${rp(b.jumlah)}`);
+  return waButton(w.hp, `Halo ${w.nama || 'Bapak/Ibu'}, motor ${w.nopol} (${w.tipe}) di ${APP_NAME} sudah selesai diservis.${lain.length ? ' Termasuk biaya tambahan: ' + lain.join(', ') + '.' : ''}${d.diskon ? ' Diskon ' + rp(d.diskon) + '.' : ''} Total biaya ${rp(grandTotal())}. Silakan diambil. Terima kasih.\nRincian: ${cekLink(w.nopol)}`, 'Kabari konsumen');
+}
+
+// Biaya tambahan & diskon langsung disimpan ke work order (jeda 0,8 detik setelah berhenti mengetik),
+// supaya halaman cek servis konsumen ikut menampilkan total terbaru.
+let saveTimer = null;
+function simpanDraft(segera) {
+  clearTimeout(saveTimer);
+  const no = st.bayarNo, d = st.bayarDraft; if (!no || !d) return Promise.resolve();
+  const run = async () => {
+    const biaya = d.biaya.filter(b => (b.ket || '').trim() || b.jumlah).map(b => ({ ket: (b.ket || '').trim() || 'Biaya lain', jumlah: +b.jumlah || 0 }));
+    const w = findWo(no); if (!w || w.status === 'Lunas') return;
+    if (JSON.stringify(w.biaya || []) === JSON.stringify(biaya) && (w.diskon || 0) === (d.diskon || 0)) return;
+    try { await updateWo(no, { biaya, diskon: d.diskon || 0 }); Object.assign(w, { biaya, diskon: d.diskon || 0 }); syncPantau(w); }
+    catch (e) { toast('Biaya tambahan belum tersimpan: ' + errMsg(e)); }
+  };
+  if (segera) return run();
+  saveTimer = setTimeout(run, 800); return Promise.resolve();
+}
+
 function renderTot() {
+  const wa = $('#bay-wa'); if (wa) wa.innerHTML = waKabari();
   const el = $('#bay-tot'); if (!el) return;
   const c = woCalc(draftWo()), d = st.bayarDraft, total = grandTotal();
   el.innerHTML = `<div class="totals"><span class="muted">Sparepart</span><span class="num">${rp(c.parts)}</span><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span><span class="muted">Biaya lain</span><span class="num">${rp(c.biaya)}</span><span class="muted">Diskon</span><span class="num">${d.diskon ? '−' + rp(d.diskon) : rp(0)}</span><span style="font-weight:600">Total bayar</span><span class="big num">${rp(total)}</span>${payTotals(d.pay, total)}</div>`;
@@ -82,6 +107,7 @@ async function setStatus(el) {
 
 async function confirm() {
   if (st.saving || !st.bayarNo) return;
+  clearTimeout(saveTimer);   // biaya ikut tersimpan lewat transaksi pembayaran
   const w = draftWo(), d = st.bayarDraft;
   if (w.status !== 'Selesai') { toast('Motor belum dilaporkan selesai'); return; }
   const chk = payStatus(d.pay, grandTotal());
@@ -125,22 +151,25 @@ async function confirm() {
 }
 
 registerPay('bay', { get: () => st.bayarDraft?.pay, total: grandTotal, onChange: renderTot });
+// Klik "Kabari konsumen": simpan biaya terbaru dulu supaya link rincian sudah menampilkan total yang sama
+document.addEventListener('click', e => { if (e.target.closest('#bay-wa a')) simpanDraft(true); }, true);
 views.bayar = renderBayar;
 refreshers.bayar = () => { renderList(); if (st.bayarNo && !AKTIF.includes(findWo(st.bayarNo)?.status)) renderBayar(); };
 fkeys.bayar = { simpan: 'bay-confirm' };
 Object.assign(actions, {
   'bay-pick': el => {
     const o = findWo(el.dataset.no); if (!o) return;
-    st.bayarNo = o.no; st.bayarDraft = { biaya: clone(o.biaya || []), diskon: 0, pay: emptyPay() };
+    simpanDraft(true);   // simpan dulu biaya motor yang sebelumnya dibuka
+    st.bayarNo = o.no; st.bayarDraft = { biaya: clone(o.biaya || []), diskon: o.diskon || 0, pay: emptyPay() };
     renderList(); renderDetail();
   },
   'bay-status': setStatus,
   'bay-addbiaya': () => { st.bayarDraft.biaya.push({ ket: '', jumlah: 0 }); renderDetail(); $('#bi-k' + (st.bayarDraft.biaya.length - 1))?.focus(); },
-  'bay-rmbiaya': el => { st.bayarDraft.biaya.splice(+el.dataset.i, 1); renderDetail(); },
+  'bay-rmbiaya': el => { st.bayarDraft.biaya.splice(+el.dataset.i, 1); renderDetail(); simpanDraft(); },
   'bay-confirm': confirm
 });
 inputHandlers.push(e => {
   const t = e.target, d = st.bayarDraft; if (!d) return;
-  if (t.dataset.bi != null) { const b = d.biaya[+t.dataset.bi]; b[t.dataset.bf] = t.dataset.bf === 'jumlah' ? (+t.value || 0) : t.value; renderTot(); }
-  if (t.id === 'bay-dis') { d.diskon = +t.value || 0; renderTot(); }
+  if (t.dataset.bi != null) { const b = d.biaya[+t.dataset.bi]; b[t.dataset.bf] = t.dataset.bf === 'jumlah' ? (+t.value || 0) : t.value; renderTot(); simpanDraft(); }
+  if (t.id === 'bay-dis') { d.diskon = +t.value || 0; renderTot(); simpanDraft(); }
 });

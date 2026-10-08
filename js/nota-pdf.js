@@ -1,4 +1,4 @@
-// Nota dalam bentuk PDF (lebar struk 80 mm) dengan watermark logo toko.
+// Nota dalam bentuk PDF (lebar struk 80 mm), hitam-putih, dengan watermark logo toko.
 // Pustaka jsPDF dimuat dari CDN saat pertama kali dibutuhkan.
 import { notaRows } from './nota.js';
 import { getBrand, loadBrand } from './brand.js';
@@ -16,23 +16,46 @@ export function preloadPdf() {
   return loading;
 }
 
-// Logo diubah ke PNG + ukuran aslinya (jsPDF butuh PNG/JPEG)
+// Logo diubah ke PNG hitam-putih (tanpa warna) + ukuran aslinya. Tepi kosong di sekeliling logo dipangkas
+// supaya logo pas di tengah nota dan proporsinya tidak berubah.
 async function logoPng() {
   let b = getBrand(); if (b.logo === undefined) b = await loadBrand();
   if (!b.logo) return null;
   return new Promise(res => {
     const img = new Image();
-    img.onload = () => { const c = document.createElement('canvas'); c.width = img.naturalWidth || 300; c.height = img.naturalHeight || 300; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res({ url: c.toDataURL('image/png'), w: c.width, h: c.height }); };
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || 300, h = img.naturalHeight || 300;
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+        const im = g.getImageData(0, 0, w, h), d = im.data;
+        let x0 = w, y0 = h, x1 = -1, y1 = -1;
+        for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i += 4) {
+          const v = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+          d[i] = d[i + 1] = d[i + 2] = v;
+          // piksel berisi = tidak transparan dan bukan putih polos
+          if (d[i + 3] > 16 && v < 246) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        }
+        g.putImageData(im, 0, 0);
+        if (x1 < x0 || y1 < y0) { x0 = 0; y0 = 0; x1 = w - 1; y1 = h - 1; }
+        const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+        const o = document.createElement('canvas'); o.width = cw; o.height = ch;
+        o.getContext('2d').drawImage(c, x0, y0, cw, ch, 0, 0, cw, ch);
+        res({ url: o.toDataURL('image/png'), w: cw, h: ch });
+      } catch (e) { res(null); }
+    };
     img.onerror = () => res(null);
     img.src = b.logo;
   });
 }
+// Ukuran gambar agar muat di kotak maxW x maxH tanpa mengubah perbandingan sisinya
+function muat(logo, maxW, maxH) { const k = Math.min(maxW / logo.w, maxH / logo.h); return { w: logo.w * k, h: logo.h * k }; }
 
 const W = 80, M = 5, LH = 4.3;   // lebar kertas, margin, tinggi baris (mm)
 
 function layout(pdf, rows, logo, draw) {
   let y = M + 2;
-  if (logo) { const h = 14, w = Math.min(30, h * logo.w / logo.h); if (draw) pdf.addImage(logo.url, 'PNG', (W - w) / 2, y, w, h); y += h + 3; }
+  if (logo) { const { w, h } = muat(logo, 36, 16); if (draw) pdf.addImage(logo.url, 'PNG', (W - w) / 2, y, w, h); y += h + 5; }
   for (const r of rows) {
     if (r.type === 'title') { if (draw) { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12); pdf.text(r.l, W / 2, y + 1, { align: 'center' }); } y += LH + 1.5; continue; }
     if (r.type === 'sub') { if (draw) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.text(r.l, W / 2, y, { align: 'center' }); } y += LH; continue; }
@@ -59,13 +82,13 @@ export async function notaPdfBlob(t) {
   const H = Math.max(110, layout(probe, rows, logo, false));
   const pdf = new lib.jsPDF({ unit: 'mm', format: [W, H] });
   pdf.setProperties({ title: `Nota ${t.no}`, author: APP_NAME });
-  // Watermark: logo besar transparan di tengah (atau nama toko miring bila belum ada logo)
+  // Watermark tanpa warna: logo abu-abu besar transparan di tengah (atau nama toko miring bila belum ada logo)
   pdf.saveGraphicsState();
   pdf.setGState(new pdf.GState({ opacity: 0.08 }));
-  if (logo) { const w = W - 16, h = Math.min(H * 0.6, w * logo.h / logo.w), ww = h * logo.w / logo.h; pdf.addImage(logo.url, 'PNG', (W - ww) / 2, (H - h) / 2, ww, h); }
-  else { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(26); pdf.setTextColor(14, 43, 99); pdf.text(APP_NAME.toUpperCase(), W / 2, H / 2, { align: 'center', angle: 35 }); }
+  if (logo) { const { w, h } = muat(logo, W - 16, H * 0.55); pdf.addImage(logo.url, 'PNG', (W - w) / 2, (H - h) / 2, w, h); }
+  else { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(26); pdf.setTextColor(60); pdf.text(APP_NAME.toUpperCase(), W / 2, H / 2, { align: 'center', angle: 35 }); }
   pdf.restoreGraphicsState();
-  pdf.setTextColor(20, 30, 50);
+  pdf.setTextColor(25);
   layout(pdf, rows, logo, true);
   return pdf.output('blob');
 }
