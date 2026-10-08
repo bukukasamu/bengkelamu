@@ -30,11 +30,11 @@
       "purpose": "maskable"
     }
   ],
-  "id": "./",
+  "id": "./pos.html",
   "name": "Aceh Mandiri Utama POS",
   "short_name": "AMU POS",
   "description": "Kasir sparepart & bengkel Yamaha Aceh Mandiri Utama: registrasi servis, order part, pembayaran, stok, laporan.",
-  "start_url": "./",
+  "start_url": "./pos.html",
   "display": "standalone",
   "orientation": "any",
   "categories": [
@@ -45,7 +45,7 @@
     {
       "name": "Cek servis konsumen",
       "short_name": "Cek servis",
-      "url": "./cek.html",
+      "url": "./",
       "icons": [
         {
           "src": "icons/icon-192.png",

@@ -1,6 +1,7 @@
-# Hanya halaman cek servis yang boleh muncul di mesin pencari
+# Halaman utama (cek servis konsumen) boleh muncul di mesin pencari; aplikasi petugas & layar TV tidak
 User-agent: *
-Allow: /cek.html
+Allow: /$
+Allow: /index.html
 Allow: /icons/
 Disallow: /
 Sitemap: https://www.amuservice.id/sitemap.xml

@@ -30,11 +30,11 @@
       "purpose": "maskable"
     }
   ],
-  "id": "./cek.html",
+  "id": "./",
   "name": "Cek Servis · Aceh Mandiri Utama",
   "short_name": "Cek Servis AMU",
   "description": "Pantau status servis motor Anda dan unduh nota di Aceh Mandiri Utama.",
-  "start_url": "./cek.html",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait"
 }

@@ -4,10 +4,11 @@
 // - Pustaka dari CDN (Firebase, PDF, Excel, QR, font) bernomor versi tetap, jadi disimpan sekali lalu dipakai ulang.
 // - Data Firestore & login TIDAK lewat sini (ditangani Firebase sendiri).
 // Ganti VERSI setiap ada update besar supaya salinan lama dibersihkan.
-const VERSI = 'amu-2.7.0';
+const VERSI = 'amu-2.8.0';
 const INTI = [
   './',
   'index.html',
+  'pos.html',
   'cek.html',
   'layar.html',
   'style.css',
@@ -64,10 +65,10 @@ self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSI).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
-// Alamat pendek (www.amuservice.id/cek, /layar) saat offline diarahkan ke file halamannya
+// Alamat pendek (www.amuservice.id/pos, /layar) saat offline diarahkan ke file halamannya; lainnya ke cek servis
 function halamanUntuk(url) {
   const akhir = new URL(url).pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
-  return { cek: 'cek.html', servis: 'cek.html', layar: 'layar.html', tv: 'layar.html', antrian: 'layar.html' }[akhir] || 'index.html';
+  return { pos: 'pos.html', 'pos.html': 'pos.html', petugas: 'pos.html', layar: 'layar.html', 'layar.html': 'layar.html', tv: 'layar.html', antrian: 'layar.html' }[akhir] || 'index.html';
 }
 function jaringanDulu(req) {
   return new Promise(resolve => {

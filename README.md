@@ -1,7 +1,19 @@
-# Aceh Mandiri Utama POS · versi 2.7.0
+# Aceh Mandiri Utama POS · versi 2.8.0
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 2.8.0 — halaman utama untuk konsumen
+
+- **www.amuservice.id langsung membuka cek servis konsumen** (`index.html`): masukkan no. polisi + no. HP, lalu tetap masuk di HP itu. Tidak ada tombol login petugas di halaman konsumen.
+- **Aplikasi petugas pindah ke www.amuservice.id/pos** (`pos.html`). Alamat `/petugas`, `/login`, `/kasir`, `/admin` juga diarahkan ke sana.
+- Link WA dan QR code sekarang lebih pendek: `www.amuservice.id/?nopol=BL1234NN`; di layar TV tertulis cukup `www.amuservice.id`.
+- Link lama tetap jalan: `cek.html?nopol=…` dan `/cek` dialihkan ke halaman utama.
+
+### Update ke 2.8.0
+1. Upload semua file. **Penting:** `index.html` sekarang berisi halaman konsumen, `pos.html` (baru) berisi aplikasi petugas, dan `cek.html` hanya pengalih untuk link lama.
+2. Petugas: buka `www.amuservice.id/pos`, simpan sebagai bookmark/pasang aplikasi dari sana. Aplikasi petugas yang sudah terpasang sebelumnya dihapus lalu dipasang ulang dari `/pos`.
+3. `firestore.rules` tidak berubah.
 
 ## Domain www.amuservice.id (versi 2.7.0)
 
@@ -9,8 +21,8 @@ Alamat setelah domain aktif:
 
 | Untuk | Alamat |
 |---|---|
-| Petugas (login PIN / super admin) | `https://www.amuservice.id` |
-| Konsumen cek servis | `https://www.amuservice.id/cek` |
+| Konsumen cek servis (halaman utama) | `https://www.amuservice.id` |
+| Petugas (login PIN / super admin) | `https://www.amuservice.id/pos` |
 | Layar TV antrian | `https://www.amuservice.id/layar` |
 
 Yang berubah di aplikasi: file `CNAME` (berisi `www.amuservice.id`), alamat pendek `/cek` dan `/layar` (lewat `404.html`), link WA & QR code memakai alamat pendek saat dibuka dari domain, gambar pratinjau link untuk WhatsApp (`icons/og-cek.jpg`), `robots.txt` + `sitemap.xml` (hanya halaman cek servis yang boleh muncul di Google; halaman petugas dan layar TV tidak).
@@ -169,13 +181,14 @@ Harga beli part diperbarui dengan rata-rata tertimbang (stok lama × harga lama 
 ## Struktur folder
 
 ```
-index.html            halaman utama (sidebar + konten)
-cek.html              halaman cek servis untuk konsumen (tanpa login)
+index.html            halaman utama = cek servis konsumen (tanpa login)
+pos.html              aplikasi petugas (login PIN, sidebar + konten)
+cek.html              pengalih alamat lama ke halaman utama
 layar.html            layar TV antrian ruang tunggu (tanpa login)
-sw.js                 service worker PWA (harus sejajar index.html)
+sw.js                 service worker PWA (harus sejajar index.html & pos.html)
 *.webmanifest         data aplikasi PWA: petugas, cek servis, layar TV
 CNAME                 nama domain untuk GitHub Pages (www.amuservice.id)
-404.html              alamat pendek /cek & /layar + halaman tidak ditemukan
+404.html              alamat pendek /pos & /layar + halaman tidak ditemukan
 robots.txt, sitemap.xml  aturan mesin pencari
 icons/                ikon aplikasi PWA
 wilayah/              data wilayah Indonesia (index.json + 1 file per provinsi, mis. 11.json = Aceh)
