@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Layar Antrian · Aceh Mandiri Utama</title>
+<meta name="description" content="Layar antrian servis untuk ruang tunggu Aceh Mandiri Utama.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="manifest" href="layar.webmanifest">
+<meta name="theme-color" content="#06112a">
+<link rel="icon" type="image/png" href="icons/favicon-48.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Layar AMU">
+<link rel="stylesheet" href="style.css">
+<style>html,body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body class="tv-body">
+<div class="tv" id="tv">
+  <header class="tv-head">
+    <div class="tv-brand">
+      <div class="tv-logo"><img class="brand-logo" alt="" hidden><span class="brand-ph">AMU</span></div>
+      <div><div class="tv-name" id="tv-name">ACEH MANDIRI UTAMA</div><div class="tv-sub" id="tv-sub">Sparepart &amp; Bengkel Yamaha</div></div>
+    </div>
+    <div class="tv-clock"><span class="tv-online" id="tv-online" title="Tersambung"></span><span id="tv-date"></span><b id="tv-time"></b></div>
+  </header>
+
+  <main class="tv-main">
+    <section class="tv-left">
+      <div class="tv-call" id="tv-call" aria-live="polite">
+        <div class="tv-lbl">Dipanggil</div>
+        <div class="tv-call-no" id="call-no">–</div>
+        <div class="tv-call-np" id="call-np">Belum ada panggilan</div>
+        <div class="tv-call-ke" id="call-ke"></div>
+      </div>
+      <div class="tv-prev" id="tv-prev" hidden><div class="tv-lbl">Panggilan sebelumnya</div><div class="tv-prev-list" id="prev-list"></div></div>
+      <div class="tv-qr">
+        <div class="tv-qr-img" id="tv-qr"></div>
+        <div><b>Pantau servis dari HP</b><span>Scan kode ini, lalu masukkan no. polisi dan no. HP Anda.</span><span class="tv-url" id="tv-url"></span></div>
+      </div>
+    </section>
+
+    <section class="tv-right">
+      <div class="tv-panel tv-kerja"><h2>Sedang dikerjakan <span class="tv-count" id="n-kerja"></span></h2><ul class="tv-list" id="l-kerja"></ul></div>
+      <div class="tv-panel"><h2>Menunggu <span class="tv-count" id="n-tunggu"></span></h2><ul class="tv-list" id="l-tunggu"></ul></div>
+      <div class="tv-panel tv-siap"><h2>Siap diambil <span class="tv-count" id="n-siap"></span></h2><ul class="tv-list" id="l-siap"></ul></div>
+    </section>
+  </main>
+
+  <footer class="tv-foot"><div class="tv-marquee"><span id="tv-info"></span></div></footer>
+</div>
+
+<!-- Panggilan besar (muncul beberapa detik saat nomor dipanggil) -->
+<div class="tv-pop" id="tv-pop" hidden>
+  <div class="tv-pop-in">
+    <div class="tv-lbl">Nomor antrian</div>
+    <div class="tv-pop-no" id="pop-no"></div>
+    <div class="tv-pop-np" id="pop-np"></div>
+    <div class="tv-pop-ke" id="pop-ke"></div>
+  </div>
+</div>
+
+<!-- Aturan browser: suara baru boleh bunyi setelah layar diklik sekali -->
+<div class="tv-start" id="tv-start">
+  <div class="tv-start-in">
+    <h1>Layar antrian</h1>
+    <p>Klik di mana saja untuk memulai. Suara panggilan dan layar penuh akan aktif.</p>
+    <button type="button" class="btn pri" id="tv-go">Mulai layar</button>
+    <p class="tv-small" id="tv-voice"></p>
+  </div>
+</div>
+
+<script>window.AMU_PUBLIC = true;</script>
+<script type="module" src="js/layar.js"></script>
+</body>
+</html>

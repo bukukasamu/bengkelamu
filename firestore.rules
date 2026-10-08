@@ -19,6 +19,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isSuper();
     }
+    // Layar TV ruang tunggu (tanpa login): nomor antrian, nopol, tipe, mekanik. Ditulis aplikasi petugas.
+    match /publik/layar {
+      allow read: if true;
+      allow write: if isStaff();
+    }
 
     // Halaman cek servis konsumen: dokumen hanya bisa dibuka bila tahu ID-nya (hash nopol + no. HP),
     // tidak bisa ditelusuri/didaftar. Ditulis otomatis oleh aplikasi petugas.

@@ -1,7 +1,52 @@
-# Aceh Mandiri Utama POS · versi 2.4.0
+# Aceh Mandiri Utama POS · versi 2.6.0
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 2.6.0
+
+- **Cari data lama cukup sebagian**: di Registrasi, kotak *Pernah servis di sini?* menerima potongan data. Contoh: `BL123` menemukan BL1234NN; `RAHMAT` menemukan nama; `0812 600` menemukan nomor HP; awal no. rangka/mesin/NIK juga bisa. Untuk motor yang tercatat di daftar servis, potongan di tengah (mis. `1234` atau `NN`) juga ketemu.
+- **Angka bertitik ribuan** di semua kolom angka (harga, diskon, biaya, cash/transfer, gaji, stok, kilometer): ketik `1000000` tampil `1.000.000`. Komisi persen tetap boleh desimal.
+- **Versi aplikasi (PWA) untuk HP dan PC**: aplikasi bisa dipasang seperti aplikasi biasa — ikon di layar utama/desktop, terbuka tanpa bilah browser, dan tetap bisa dibuka saat sinyal putus (data tersimpan setelah internet kembali; pembayaran & nomor baru tetap butuh internet). Ada tiga aplikasi: **AMU POS** (petugas), **Cek Servis AMU** (konsumen), **Layar AMU** (TV).
+
+## Update ke versi 2.6.0
+
+1. Upload ke GitHub: `index.html`, `cek.html`, `layar.html`, `style.css`, seluruh folder `js` (baru: `angka.js`, `pwa.js`), dan file/folder baru **`sw.js`**, **`manifest.webmanifest`**, **`cek.webmanifest`**, **`layar.webmanifest`**, folder **`icons`**. `sw.js` harus di folder yang sama dengan `index.html`.
+2. `firestore.rules` sama dengan 2.5.0 (tidak perlu publish lagi bila 2.5.0 sudah dipublish).
+3. Admin: buka **Master Data → Pemilik & Kendaraan** sekali. Data kendaraan lama otomatis dilengkapi kolom pencariannya sehingga bisa dicari dengan sebagian no. HP.
+4. Mulai versi ini pembaruan langsung terpakai saat aplikasi dibuka dengan internet (tidak perlu Ctrl+Shift+R lagi).
+
+### Memasang aplikasi
+
+- **Android (Chrome)**: buka situs → tombol **Pasang aplikasi** (di bawah form login atau di bawah menu samping), atau menu ⋮ → *Instal aplikasi*.
+- **iPhone/iPad (Safari)**: tombol Bagikan → *Tambah ke Layar Utama*.
+- **PC (Chrome/Edge)**: ikon pasang di ujung kanan bilah alamat, atau tombol **Pasang aplikasi**.
+- Konsumen: di halaman cek servis ada tombol **Pasang di HP**.
+- Ikon aplikasi ada di folder `icons/` (roda gigi + AMU). Ganti dengan logo toko bila mau, dengan ukuran yang sama (192×192 dan 512×512 px; versi *maskable* beri ruang kosong ±10% di tepi).
+
+## Fitur baru 2.5.0
+
+- **Nomor antrian harian** (001, 002, … mulai lagi dari 001 setiap hari). Nomor keluar otomatis saat motor didaftarkan di Registrasi Servis, berurutan sesuai kedatangan, dan tidak pernah kembar walau dua petugas menyimpan bersamaan. Setelah disimpan muncul jendela nomor besar dengan tombol **Kirim nomor via WA** (berisi nomor + link cek servis) dan **Cetak tiket** (struk 58 mm dengan QR code cek servis).
+- **Nomor cepat (cukup nopol)**: saat ramai, cukup isi nomor polisi lalu tekan *Nomor cepat* — nomor antrian langsung keluar. Motor ditandai **Data belum lengkap**; datanya dilengkapi sesudahnya. Mekanik baru bisa dipilih dan pembayaran baru bisa diterima setelah data lengkap.
+- **Layar TV ruang tunggu** (`layar.html`, tanpa login): nomor yang **dipanggil**, motor **sedang dikerjakan** (dengan nama mekanik), **menunggu**, dan **siap diambil**, teks berjalan, jam, dan **QR code** ke halaman cek servis. Nomor polisi tampil penuh; nama konsumen, no. HP, dan biaya tidak ditampilkan. Daftar yang panjang bergeser sendiri per halaman.
+- **Panggilan bersuara**: saat kasir menandai motor **Selesai**, layar menampilkan nomor besar, berbunyi bel, lalu mengucapkan dua kali, mis. *"Nomor antrian dua belas. B L, 4 5 2 1, A B. Silakan ke kasir."* Di menu Pembayaran ada tombol **Panggil ulang di layar**.
+- **Master Data → Layar TV** (admin): ubah teks berjalan (jam buka, promo, info KSG), buka layar, dan petunjuk pemasangan.
+- Nomor antrian juga tampil di daftar motor, Pembayaran, dan halaman cek servis konsumen. Nomor WO (kartu kerja per motor) tetap ada untuk catatan internal.
+
+## Update ke versi 2.5.0
+
+1. Upload ke GitHub: `index.html`, `cek.html`, **`layar.html` (baru)**, `style.css`, dan seluruh isi folder `js` (ada file baru `antrian.js`, `layar.js`, `qr.js`).
+2. **Wajib:** Firebase Console → Firestore → Rules → tempel `firestore.rules` yang baru → *Publish* (ada aturan baru `publik/layar` untuk layar TV).
+3. Tekan Ctrl+Shift+R sampai versi di kiri bawah menunjukkan **2.5.0**. Nomor antrian mulai dari 001 untuk motor yang didaftarkan setelah update.
+4. Isi teks berjalan di Master Data → Layar TV, lalu buka `https://bukukasamu.github.io/bengkelamu/layar.html` di TV.
+
+### Memasang layar TV
+
+- Perangkat: Smart TV dengan browser, Android TV box, atau laptop/PC mini yang disambung HDMI. Disarankan Chrome.
+- Setelah halaman terbuka, **klik layar sekali** (atau tekan OK di remote) supaya suara dan layar penuh aktif — aturan browser melarang suara sebelum ada klik. Klik dua kali kapan saja untuk kembali ke layar penuh.
+- Supaya tidak perlu klik setiap TV dinyalakan (PC/laptop): buat shortcut Chrome dengan tambahan `--kiosk --autoplay-policy=no-user-gesture-required https://bukukasamu.github.io/bengkelamu/layar.html`.
+- Suara memakai pembaca teks Bahasa Indonesia bawaan perangkat (di Android: Google Text-to-Speech, bahasa Indonesia). Jika tidak ada, layar hanya berbunyi bel; keterangan suaranya terlihat di layar pembuka.
+- Titik hijau di samping jam = tersambung; merah berkedip = internet putus (layar tersambung lagi sendiri).
 
 ## Fitur baru 2.4.0
 
@@ -84,6 +129,10 @@ Harga beli part diperbarui dengan rata-rata tertimbang (stok lama × harga lama 
 ```
 index.html            halaman utama (sidebar + konten)
 cek.html              halaman cek servis untuk konsumen (tanpa login)
+layar.html            layar TV antrian ruang tunggu (tanpa login)
+sw.js                 service worker PWA (harus sejajar index.html)
+*.webmanifest         data aplikasi PWA: petugas, cek servis, layar TV
+icons/                ikon aplikasi PWA
 wilayah/              data wilayah Indonesia (index.json + 1 file per provinsi, mis. 11.json = Aceh)
 style.css             tampilan
 firestore.rules       aturan keamanan per peran (tempel di Firebase Console)
@@ -98,9 +147,14 @@ js/
   wilayah.js          alamat bertingkat provinsi/kab/kec/kelurahan
   nota-pdf.js         nota PDF dengan watermark logo
   cek.js              halaman cek servis konsumen (cek.html)
+  layar.js            layar TV ruang tunggu (layar.html): antrian + suara panggilan
+  antrian.js          jendela nomor antrian, kirim WA, cetak tiket
+  qr.js               pembuat QR code (dimuat dari CDN)
+  angka.js            kolom angka bertitik ribuan
+  pwa.js              pasang aplikasi (PWA) + daftar service worker
   state.js            data bersama & navigasi
   util.js             format rupiah/tanggal, toast, modal
-  numbering.js        nomor nota PJ/SV, pembelian PB, work order WO
+  numbering.js        nomor nota PJ/SV, pembelian PB, work order WO, antrian harian
   stats.js            perhitungan omzet, klaim KSG, laba
   wo-common.js        fungsi bersama work order
   nota.js             tampilan & cetak nota

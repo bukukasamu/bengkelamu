@@ -1,0 +1,68 @@
+{
+  "lang": "id",
+  "dir": "ltr",
+  "scope": "./",
+  "background_color": "#0e2b63",
+  "theme_color": "#0e2b63",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "./",
+  "name": "Aceh Mandiri Utama POS",
+  "short_name": "AMU POS",
+  "description": "Kasir sparepart & bengkel Yamaha Aceh Mandiri Utama: registrasi servis, order part, pembayaran, stok, laporan.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "shortcuts": [
+    {
+      "name": "Cek servis konsumen",
+      "short_name": "Cek servis",
+      "url": "./cek.html",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Layar antrian",
+      "short_name": "Layar TV",
+      "url": "./layar.html",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

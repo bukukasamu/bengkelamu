@@ -311,3 +311,107 @@ main{width:100%}
   body.cek-in .auth-tag,body.cek-in .auth-line{display:none}
   body.cek-in .auth-form{padding-block:18px 32px}
 }
+
+/* ---------- v2.5: nomor antrian ---------- */
+.antri-no{display:inline-flex;align-items:center;justify-content:center;min-width:2.9em;padding:1px 7px;border-radius:5px;background:var(--hd);color:var(--on-hd);font-family:var(--f-mono);font-weight:700;font-size:.86rem;letter-spacing:.04em}
+.b-kurang{color:var(--warn)}
+.antri-modal{text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;padding-block:6px}
+.antri-big{font-family:var(--f-mono);font-weight:700;font-size:4.6rem;line-height:1;letter-spacing:.06em;color:var(--accent);margin:4px 0}
+.antri-np{font-size:1.3rem;font-weight:700}
+.cek-antri{font-family:var(--f-display);font-size:.95rem;color:var(--muted)}
+.cek-antri b{font-family:var(--f-mono);font-size:1.25rem;color:var(--ink);margin-left:4px}
+
+/* ---------- v2.5: layar TV ruang tunggu (layar.html) ----------
+   Selalu gelap (nyaman dilihat dari jauh), ukuran mengikuti lebar layar sehingga sama di TV 32" maupun 55". */
+.tv-body{--tv-bg:#06112a;--tv-panel:#0d1f45;--tv-line:#1d3366;--tv-ink:#f3f6fc;--tv-muted:#93a6cf;--tv-call:#ffc531;--tv-go:#3ddc97;
+  background:var(--tv-bg);color:var(--tv-ink);overflow:hidden;font-family:var(--f-body)}
+.tv{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;font-size:clamp(13px,1.15vw,44px)}
+.tv-head{display:flex;justify-content:space-between;align-items:center;gap:1em;padding:.8em 1.6em;background:#0a1a3d;border-bottom:1px solid var(--tv-line)}
+.tv-brand{display:flex;align-items:center;gap:.9em}
+.tv-logo{width:3.6em;height:3.6em;border-radius:.6em;background:#fff;display:flex;align-items:center;justify-content:center;padding:.3em;flex-shrink:0}
+.tv-logo img{max-width:100%;max-height:100%;object-fit:contain}
+.tv-logo .brand-ph{font-size:1.1em;color:#0e2b63}
+.tv-name{font-family:var(--f-display);font-weight:700;font-size:1.9em;letter-spacing:.04em;line-height:1}
+.tv-sub{color:var(--tv-muted);font-size:.95em;letter-spacing:.14em;text-transform:uppercase;margin-top:.2em}
+.tv-clock{display:flex;align-items:center;gap:.8em;color:var(--tv-muted);font-size:1.1em}
+.tv-clock b{font-family:var(--f-mono);color:var(--tv-ink);font-size:2em;font-weight:700}
+.tv-online{width:.6em;height:.6em;border-radius:50%;background:var(--tv-go)}
+.tv-online.off{background:#ff6b5b;animation:tv-blink 1s infinite}
+@keyframes tv-blink{50%{opacity:.25}}
+.tv-main{display:grid;grid-template-columns:minmax(0,34fr) minmax(0,66fr);gap:1.2em;padding:1.2em 1.6em;min-height:0;max-width:none;width:auto;margin:0}
+.tv-left{display:flex;flex-direction:column;gap:1em;min-height:0}
+.tv-lbl{font-family:var(--f-display);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--tv-muted);font-size:1.05em}
+.tv-call{flex:1 1 auto;background:linear-gradient(160deg,#16306a,#0d1f45);border:2px solid var(--tv-call);border-radius:1em;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1em;min-height:0}
+.tv-call .tv-lbl{color:var(--tv-call)}
+.tv-call-no{font-family:var(--f-mono);font-weight:700;font-size:8.5em;line-height:1;color:var(--tv-call);letter-spacing:.04em;margin:.08em 0}
+.tv-call-np{font-family:var(--f-mono);font-weight:700;font-size:2.6em}
+.tv-call-ke{font-family:var(--f-display);font-weight:600;font-size:1.7em;margin-top:.3em}
+.tv-call.kosong{border-color:var(--tv-line)}
+.tv-call.kosong .tv-call-no{color:var(--tv-line)}
+.tv-call.kosong .tv-call-np{font-family:var(--f-body);font-weight:500;font-size:1.3em;color:var(--tv-muted)}
+.tv-call.baru{animation:tv-glow 1s ease-in-out 4}
+@keyframes tv-glow{50%{box-shadow:0 0 0 .35em rgba(255,197,49,.45)}}
+.tv-prev{display:flex;flex-direction:column;gap:.4em}
+.tv-prev-list{display:flex;gap:.6em;flex-wrap:wrap}
+.tv-prev-list span{background:var(--tv-panel);border:1px solid var(--tv-line);border-radius:.4em;padding:.25em .7em;font-family:var(--f-mono);font-size:1.05em}
+.tv-prev-list b{color:var(--tv-call);margin-right:.3em}
+.tv-qr{display:flex;align-items:center;gap:1em;background:var(--tv-panel);border:1px solid var(--tv-line);border-radius:.8em;padding:.8em}
+.tv-qr-img{width:7.5em;height:7.5em;flex-shrink:0;background:#fff;border-radius:.4em;overflow:hidden}
+.tv-qr-img svg{width:100%;height:100%;display:block}
+.tv-qr>div:last-child{display:flex;flex-direction:column;gap:.25em;min-width:0}
+.tv-qr b{font-family:var(--f-display);font-size:1.35em}
+.tv-qr span{color:var(--tv-muted);font-size:.95em;line-height:1.35}
+.tv-url{font-family:var(--f-mono);font-size:.8em!important;overflow-wrap:anywhere}
+.tv-right{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1.05fr) minmax(0,1fr);gap:1.2em;min-height:0}
+.tv-kerja{grid-column:1/-1}
+.tv-panel{background:var(--tv-panel);border:1px solid var(--tv-line);border-radius:1em;padding:.9em 1.1em;display:flex;flex-direction:column;gap:.6em;min-height:0}
+.tv-panel h2{margin:0;font-family:var(--f-display);font-weight:700;font-size:1.35em;letter-spacing:.14em;text-transform:uppercase;color:var(--tv-muted);display:flex;align-items:center;gap:.5em}
+.tv-count{background:var(--tv-line);color:var(--tv-ink);border-radius:999px;padding:0 .55em;font-size:.85em;letter-spacing:0;font-family:var(--f-mono)}
+.tv-count:empty{display:none}
+.tv-siap h2{color:var(--tv-go)}
+.tv-list{list-style:none;margin:0;padding:0;overflow:hidden;display:flex;flex-direction:column;gap:.45em;min-height:0;flex:1 1 auto}
+.tv-list li{display:flex;align-items:center;gap:.8em;background:rgba(255,255,255,.04);border-radius:.5em;padding:.45em .7em;font-size:1.25em;flex-shrink:0}
+.tv-kerja .tv-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}
+.tv-no{font-family:var(--f-mono);font-weight:700;color:var(--tv-call);min-width:2.6em}
+.tv-siap .tv-no{color:var(--tv-go)}
+.tv-np{font-family:var(--f-mono);font-weight:700;white-space:nowrap}
+.tv-tp{color:var(--tv-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 auto}
+.tv-mek,.tv-tag,.tv-np,.tv-no{flex-shrink:0}
+.tv-mek{font-family:var(--f-display);font-weight:600;background:rgba(61,220,151,.14);color:var(--tv-go);border-radius:.4em;padding:0 .5em;white-space:nowrap}
+.tv-tag{font-family:var(--f-display);font-weight:600;background:rgba(255,107,91,.16);color:#ff9b8f;border-radius:.4em;padding:0 .5em;white-space:nowrap}
+.tv-list li.tv-empty{background:none;color:var(--tv-muted);font-size:1.05em;grid-column:1/-1}
+.tv-foot{background:#0a1a3d;border-top:1px solid var(--tv-line);overflow:hidden;padding:.6em 0}
+.tv-marquee{white-space:nowrap;overflow:hidden}
+.tv-marquee span{display:inline-block;padding-left:100%;font-size:1.3em;animation:tv-run 30s linear infinite}
+@keyframes tv-run{to{transform:translateX(-100%)}}
+.tv-pop{position:fixed;inset:0;background:rgba(3,9,24,.88);display:flex;align-items:center;justify-content:center;z-index:30;font-size:clamp(13px,1.15vw,44px)}
+.tv-pop-in{background:linear-gradient(160deg,#1b3a80,#0d1f45);border:.2em solid var(--tv-call);border-radius:1.2em;padding:1.6em 4em;text-align:center;animation:tv-in .35s ease-out}
+@keyframes tv-in{from{transform:scale(.85);opacity:0}}
+.tv-pop .tv-lbl{color:var(--tv-call);font-size:1.6em}
+.tv-pop-no{font-family:var(--f-mono);font-weight:700;font-size:13em;line-height:1;color:var(--tv-call)}
+.tv-pop-np{font-family:var(--f-mono);font-weight:700;font-size:4em}
+.tv-pop-ke{font-family:var(--f-display);font-weight:600;font-size:2.6em;margin-top:.2em}
+.tv-start{position:fixed;inset:0;background:rgba(3,9,24,.92);display:flex;align-items:center;justify-content:center;z-index:40;cursor:pointer;font-size:clamp(14px,1.2vw,40px)}
+.tv-start-in{text-align:center;max-width:32em;display:flex;flex-direction:column;align-items:center;gap:.8em}
+.tv-start h1{margin:0;font-family:var(--f-display);font-size:2.4em}
+.tv-start p{margin:0;color:var(--tv-muted)}
+.tv-start .btn{font-size:1.2em;padding:.6em 1.6em}
+.tv-small{font-size:.85em}
+@media (prefers-reduced-motion:reduce){.tv-marquee span{animation-duration:80s!important}.tv-call.baru{animation:none}}
+/* TV dipasang tegak (potret) */
+@media (orientation:portrait){
+  .tv{font-size:clamp(13px,2vw,40px)}
+  .tv-main{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .tv-left{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}
+  .tv-call{grid-row:span 2}
+  .tv-call-no{font-size:6em}
+}
+.checks .hr{white-space:nowrap}
+
+/* ---------- v2.6: PWA ---------- */
+.link-btn{background:none;border:0;padding:0;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.cek-pasang{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:14px;text-align:center}
+.cek-pasang:has(#cek-pasang[hidden]):not(:has(#cek-pasang-info:not([hidden]))){display:none}
+#pasang-app{align-self:flex-start;background:rgba(255,255,255,.1)}
+/* Saat dibuka sebagai aplikasi terpasang: beri ruang untuk status bar HP */
+@media (display-mode:standalone){.topbar{padding-top:calc(8px + env(safe-area-inset-top,0px))}}
