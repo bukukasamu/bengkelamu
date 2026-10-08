@@ -2,7 +2,7 @@
 import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal)
 import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from './firebase.js';
 import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
-import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can } from './state.js';
+import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup } from './state.js';
 import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
 import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
 import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
@@ -15,6 +15,7 @@ import { setLoadedFrom } from './laporan.js';
 import './beranda.js';
 import './registrasi.js';
 import './riwayat.js';
+import './insight.js';
 import { setPhLoadedFrom } from './penghasilan.js';
 import './order.js';
 import './bayar.js';
@@ -31,8 +32,8 @@ document.querySelectorAll('.app-name').forEach(e => { e.textContent = APP_NAME.t
 function renderSidebar() {
   let html = '', group = '';
   MENUS.filter(m => can(m.id)).forEach(m => {
-    if (m.group !== group) { group = m.group; html += `<div class="sb-group">${esc(group)}</div>`; }
-    html += `<button class="sb-link" type="button" data-view="${m.id}">${esc(m.label)}</button>`;
+    if (menuGroup(m) !== group) { group = menuGroup(m); html += `<div class="sb-group">${esc(group)}</div>`; }
+    html += `<button class="sb-link" type="button" data-view="${m.id}">${esc(menuLabel(m))}</button>`;
   });
   $('#side-nav').innerHTML = html;
 }

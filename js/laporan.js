@@ -12,17 +12,52 @@ import { isRole } from './state.js';
 // Admin/pemilik bisa melihat laporan gabungan semua cabang
 const gabungan = () => st.lap.semuaCabang && isRole('admin') && multiCabang();
 
-const RANGES = [['hari', 'Hari ini'], ['7', '7 hari'], ['bulan', 'Bulan ini'], ['lalu', 'Bulan lalu'], ['pilih', 'Pilih tanggal']];
+// Periode laporan: harian, mingguan (Senin–Minggu), bulanan, tahunan, atau custom; tombol ‹ › untuk mundur/maju
+const RANGES = [['hari', 'Harian'], ['minggu', 'Mingguan'], ['bulan', 'Bulanan'], ['tahun', 'Tahunan'], ['pilih', 'Custom']];
+const tgl = s => new Date(s + 'T00:00');
+function geser(n) {
+  const L = st.lap, d = tgl(L.anchor || dkey(new Date()));
+  if (L.range === 'hari') d.setDate(d.getDate() + n);
+  else if (L.range === 'minggu') d.setDate(d.getDate() + 7 * n);
+  else if (L.range === 'bulan') d.setMonth(d.getMonth() + n, 1);
+  else if (L.range === 'tahun') d.setFullYear(d.getFullYear() + n, 0, 1);
+  L.anchor = dkey(d);
+}
 let loadedFrom = '';   // batas awal data transaksi yang sudah dimuat realtime (diisi main.js)
 export const setLoadedFrom = f => { loadedFrom = f; };
 
 function range() {
-  const now = new Date(), L = st.lap;
-  if (L.range === '7') { const d = new Date(now); d.setDate(d.getDate() - 6); return [dkey(d), dkey(now)]; }
-  if (L.range === 'bulan') return [dkey(new Date(now.getFullYear(), now.getMonth(), 1)), dkey(now)];
-  if (L.range === 'lalu') return [dkey(new Date(now.getFullYear(), now.getMonth() - 1, 1)), dkey(new Date(now.getFullYear(), now.getMonth(), 0))];
+  const L = st.lap, a = tgl(L.anchor || dkey(new Date())), y = a.getFullYear(), m = a.getMonth();
+  if (L.range === 'minggu') { const senin = new Date(a); senin.setDate(a.getDate() - ((a.getDay() + 6) % 7)); const minggu = new Date(senin); minggu.setDate(senin.getDate() + 6); return [dkey(senin), dkey(minggu)]; }
+  if (L.range === 'bulan') return [dkey(new Date(y, m, 1)), dkey(new Date(y, m + 1, 0))];
+  if (L.range === 'tahun') return [dkey(new Date(y, 0, 1)), dkey(new Date(y, 11, 31))];
   if (L.range === 'pilih' && L.from && L.to) return [L.from, L.to];
-  return [dkey(now), dkey(now)];
+  return [dkey(a), dkey(a)];
+}
+function judulPeriode(from, to) {
+  const L = st.lap, f = tgl(from);
+  if (L.range === 'hari') return f.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  if (L.range === 'bulan') return f.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  if (L.range === 'tahun') return 'Tahun ' + f.getFullYear();
+  return tglLabel(from) + ' – ' + tglLabel(to);
+}
+// Rincian per hari (minggu/bulan/custom) atau per bulan (tahun)
+function rincianPeriode(base, from, to) {
+  const L = st.lap; if (L.range === 'hari') return '';
+  const perBulan = L.range === 'tahun' || (tgl(to) - tgl(from)) / 864e5 > 62;
+  const kunci = t => perBulan ? t.tgl.slice(0, 7) : t.tgl.slice(0, 10), g = {};
+  base.forEach(t => { const k = kunci(t); (g[k] = g[k] || []).push(t); });
+  const rows = [], d = tgl(from), akhir = tgl(to), hariIni = dkey(new Date());
+  while (d <= akhir && dkey(d) <= hariIni) {
+    const k = perBulan ? dkey(d).slice(0, 7) : dkey(d), l = g[k] || [], sm = sums(l);
+    rows.push({ k, l: perBulan ? tgl(k + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }), n: sm.n, part: sm.part, jasa: sm.jasa + sm.biaya, total: sm.total });
+    if (perBulan) d.setMonth(d.getMonth() + 1, 1); else d.setDate(d.getDate() + 1);
+  }
+  if (rows.length < 2) return '';
+  const max = Math.max(...rows.map(r => r.total), 1);
+  return `<div class="panel"><h3>Rincian per ${perBulan ? 'bulan' : 'hari'}</h3><div class="tw"><table><thead><tr><th>${perBulan ? 'Bulan' : 'Tanggal'}</th><th class="r">Nota</th><th class="r">Sparepart</th><th class="r">Jasa &amp; lain</th><th class="r">Total</th><th style="width:28%"></th></tr></thead><tbody>
+    ${rows.reverse().map(r => `<tr class="row-click" tabindex="0" data-act="lap-buka" data-k="${r.k}" data-b="${perBulan ? 1 : 0}" title="Buka laporan ${esc(r.l)}"><td>${esc(r.l)}</td><td class="r num">${r.n || '–'}</td><td class="r num">${r.part ? rp(r.part) : '–'}</td><td class="r num">${r.jasa ? rp(r.jasa) : '–'}</td><td class="r num"><b>${r.total ? rp(r.total) : '–'}</b></td><td><span class="ph-bar"><i style="width:${r.total / max * 100}%"></i></span></td></tr>`).join('')}
+  </tbody></table></div></div>`;
 }
 
 // Filter yang bisa diklik
@@ -84,11 +119,12 @@ async function renderLaporan() {
   const tile = (type, lbl, val, sub, color) => `<button class="tile click" type="button" data-act="lap-f" data-t="${type}" aria-pressed="${L.filter?.type === type}"><span class="lbl">${lbl}</span><span class="val"${color ? ` style="color:${color}"` : ''}>${val}</span><span class="sub">${sub}</span></button>`;
   $('#view').innerHTML = `<div class="grid">
    <div class="row spread">
-    <div class="seg" role="group" aria-label="Periode">${RANGES.map(([k, l]) => `<button type="button" data-act="lap-r" data-r="${k}" aria-pressed="${k === L.range}">${l}</button>`).join('')}</div>
+    <div class="seg" role="group" aria-label="Jenis laporan">${RANGES.map(([k, l]) => `<button type="button" data-act="lap-r" data-r="${k}" aria-pressed="${k === L.range}">${l}</button>`).join('')}</div>
     <div class="row">${isRole('admin') && multiCabang() ? `<select id="lap-cab" style="width:auto" aria-label="Cabang"><option value="ini" ${gabungan() ? '' : 'selected'}>Cabang ${esc(namaCabang(cabAktif()))}</option><option value="semua" ${gabungan() ? 'selected' : ''}>Semua cabang</option></select>` : ''}<button class="btn" type="button" data-act="lap-xlsx" title="Unduh laporan Excel">⬇ Excel</button><button class="btn" type="button" data-act="lap-pdf" title="Unduh laporan PDF">⬇ PDF</button></div>
    </div>
    ${L.range === 'pilih' ? `<div class="row"><label class="f" for="lap-from">Dari<input id="lap-from" type="date" value="${esc(L.from)}"></label><label class="f" for="lap-to">Sampai<input id="lap-to" type="date" value="${esc(L.to)}"></label><button class="btn pri" type="button" data-act="lap-go" style="align-self:flex-end">Tampilkan</button></div>` : ''}
-   <p class="small muted" style="margin:0">${from === to ? from : from + ' s/d ' + to} · klik angka, part, mekanik, atau kasir untuk menyaring daftar transaksi.</p>
+   ${L.range !== 'pilih' ? `<div class="lap-nav"><button class="btn sm" type="button" data-act="lap-geser" data-n="-1" aria-label="Periode sebelumnya">‹</button><b>${esc(judulPeriode(from, to))}</b><button class="btn sm" type="button" data-act="lap-geser" data-n="1" aria-label="Periode berikutnya" ${to >= dkey(new Date()) ? 'disabled' : ''}>›</button><input id="lap-anchor" type="date" value="${esc(L.anchor || dkey(new Date()))}" aria-label="Pilih tanggal" style="width:auto">${(L.anchor || dkey(new Date())) !== dkey(new Date()) ? '<button class="btn sm ghost" type="button" data-act="lap-kini">Hari ini</button>' : ''}</div>` : ''}
+   <p class="small muted" style="margin:0">${esc(judulPeriode(from, to))} · klik angka, part, mekanik, kasir, atau baris rincian untuk menyaring.</p>
    <div class="tiles t5">
     ${tile('semua', 'Total omzet', rp(all.total), all.n + ' transaksi')}
     ${tile('part', 'Penjualan part', rp(all.part), all.qty + ' pcs')}
@@ -111,6 +147,7 @@ async function renderLaporan() {
      ${kas.length ? `<div class="tw"><table><thead><tr><th>Kasir</th><th class="r">Nota</th><th class="r">Total</th></tr></thead><tbody>${kas.map(([m, v]) => `<tr class="row-click" tabindex="0" data-act="lap-f" data-t="kasir" data-v="${esc(m)}"><td>${esc(m)}</td><td class="r num">${v.n}</td><td class="r num">${rp(v.total)}</td></tr>`).join('')}</tbody></table></div>` : ''}
     </div>
    </div>
+   ${rincianPeriode(base, from, to)}
    <div class="panel"><div class="row spread"><h3>Daftar transaksi</h3>${L.filter ? `<span class="chip">${esc(filterLabel(L.filter))} · ${list.length} nota · ${rp(s.total)}<button type="button" data-act="lap-clear" aria-label="Hapus filter">✕</button></span>` : `<span class="small muted">${list.length} nota</span>`}</div>
     <div class="tw"><table><thead><tr><th>No. nota</th><th>Waktu</th><th>Jenis</th><th>Pelanggan</th><th>Kasir</th><th class="r">Total</th></tr></thead><tbody>${list.map(t => `<tr class="row-click" tabindex="0" data-act="nota" data-no="${esc(t.no)}"><td class="mono">${esc(t.no)}</td><td class="num">${t.tgl.slice(5).replace('-', '/')}</td><td>${t.jenis === 'SERVIS' ? jenisBadge(t) : '<span class="pill p-good">Part</span>'}</td><td>${esc(t.pelanggan)}${t.nopol ? ` <span class="small muted mono">${esc(t.nopol)}</span>` : ''}</td><td class="small">${esc(t.kasir || '')}</td><td class="r num">${rp(t.total)}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Tidak ada transaksi.</td></tr>'}</tbody></table></div>
    </div></div>`;
@@ -125,7 +162,7 @@ async function exportXlsx() {
       sparepart: t.items.reduce((a, x) => a + x.qty * x.harga, 0), jasa: (t.jasa || []).reduce((a, j) => a + j.harga, 0), klaim_ksg: t.jasaKlaim || 0, biaya_lain: (t.biaya || []).reduce((a, b) => a + b.jumlah, 0), diskon: t.diskon || 0, total: t.total, metode: t.metode || 'Cash', cash_bersih: t.cash == null ? t.total : (t.cash || 0) - (t.kembali || 0), transfer: t.transfer || 0, rekening: t.rekening || '' }));
     const r = rekap(list), sm = sums(list), [from, to] = range();
     const ringkas = [
-      { keterangan: 'Periode', nilai: periodeLabel(from, to) },
+      { keterangan: 'Periode', nilai: judulPeriode(from, to) },
       { keterangan: 'Cabang', nilai: gabungan() ? 'Semua cabang' : namaCabang(cabAktif()) },
       ...(st.lap.filter ? [{ keterangan: 'Filter', nilai: filterLabel(st.lap.filter) }] : []),
       { keterangan: 'Jumlah transaksi', nilai: sm.n }, { keterangan: 'Total omzet', nilai: sm.total }, { keterangan: 'Penjualan sparepart', nilai: sm.part },
@@ -155,7 +192,7 @@ async function exportPdf(el) {
     const { saveBlob } = await import('./nota-pdf.js');
     const rpx = v => rp(v);
     const blob = await laporanPdfBlob({
-      judul: 'Laporan penjualan ' + periodeLabel(from, to), periode: periodeLabel(from, to),
+      judul: 'Laporan penjualan ' + judulPeriode(from, to), periode: judulPeriode(from, to),
       cabang: gabungan() ? 'Semua cabang' : multiCabang() ? 'Cabang ' + namaCabang(cabAktif()) : '',
       filter: st.lap.filter ? filterLabel(st.lap.filter) : '',
       ringkasan: [['Total omzet', rpx(sm.total), sm.n + ' transaksi'], ['Penjualan part', rpx(sm.part), sm.qty + ' pcs'], ['Jasa servis', rpx(sm.jasa), ''], ['Biaya lain', rpx(sm.biaya), ''],
@@ -171,7 +208,10 @@ async function exportPdf(el) {
 
 views.laporan = renderLaporan;
 Object.assign(actions, {
-  'lap-r': el => { st.lap.range = el.dataset.r; st.lap.filter = null; if (el.dataset.r === 'pilih' && !st.lap.from) { st.lap.from = st.lap.to = dkey(new Date()); } renderLaporan(); },
+  'lap-r': el => { st.lap.range = el.dataset.r; st.lap.filter = null; if (el.dataset.r === 'pilih' && !st.lap.from) { const [f, t] = range(); st.lap.from = f; st.lap.to = t; } renderLaporan(); },
+  'lap-geser': el => { geser(+el.dataset.n); st.lap.filter = null; renderLaporan(); },
+  'lap-kini': () => { st.lap.anchor = dkey(new Date()); st.lap.filter = null; renderLaporan(); },
+  'lap-buka': el => { st.lap.range = el.dataset.b === '1' ? 'bulan' : 'hari'; st.lap.anchor = el.dataset.b === '1' ? el.dataset.k + '-01' : el.dataset.k; st.lap.filter = null; renderLaporan(); },
   'lap-go': () => { if (st.lap.from > st.lap.to) { toast('Tanggal awal harus sebelum tanggal akhir'); return; } renderLaporan(); },
   'lap-f': el => {
     const t = el.dataset.t;
@@ -183,4 +223,5 @@ Object.assign(actions, {
   'lap-pdf': exportPdf
 });
 changeHandlers.push(e => { if (e.target.id === 'lap-cab') { st.lap.semuaCabang = e.target.value === 'semua'; st.lap.filter = null; renderLaporan(); } });
+changeHandlers.push(e => { if (e.target.id === 'lap-anchor' && e.target.value) { st.lap.anchor = e.target.value; st.lap.filter = null; renderLaporan(); } });
 changeHandlers.push(e => { if (e.target.id === 'lap-from') st.lap.from = e.target.value; if (e.target.id === 'lap-to') st.lap.to = e.target.value; });

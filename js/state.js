@@ -31,6 +31,9 @@ export const st = {
 export const namaPetugas = () => (st.petugas && (st.petugas.nama || st.petugas.email)) || '';
 // ID tetap petugas (tidak berubah walau nama diganti) untuk menghitung penjualan pribadi / insentif
 export const idPetugas = () => (st.petugas && (st.petugas.loginId || st.petugas.email)) || '';
+// Nama & grup menu bisa berbeda untuk admin (mis. "Penghasilan Karyawan" vs "Penghasilan Saya")
+export const menuLabel = m => (st.role === 'admin' && m.adminLabel) || m.label;
+export const menuGroup = m => (st.role === 'admin' && m.adminGroup) || m.group;
 export const can = menuId => !!MENUS.find(m => m.id === menuId)?.roles.includes(st.role);
 export const isRole = (...r) => r.includes(st.role);
 
@@ -46,7 +49,16 @@ export function go(v) {
   if (!can(v)) v = HOME[st.role] || 'beranda';
   st.view = v;
   document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const m = MENUS.find(x => x.id === v); if ($('#page-title')) $('#page-title').textContent = m ? m.label : '';
+  const m = MENUS.find(x => x.id === v); if ($('#page-title')) $('#page-title').textContent = m ? menuLabel(m) : '';
+  // Tombol cepat F1/F2/F8 hanya tampil bila berguna di halaman & peran ini
+  const tb = document.querySelector('.toolbar');
+  if (tb) {
+    const f = fkeys[v] || {};
+    if ($('#fk-baru')) $('#fk-baru').hidden = !f.baru;
+    if ($('#fk-simpan')) $('#fk-simpan').hidden = !f.simpan;
+    if ($('#fk-cetak')) $('#fk-cetak').hidden = !['admin', 'kasir'].includes(st.role);
+    tb.hidden = st.role === 'mekanik' || [...tb.children].every(c => c.hidden);
+  }
   document.body.classList.remove('sb-open'); if ($('#sb-backdrop')) $('#sb-backdrop').hidden = true;
   try { localStorage.setItem('amu-tab-' + st.role, v); } catch (e) {}
   if (!st.loaded) return;

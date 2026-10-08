@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '3.3.0';
+export const APP_VERSION = '3.4.0';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
@@ -32,9 +32,11 @@ export const MENUS = [
   { id: 'kasir', label: 'Penjualan Sparepart', group: 'Sparepart', roles: ['admin', 'kasir'] },
   { id: 'stok', label: 'Stok Part', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'pembelian', label: 'Pembelian Stok', group: 'Sparepart', roles: ['admin', 'sparepart'] },
-  { id: 'penghasilan', label: 'Penghasilan', group: 'Keuangan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] },
   { id: 'laporan', label: 'Laporan Penjualan', group: 'Keuangan', roles: ['admin', 'kasir'] },
-  { id: 'master', label: 'Master Data', group: 'Pengaturan', roles: ['admin', 'registrasi'] }
+  { id: 'insight', label: 'Insight Konsumen', group: 'Keuangan', roles: ['admin'] },
+  { id: 'master', label: 'Master Data', group: 'Pengaturan', roles: ['admin', 'registrasi'] },
+  // Penghasilan pribadi dipisah dari laporan toko; admin melihat rekap semua karyawan
+  { id: 'penghasilan', label: 'Penghasilan Saya', group: 'Akun Saya', adminLabel: 'Penghasilan Karyawan', adminGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] }
 ];
 // Halaman pertama setelah login
 export const HOME = { admin: 'beranda', registrasi: 'registrasi', sparepart: 'order', kasir: 'bayar', mekanik: 'mekanik' };
