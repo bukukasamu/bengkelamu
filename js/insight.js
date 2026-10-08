@@ -137,7 +137,7 @@ async function renderInsight() {
     <div class="panel"><h3>Jenis servis</h3>${barList(o.jenis, o.trx.length || 1)}</div>
     <div class="panel"><h3>Wilayah: kabupaten / kota</h3>${barList(o.kab, o.kab.reduce((a, x) => a + x[1], 0))}</div>
     <div class="panel"><h3>Wilayah: kecamatan</h3>${barList(o.kec, o.kec.reduce((a, x) => a + x[1], 0))}</div>
-    <div class="panel"><h3>Usia pemilik (sesuai KTP)</h3>${barList(o.usia.sort((a, b) => a[0].localeCompare(b[0])), o.usia.reduce((a, x) => a + x[1], 0) || 1)}</div>
+    <div class="panel"><h3>Usia konsumen (sesuai KTP)</h3>${barList(o.usia.sort((a, b) => a[0].localeCompare(b[0])), o.usia.reduce((a, x) => a + x[1], 0) || 1)}</div>
     <div class="panel"><h3>Jenis kelamin</h3>${barList(o.jk, o.jk.reduce((a, x) => a + x[1], 0) || 1)}<p class="small muted" style="margin:0">Usia & jenis kelamin terisi untuk konsumen yang data KTP-nya diisi saat registrasi.</p></div>
    </div>
    <div class="panel"><h3>Konsumen terbaik · ${esc(judul())}</h3>

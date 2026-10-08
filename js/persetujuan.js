@@ -8,13 +8,13 @@ import { setujuiBatal, tolakBatal } from './kontrol.js';
 import { showNota } from './nota.js';
 
 let batal = [], opname = [], layar = [], layarSemua = [];
+export function segarkanBadge() {
+  const n = batal.length + opname.length + layar.length, el = document.querySelector('.sb-link[data-view="persetujuan"]');
+  if (el) el.innerHTML = 'Persetujuan' + (n ? ` <span class="sb-badge">${n}</span>` : '');
+}
 export function pantauPersetujuan(unsubs) {
   if (!st.petugas?.super && st.role !== 'admin') return;
-  const badge = () => {
-    const n = batal.length + opname.length + layar.length, el = document.querySelector('.sb-link[data-view="persetujuan"]');
-    if (el) el.innerHTML = 'Persetujuan' + (n ? ` <span class="sb-badge">${n}</span>` : '');
-    if (st.view === 'persetujuan') renderPersetujuan();
-  };
+  const badge = () => { segarkanBadge(); if (st.view === 'persetujuan') renderPersetujuan(); };
   unsubs.push(onSnapshot(collection(db, 'layarAbsen'), s => { layarSemua = s.docs.map(d => ({ id: d.id, ...d.data() })); layar = layarSemua.filter(l => l.status === 'menunggu'); badge(); }, () => {}));
   if (!st.petugas?.super) return;
   unsubs.push(onSnapshot(query(collection(db, 'trx'), where('batal.status', '==', 'diminta')), s => { batal = s.docs.map(d => d.data()); badge(); }, () => {}));

@@ -34,7 +34,13 @@ export const idPetugas = () => (st.petugas && (st.petugas.loginId || st.petugas.
 // Nama & grup menu bisa berbeda untuk super admin (mis. "Penghasilan Karyawan" vs "Penghasilan Saya")
 export const menuLabel = m => (st.petugas?.super && m.superLabel) || m.label;
 export const menuGroup = m => (st.petugas?.super && m.superGroup) || m.group;
-export const can = menuId => { const m = MENUS.find(x => x.id === menuId); return !!m && m.roles.includes(st.role) && (!m.superOnly || !!st.petugas?.super); };
+// Hak akses menu per peran bisa dibatasi super admin (pengaturan/akses); tanpa pengaturan = semua menu bawaan peran
+export const can = menuId => {
+  const m = MENUS.find(x => x.id === menuId); if (!m || !m.roles.includes(st.role) || (m.superOnly && !st.petugas?.super)) return false;
+  if (st.petugas?.super) return true;
+  const a = S.akses?.[st.role]; return !Array.isArray(a) || a.includes(menuId);
+};
+export const menuAwal = () => can(HOME[st.role]) ? HOME[st.role] : (MENUS.find(m => can(m.id))?.id || HOME[st.role]);
 export const isRole = (...r) => r.includes(st.role);
 
 /* ---- Registry: tiap modul mendaftarkan tampilan dan aksinya sendiri ---- */
@@ -46,7 +52,7 @@ export const changeHandlers = [];
 export const fkeys = {};          // id menu -> { baru, simpan }
 
 export function go(v) {
-  if (!can(v)) v = HOME[st.role] || 'beranda';
+  if (!can(v)) v = menuAwal();
   st.view = v;
   document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const m = MENUS.find(x => x.id === v); if ($('#page-title')) $('#page-title').textContent = m ? menuLabel(m) : '';

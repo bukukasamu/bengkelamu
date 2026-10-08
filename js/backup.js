@@ -8,7 +8,7 @@ import { APP_NAME, APP_VERSION } from './config.js';
 
 // Semua koleksi yang disimpan. "pantau" (link cek konsumen) tidak bisa didaftar dan dibuat ulang otomatis dari WO.
 export const KOLEKSI = ['parts', 'kendaraan', 'jasa', 'mekanik', 'meta', 'publik', 'staff', 'trx', 'wo', 'pembelian', 'mutasi', 'transfer', 'opname',
-  'pengeluaran', 'kas', 'klaim', 'penghasilan', 'gaji', 'slip', 'penghasilanBulan', 'absen', 'absenPerangkat', 'masuk', 'imports'];
+  'pengeluaran', 'kas', 'klaim', 'penghasilan', 'gaji', 'slip', 'penghasilanBulan', 'absen', 'absenPerangkat', 'pengaturan', 'masuk', 'imports'];
 // Foto selfie absen tidak ikut backup (besar dan dihapus otomatis setelah beberapa hari).
 export const HARI_PENGINGAT = 7;
 export const umurBackup = () => { const t = S.settings.backupTerakhir?.tgl; return t ? Math.floor((Date.now() - new Date(t.replace(' ', 'T'))) / 864e5) : null; };
@@ -58,7 +58,7 @@ Object.assign(actions, {
       const koleksi = {}, gagal = []; let n = 0;
       for (const nama of KOLEKSI) {
         info.textContent = 'Membaca ' + nama + '…';
-        try { const s = await getDocs(collection(db, nama)); koleksi[nama] = s.docs.map(d => ({ id: d.id, data: keJson(d.data()) })); n += s.size; }
+        try { const s = await getDocs(collection(db, nama)); koleksi[nama] = s.docs.map(d => ({ id: d.id, data: keJson(d.data()) })); n += s.docs.length; }
         catch (e) { console.warn('Backup', nama, e); koleksi[nama] = []; gagal.push(nama); }
       }
       const isi = { app: APP_NAME, versi: APP_VERSION, dibuat: stamp(new Date()), oleh: st.petugas?.email || '', gagal, koleksi };

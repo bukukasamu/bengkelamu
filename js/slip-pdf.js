@@ -32,11 +32,11 @@ export async function slipPdfBlob(d) {
   pdf.line(M, y - 2.4, W - M, y - 2.4); baris('Total potongan', '-' + rp(d.totalPotongan), '', true); y += 2;
   pdf.setDrawColor(40); pdf.setLineWidth(0.5); pdf.rect(M, y - 4, W - 2 * M, 8);
   t('PENGHASILAN BERSIH', M + 3, y + 1.2, { bold: true, size: 9.5 }); t(rp(d.bersih), W - M - 3, y + 1.2, { bold: true, size: 11, align: 'right' }); y += 10;
-  t('Dihitung otomatis dari penjualan pribadi. Jumlah final ditetapkan pemilik.', M, y, { size: 7, gray: 100 }); y += 12;
+  t('Dihitung otomatis dari penjualan pribadi. Jumlah final ditetapkan manajemen.', M, y, { size: 7, gray: 100 }); y += 12;
   const kol = (W - 2 * M) / 2;
   t('Diterima oleh,', M + kol / 2, y, { size: 8, align: 'center' }); t('Disetujui,', M + kol * 1.5, y, { size: 8, align: 'center' }); y += 18;
   pdf.setDrawColor(120); pdf.setLineWidth(0.3); pdf.line(M + 8, y, M + kol - 8, y); pdf.line(M + kol + 8, y, W - M - 8, y); y += 4;
-  t(d.nama, M + kol / 2, y, { size: 8, align: 'center' }); t('Pemilik', M + kol * 1.5, y, { size: 8, align: 'center' });
+  t(d.nama, M + kol / 2, y, { size: 8, align: 'center' }); t('Manajemen', M + kol * 1.5, y, { size: 8, align: 'center' });
   t('Dicetak ' + new Date().toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' - ' + COPYRIGHT, M, H - 7, { size: 6.5, gray: 130 });
   return pdf.output('blob');
 }

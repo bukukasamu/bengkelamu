@@ -2,7 +2,7 @@
 // dan menu Riwayat Kendaraan di aplikasi petugas.
 import { esc, rp } from './util.js';
 import { fmtDur } from './wo-common.js';
-import { namaCabang, multiCabang } from './cabang.js';
+import { namaCabang, CABANG_UTAMA } from './cabang.js';
 
 export const tglID = t => t ? new Date(String(t).replace(' ', 'T')).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 export const tglPendek = t => t ? new Date(String(t).replace(' ', 'T')).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
@@ -28,11 +28,13 @@ export function ringkasRiwayat(list) {
 /* ---- Satu kartu riwayat servis (bisa dibuka-tutup) ----
    opts.notaAttr: atribut tombol nota, mis. 'data-pdf="0"' (konsumen) atau 'data-act="rw-nota" data-no="SV-…"' (petugas)
    opts.petugas: tampilkan juga kasir & catatan internal */
+// Tempat servis: nama cabang (nota lama tanpa kode cabang = cabang utama)
+export const lokasiServis = t => namaCabang(t.cabang || CABANG_UTAMA);
 export function kartuRiwayat(t, opts = {}) {
   const w = t.waktu || {}, ksg = t.jenisServis === 'KSG';
   const jenis = t.jenis === 'PART' ? 'Pembelian sparepart' : t.jenisServis === 'KSG' ? 'Servis KSG' + (t.ksgKe ? ' ke-' + t.ksgKe : '') : t.jenisServis === 'KSB' ? 'Servis KSB (berkala)' : 'Servis reguler';
   const info = [
-    multiCabang() && t.cabang ? ['Cabang', esc(namaCabang(t.cabang))] : null,
+    ['Bengkel', esc(lokasiServis(t))],
     t.km ? ['Kilometer', n(t.km) + ' km'] : null,
     t.mekanik ? ['Mekanik', esc(t.mekanik)] : null,
     t.keluhan ? ['Keluhan', esc(t.keluhan)] : null,
@@ -45,7 +47,7 @@ export function kartuRiwayat(t, opts = {}) {
   const daftar = (judul, rows) => rows.length ? `<div class="riw-sec"><div class="riw-h">${judul}</div>${rows.map(([l, r]) => `<div class="riw-li"><span>${l}</span><span class="num">${r}</span></div>`).join('')}</div>` : '';
   const bayar = [t.cash ? 'Cash ' + rp(t.cash) : '', t.transfer ? 'Transfer ' + rp(t.transfer) : ''].filter(Boolean).join(' · ');
   return `<details class="riw-card" data-no="${esc(t.no)}"${opts.buka ? ' open' : ''}>
-    <summary><div class="riw-top"><div><b>${esc(tglPendek(t.tgl))}</b> <span class="small muted">${esc(jamSaja(t.tgl))}</span><div class="small muted">${esc(jenis)} · <span class="mono">${esc(t.no)}</span></div></div><div class="riw-tot num">${rp(t.total)}</div></div>
+    <summary><div class="riw-top"><div><b>${esc(tglPendek(t.tgl))}</b> <span class="small muted">${esc(jamSaja(t.tgl))}</span><div class="small muted">${esc(jenis)} · <span class="riw-cab">📍 ${esc(lokasiServis(t))}</span> · <span class="mono">${esc(t.no)}</span></div></div><div class="riw-tot num">${rp(t.total)}</div></div>
       <div class="small riw-ringkas">${esc([(t.jasa || []).map(j => j.nama).join(', '), (t.items || []).map(x => x.nama).join(', ')].filter(Boolean).join(' · ') || '–')}</div></summary>
     <div class="riw-body">
       ${info.length ? `<div class="riw-info">${info.map(([l, v]) => `<span class="muted">${l}</span><span>${v}</span>`).join('')}</div>` : ''}

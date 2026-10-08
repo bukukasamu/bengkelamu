@@ -67,7 +67,7 @@ function renderRegistrasi() {
     <h3>2. Data kendaraan <span class="h-sub">sesuai STNK</span></h3>
     <div class="form">
      ${inp('nopol', 'No. Polisi', 'class="mono" placeholder="BL 1234 XX" autocomplete="off"')}
-     <div class="f wide-2"><span class="f-wa"><label for="r-namaStnk">Nama pemilik di STNK</label><label class="chk small" for="r-stnkSama"><input type="checkbox" id="r-stnkSama" ${w.stnkSama !== false ? 'checked' : ''} ${dis}>sama dengan konsumen</label></span><input id="r-namaStnk" data-rf="namaStnk" value="${esc(w.stnkSama !== false ? w.nama : w.namaStnk)}" ${w.stnkSama !== false || locked ? 'disabled' : ''}></div>
+     <div class="f wide-2"><span class="f-wa"><label for="r-namaStnk">Nama di STNK</label><label class="chk small" for="r-stnkSama"><input type="checkbox" id="r-stnkSama" ${w.stnkSama !== false ? 'checked' : ''} ${dis}>sama dengan konsumen</label></span><input id="r-namaStnk" data-rf="namaStnk" value="${esc(w.stnkSama !== false ? w.nama : w.namaStnk)}" ${w.stnkSama !== false || locked ? 'disabled' : ''}></div>
      <label class="f" for="r-tipe">Tipe motor<select id="r-tipe" data-rf="tipe" ${dis}><option value="">Pilih tipe</option>${[...new Set([...tipeList(), w.tipe].filter(Boolean))].map(t => `<option ${t === w.tipe ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
      ${inp('tahun', 'Tahun pembuatan', 'inputmode="numeric" class="num" maxlength="4"')}
      ${inp('warna', 'Warna')}

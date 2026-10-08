@@ -5,7 +5,7 @@
 //    tanpa login. Perangkat lain yang membuka link ditolak. Hanya super admin yang bisa mencabutnya.
 // Perangkat layar memakai identitas anonim tersendiri; aturan database hanya mengizinkannya memperbarui
 // kode QR cabangnya, tidak bisa membaca data apa pun.
-// QR berganti tiap 15 detik dan hanya selama jam aktif & layar terlihat (hemat kuota tulis).
+// QR berganti sesuai pengaturan super admin (bawaan 15 detik), hanya selama jam aktif & layar terlihat (hemat kuota tulis).
 import { auth, db, signInAnonymously, onAuthStateChanged, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from './firebase.js';
 import { APP_NAME } from './config.js';
 import { loadCabang, cabangList, namaCabang, multiCabang, CABANG_UTAMA } from './cabang.js';
@@ -13,7 +13,7 @@ import { qrSvg } from './qr.js';
 import { esc } from './util.js';
 
 const $ = s => document.querySelector(s);
-const JEDA = 15000;
+let JEDA = 15000;   // diambil dari layarAbsen/{cabang}.jedaQr (detik)
 let cab = null, kodeKini = '', timer = null, jamTimer = null, detakTimer = null, berganti = 0, unsub = null, wake = null, layar = null, jam = { mulai: '07:00', selesai: '18:00' };
 
 const FMT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -57,7 +57,12 @@ function pantau(c) {
     if (!layar || !milikSaya) { berhenti(); formMinta(layar ? 'Layar cabang ini sudah dipakai perangkat lain.' : ''); return; }
     if (layar.status === 'menunggu') { berhenti(); setup(`<p>Menunggu persetujuan untuk <b>Cabang ${esc(namaCabang(c))}</b>. Minta super admin atau admin membuka aplikasi dan menyetujui layar dengan kode:</p><div class="ab-kode">${esc(layar.kode)}</div><p>Halaman ini otomatis berganti ke QR setelah disetujui.</p>`); return; }
     if (layar.status === 'ditolak' || layar.status === 'dicabut') { berhenti(); formMinta(layar.status === 'ditolak' ? 'Permintaan sebelumnya ditolak.' : 'Layar ini sudah dicabut oleh super admin.'); return; }
-    if (layar.status === 'aktif') { if (layar.jamMulai) jam = { mulai: layar.jamMulai, selesai: layar.jamSelesai || '18:00' }; mulai(); }
+    if (layar.status === 'aktif') {
+      if (layar.jamMulai) jam = { mulai: layar.jamMulai, selesai: layar.jamSelesai || '18:00' };
+      const j = Math.min(600, Math.max(10, +layar.jedaQr || 15)) * 1000;
+      if (j !== JEDA) { JEDA = j; if (timer) { clearInterval(timer); timer = setInterval(ganti, JEDA); } }
+      mulai();
+    }
   }, () => { berhenti(); formMinta('Layar cabang ini sudah dipakai perangkat lain.'); });
 }
 
@@ -86,6 +91,8 @@ function cekJam() {
   $('#ab-bar').style.width = (Math.max(0, JEDA - (Date.now() - berganti)) / JEDA * 100) + '%';
 }
 function mulai() {
+  const d = JEDA / 1000, teks = d >= 60 ? Math.floor(d / 60) + ' menit' + (d % 60 ? ' ' + d % 60 + ' detik' : '') : d + ' detik';
+  const step = document.querySelector('#ab-main .ab-step'); if (step) step.innerHTML = `1. Buka aplikasi di HP Anda → <b>Absensi Saya</b> → <b>Scan QR</b><br>(atau scan dengan kamera HP)<br>2. Selfie, selesai. QR berganti setiap ${teks}.`;
   $('#ab-name').textContent = APP_NAME.toUpperCase();
   $('#ab-cabnama').textContent = (multiCabang() ? 'Absensi · Cabang ' + namaCabang(cab) : 'Absensi karyawan');
   $('#ab-info').innerHTML = `<span>Disetujui ${esc(layar.disetujuiOleh || '')}</span><span>Jam QR ${esc(jam.mulai)}–${esc(jam.selesai)}</span>`;

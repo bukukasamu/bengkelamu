@@ -139,7 +139,7 @@ export async function pantauKey(nopol, hp) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k + '|' + n));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
-const ringkasWo = w => ({ no: w.no, cabang: multiCabang() ? namaCabang(cabangOf(w)) : '', antrian: fmtAntri(w.antrian), tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
+const ringkasWo = w => ({ no: w.no, cabang: namaCabang(cabangOf(w)), antrian: fmtAntri(w.antrian), tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
   jasa: normJasa(w).map(j => j.nama), parts: (w.parts || []).map(x => ({ nama: part(x.kode)?.nama || x.kode, qty: x.qty })),
   biaya: (w.biaya || []).filter(b => b.jumlah).map(b => ({ ket: b.ket, jumlah: b.jumlah })), diskon: w.diskon || 0,
   estimasi: Math.max(0, woCalc(w).total - (w.diskon || 0)), alasanTunda: w.alasanTunda || '' });

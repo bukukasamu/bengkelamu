@@ -183,7 +183,7 @@ function rincianHTML(h, judul, ym = PH.bulan, idx = -1) {
      <div class="tile"><span class="lbl">Gaji pokok</span><span class="val">${rp(h.gaji)}</span></div>
      <div class="tile"><span class="lbl">Insentif</span><span class="val" style="color:var(--good)">+${rp(h.totIns)}</span></div>
      <div class="tile"><span class="lbl">Potongan</span><span class="val" style="color:var(--bad)">−${rp(h.totPot)}</span></div>
-     <div class="tile ph-net"><span class="lbl">Penghasilan bersih</span><span class="val">${rp(h.bersih)}</span><span class="sub">perkiraan, final ditetapkan pemilik</span></div>
+     <div class="tile ph-net"><span class="lbl">Penghasilan bersih</span><span class="val">${rp(h.bersih)}</span><span class="sub">perkiraan, final ditetapkan manajemen</span></div>
     </div>
     <h3>Insentif</h3>
     ${ins || (h.komisi ? '' : '<div class="small muted">Belum ada insentif untuk peran ini.</div>')}
@@ -279,7 +279,7 @@ export function slipHTML(d) {
     ${d.potongan.length ? d.potongan.map(([l, v]) => `<div class="slip-row"><span>${esc(l)}</span><span class="num">−${rp(v)}</span></div>`).join('') : '<div class="slip-row"><span class="muted">Tidak ada</span><span></span></div>'}
     <div class="slip-row slip-sub"><span>Total potongan</span><span class="num">−${rp(d.totalPotongan)}</span></div>
     <div class="slip-row slip-net"><span>PENGHASILAN BERSIH</span><span class="num">${rp(d.bersih)}</span></div>
-    <p class="small muted" style="margin:6px 0 0">Dihitung otomatis dari penjualan pribadi. Jumlah final ditetapkan pemilik.</p>
+    <p class="small muted" style="margin:6px 0 0">Dihitung otomatis dari penjualan pribadi. Jumlah final ditetapkan manajemen.</p>
   </div>`;
 }
 function lihatSlip(h) {

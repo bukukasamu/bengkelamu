@@ -2,7 +2,7 @@
 import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber, publicUrl } from './util.js';
 import { loaderHTML, getBrand, resizeImage, saveLogo } from './brand.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole } from './state.js';
-import { ROLES } from './config.js';
+import { ROLES, MENUS } from './config.js';
 import { db, doc, getDoc, collection, getDocs, writeBatch, query, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
 import { statusPill, rebuildPantau, syncLayar } from './wo-common.js';
@@ -14,7 +14,7 @@ import { loadXLSX } from './import-excel.js';
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
 
 const TABS = [
-  ['kendaraan', 'Pemilik & Kendaraan', ['admin', 'registrasi']],
+  ['kendaraan', 'Konsumen & Kendaraan', ['admin', 'registrasi']],
   ['jasa', 'Jasa Servis', ['admin']],
   ['ksg', 'Tarif KSG', ['admin']],
   ['mekanik', 'Mekanik', ['admin']],
@@ -24,7 +24,8 @@ const TABS = [
   ['layar', 'Layar TV', ['admin']],
   ['cabang', 'Cabang', ['admin']],
   ['insentif', 'Insentif & Potongan', ['admin'], 'super'],
-  ['logo', 'Logo', ['admin'], 'super']
+  ['logo', 'Logo', ['admin'], 'super'],
+  ['akses', 'Hak Akses Menu', ['admin'], 'super']
 ];
 const tabsFor = () => TABS.filter(t => isRole(...t[2]) && (t[3] !== 'super' || st.petugas?.super));
 let kend = null, kendQ = '', kendEdit = null, logins = null;
@@ -41,10 +42,10 @@ const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p
 function renderMaster() {
   const tabs = tabsFor(); if (!tabs.find(t => t[0] === st.masterTab)) st.masterTab = tabs[0][0];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="ms-tab" data-t="${k}" aria-selected="${k === st.masterTab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
-  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo })[st.masterTab]();
+  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo, akses: renderAkses })[st.masterTab]();
 }
 
-/* ---------- Pemilik & kendaraan ---------- */
+/* ---------- Konsumen & kendaraan ---------- */
 // Kolom: [field, label, kelas, grup]  grup k = data konsumen (KTP), u = data kendaraan (STNK)
 const KF = [['nik', 'NIK', 'num', 'k'], ['nama', 'Nama sesuai KTP', '', 'k'], ['tempatLahir', 'Tempat lahir', '', 'k'], ['tglLahir', 'Tanggal lahir', 'date', 'k'], ['jk', 'Jenis kelamin', '', 'k'], ['pekerjaan', 'Pekerjaan', '', 'k'], ['hp', 'No. HP', '', 'k'], ['rtrw', 'RT / RW', 'num', 'k'],
   ['nopol', 'No. Polisi', 'mono', 'u'], ['namaStnk', 'Nama di STNK', '', 'u'], ['tipe', 'Tipe motor', '', 'u'], ['tahun', 'Tahun', '', 'u'], ['warna', 'Warna', '', 'u'], ['noRangka', 'No. rangka', 'mono', 'u'], ['noMesin', 'No. mesin', 'mono', 'u'], ['km', 'KM terakhir', '', 'u']];
@@ -129,7 +130,7 @@ async function exportKend() {
   const list = kendFiltered(); if (!list.length) { toast('Tidak ada data untuk diexport'); return; }
   try {
     const X = await loadXLSX();
-    const rows = list.map(k => ({ nopol: k.nopol, pemilik: k.nama || '', hp: k.hp || '', tipe: k.tipe || '', tahun: k.tahun || '', warna: k.warna || '', alamat: k.alamat || '', kelurahan: k.kelurahan || '', kecamatan: k.kecamatan || '', kabupaten_kota: k.kabupaten || '', provinsi: k.provinsi || '', servis_terakhir: (k.updated || '').slice(0, 10) }));
+    const rows = list.map(k => ({ nopol: k.nopol, nama_konsumen: k.nama || '', hp: k.hp || '', tipe: k.tipe || '', tahun: k.tahun || '', warna: k.warna || '', alamat: k.alamat || '', kelurahan: k.kelurahan || '', kecamatan: k.kecamatan || '', kabupaten_kota: k.kabupaten || '', provinsi: k.provinsi || '', servis_terakhir: (k.updated || '').slice(0, 10) }));
     const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Konsumen');
     X.writeFile(wb, `konsumen-${[fWil.kab, fWil.kec, fWil.kel].filter(Boolean).join('-') || 'semua'}.xlsx`.replace(/\s+/g, '_'));
   } catch (e) { toast('Gagal export: ' + e.message); }
@@ -231,6 +232,18 @@ function renderStaff() {
 
 /* ---------- Logo (hanya super admin) ---------- */
 let logoDraft = null;
+/* ---------- Hak akses menu per peran (super admin) ---------- */
+const PERAN_AKSES = ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'];
+function renderAkses() {
+  const akses = S.akses || {}, menu = MENUS.filter(m => !m.superOnly && m.roles.some(r => PERAN_AKSES.includes(r)));
+  const boleh = (r, id) => !Array.isArray(akses[r]) || akses[r].includes(id);
+  $('#ms-body').innerHTML = intro('Centang menu yang boleh dibuka setiap peran. Menu yang tidak dicentang hilang dari aplikasi karyawan dengan peran itu (berlaku langsung). Super admin selalu bisa membuka semua menu. Kotak abu-abu = menu itu memang bukan untuk peran tersebut.') + `
+   <div class="tw"><table><thead><tr><th>Menu</th>${PERAN_AKSES.map(r => `<th class="r">${esc(ROLES[r])}<div class="row" style="justify-content:flex-end;gap:4px;margin-top:4px"><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="1" title="Centang semua">✓</button><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="0" title="Kosongkan">✕</button></div></th>`).join('')}</tr></thead><tbody>
+    ${menu.map(m => `<tr><td>${esc(m.label)}<div class="small muted">${esc(m.group)}</div></td>${PERAN_AKSES.map(r => `<td class="r">${m.roles.includes(r) ? `<input type="checkbox" class="ak-cek" data-r="${r}" data-m="${m.id}" ${boleh(r, m.id) ? 'checked' : ''} aria-label="${esc(m.label)} untuk ${esc(ROLES[r])}" style="width:auto">` : '<span class="muted">–</span>'}</td>`).join('')}</tr>`).join('')}
+   </tbody></table></div>
+   <div class="row" style="justify-content:space-between;margin-top:8px"><button class="btn ghost" type="button" data-act="ak-bawaan">Kembalikan ke bawaan (semua menu)</button><button class="btn pri" type="button" data-act="ak-simpan">Simpan hak akses</button></div>`;
+}
+
 function renderLogo() {
   const cur = logoDraft ?? getBrand().logo;
   $('#ms-body').innerHTML = intro('Logo tampil di sisi kiri halaman login dan di atas menu samping. Gunakan PNG berlatar transparan atau putih; gambar otomatis diperkecil.') + `
@@ -438,6 +451,17 @@ Object.assign(actions, {
   'sf-del': el => { const s = logins[+el.dataset.i]; if (akunSendiri(s)) return; confirmTwice(el, 's' + s.id, async () => { try { await hapusPetugas(s.id); toast(s.nama + ' dihapus, tidak bisa login lagi'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } }); },
   'lg-save': async () => { try { await saveLogo(logoDraft); logoDraft = null; toast('Logo dipasang'); renderLogo(); } catch (e) { toast(errMsg(e)); } },
   'lg-cancel': () => { logoDraft = null; renderLogo(); },
+  'ak-semua': el => document.querySelectorAll(`.ak-cek[data-r="${el.dataset.r}"]`).forEach(c => { c.checked = el.dataset.v === '1'; }),
+  'ak-simpan': async () => {
+    const akses = {}; PERAN_AKSES.forEach(r => { akses[r] = [...document.querySelectorAll(`.ak-cek[data-r="${r}"]:checked`)].map(c => c.dataset.m); });
+    const kosong = PERAN_AKSES.filter(r => !akses[r].length && MENUS.some(m => m.roles.includes(r)));
+    if (!(await mintaPassword('Simpan hak akses menu', kosong.length ? `Peran ${kosong.map(r => ROLES[r]).join(', ')} tidak punya menu sama sekali.` : 'Menu karyawan berubah langsung.'))) return;
+    try { await setDoc(doc(db, 'pengaturan', 'akses'), akses); S.akses = akses; toast('Hak akses menu disimpan'); renderAkses(); } catch (e) { toast(errMsg(e)); }
+  },
+  'ak-bawaan': async () => {
+    if (!(await mintaPassword('Kembalikan hak akses bawaan', 'Semua peran kembali bisa membuka semua menu bawaannya.'))) return;
+    try { await deleteDoc(doc(db, 'pengaturan', 'akses')); S.akses = null; toast('Hak akses kembali ke bawaan'); renderAkses(); } catch (e) { toast(errMsg(e)); }
+  },
   'lg-del': el => confirmTwice(el, 'logo', async () => { try { await saveLogo(''); logoDraft = null; toast('Logo dihapus'); renderLogo(); } catch (e) { toast(errMsg(e)); } }),
   'sf-add': async () => {
     const nama = $('#sf-nama').value.trim(), peran = $('#sf-peran').value, pin = $('#sf-pin').value.trim();

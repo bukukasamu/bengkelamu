@@ -1,8 +1,9 @@
 // Titik masuk aplikasi: login + peran, sidebar, sinkron data Firestore, shortcut keyboard.
 import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal)
+import './cari-pilihan.js';   // pilihan panjang: daftar baru muncul setelah mengetik
 import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from './firebase.js';
 import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
-import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup } from './state.js';
+import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal } from './state.js';
 import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
 import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
 import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
@@ -19,8 +20,9 @@ import './insight.js';
 import './opname.js';
 import './keuangan.js';
 import './backup.js';
+import './hapus-semua.js';
 import { adaAbsenTertunda, cekAbsenTertunda } from './absensi.js';
-import { pantauPersetujuan } from './persetujuan.js';
+import { pantauPersetujuan, segarkanBadge } from './persetujuan.js';
 import { setPhLoadedFrom } from './penghasilan.js';
 import { sah } from './data-trx.js';
 import './order.js';
@@ -173,9 +175,10 @@ onAuthStateChanged(auth, async u => {
   $('#who').textContent = st.petugas.nama || st.petugas.email;
   $('#who-role').textContent = st.petugas.super ? 'Super Admin' : ROLES[st.role];
   $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
+  try { const ak = await getDoc(doc(db, 'pengaturan', 'akses')); S.akses = ak.exists() ? ak.data() : null; } catch (e) { S.akses = null; }
   renderSidebar();
   let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
-  st.view = last && can(last) ? last : HOME[st.role];
+  st.view = last && can(last) ? last : menuAwal();
   if (adaAbsenTertunda() && can('absensi') && !st.petugas.super) st.view = 'absensi';
   go(st.view);
   $('#view').innerHTML = loaderHTML('Memuat data bengkel…');
@@ -201,6 +204,11 @@ function subscribe() {
   sub(collection(db, 'mekanik'), 'mekanik', s => { raw.mekanik = s.docs.map(d => ({ id: d.id, ...d.data() })); });
   sub(doc(db, 'meta', 'settings'), 'settings', s => { S.settings = s.exists() ? s.data() : {}; });
   sub(doc(db, 'penghasilan', 'aturan'), 'aturan', s => { S.aturan = s.exists() ? s.data() : null; });
+  // Hak akses menu berubah (diatur super admin): perbarui menu tanpa perlu login ulang
+  unsubs.push(onSnapshot(doc(db, 'pengaturan', 'akses'), s => {
+    const baru = s.exists() ? s.data() : null; if (JSON.stringify(baru) === JSON.stringify(S.akses)) return;
+    S.akses = baru; renderSidebar(); segarkanBadge(); if (st.loaded && !can(st.view)) go(st.view); else document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === st.view) b.setAttribute('aria-current', 'page'); });
+  }, () => {}));
   if (st.role === 'admin') {
     // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
     sub(query(collection(db, 'trx'), where('tgl', '>=', from)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
@@ -252,11 +260,11 @@ document.addEventListener('change', e => {
 
 // Admin pertama kali: isi jasa, mekanik, tipe motor default supaya registrasi langsung bisa dipakai
 async function seedMaster() {
-  if (st.role !== 'admin' || S.jasa.length || S.mekanik.length || S.settings.tipe) return;
+  if (st.role !== 'admin' || S.jasa.length || S.mekanik.length || S.settings.tipe || S.settings.dikosongkan) return;
   try {
     const b = writeBatch(db);
     DEFAULT_JASA.forEach(([nama, harga], i) => b.set(doc(collection(db, 'jasa')), { nama, harga, aktif: true, urut: i }));
-    DEFAULT_MEKANIK.forEach(nama => b.set(doc(collection(db, 'mekanik')), { nama, email: '', gaji: 0, komisi: 0, aktif: true }));
+    DEFAULT_MEKANIK.forEach(nama => b.set(doc(collection(db, 'mekanik')), { nama, email: '', aktif: true }));
     b.set(doc(db, 'meta', 'settings'), { tipe: DEFAULT_TIPE }, { merge: true });
     await b.commit();
     toast('Data awal jasa, mekanik, dan tipe motor dibuat. Ubah di Master Data.');

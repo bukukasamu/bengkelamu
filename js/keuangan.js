@@ -89,7 +89,7 @@ function renderKasHarian() {
        ${baris(`+ Penjualan cash <span class="small muted">(${kunci ? t.nota : h.nota} nota, setelah kembalian)</span>`, rp(kunci ? t.penjualanCash : h.cash), { color: 'var(--good)' })}
        ${baris('− Pengeluaran tunai', rp(kunci ? t.pengeluaranTunai : h.keluarTunai), { color: 'var(--bad)' })}
        ${baris('<b>Seharusnya di laci</b>', rp(kunci ? t.seharusnya : h.harus), { b: 1 })}
-       ${kunci ? baris('Uang fisik dihitung', rp(t.uangFisik)) + baris('<b>Selisih</b>', (t.selisih > 0 ? '+' : '') + rp(t.selisih), { b: 1, color: t.selisih ? (t.selisih < 0 ? 'var(--bad)' : 'var(--warn)') : 'var(--good)' }) + baris('Disetor / diambil pemilik', rp(t.setor)) + baris('Sisa di laci (modal besok)', rp(t.sisa), { b: 1 }) : ''}
+       ${kunci ? baris('Uang fisik dihitung', rp(t.uangFisik)) + baris('<b>Selisih</b>', (t.selisih > 0 ? '+' : '') + rp(t.selisih), { b: 1, color: t.selisih ? (t.selisih < 0 ? 'var(--bad)' : 'var(--warn)') : 'var(--good)' }) + baris('Disetor / diserahkan', rp(t.setor)) + baris('Sisa di laci (modal besok)', rp(t.sisa), { b: 1 }) : ''}
       </tbody></table></div>
       <div class="small muted">Transfer masuk hari ini ${rp(kunci ? t.transfer : h.transfer)} (langsung ke rekening, tidak masuk laci)${(kunci ? t.pengeluaranLain : h.keluarLain) ? ` · pengeluaran non-tunai ${rp(kunci ? t.pengeluaranLain : h.keluarLain)}` : ''}.</div>
       ${t?.catatan ? `<div class="note small">Catatan: ${esc(t.catatan)}</div>` : ''}
@@ -99,7 +99,7 @@ function renderKasHarian() {
       <p class="small muted" style="margin:0">Hitung semua uang di laci, lalu isi di bawah. Setelah ditutup, angka tidak bisa diubah kecuali oleh super admin.</p>
       <label class="f" for="kas-fisik">Uang fisik di laci<input id="kas-fisik" type="number" min="0"></label>
       <div id="kas-selisih" class="small"></div>
-      <label class="f" for="kas-setor">Disetor ke bank / diambil pemilik<input id="kas-setor" type="number" min="0" value="0"></label>
+      <label class="f" for="kas-setor">Disetor ke bank / diserahkan ke kantor<input id="kas-setor" type="number" min="0" value="0"></label>
       <div id="kas-sisa" class="small muted"></div>
       <label class="f" for="kas-cat">Catatan (wajib bila ada selisih)<input id="kas-cat" data-nocaps placeholder="mis. kembalian kurang Rp 2.000"></label>
       <div class="row" style="justify-content:space-between"><button class="btn" type="button" data-act="keu-tambah">+ Catat pengeluaran</button><button class="btn pri" type="button" data-act="kas-tutup">Tutup kas</button></div>

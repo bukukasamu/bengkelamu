@@ -8,7 +8,7 @@
 //       absenPerangkat/{kunci}    (HP terdaftar)    absenKode/{cabang} (kode QR aktif, hanya super admin)
 //       penghasilan/absensi       (aturan: jam kerja, toleransi, uang hadir, potongan, lokasi cabang)
 import { $, esc, rp, dkey, stamp, toast, errMsg, modal, closeModal } from './util.js';
-import { S, st, views, refreshers, actions, changeHandlers, isRole } from './state.js';
+import { S, st, views, refreshers, actions, changeHandlers, inputHandlers, isRole } from './state.js';
 import { db, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, limit, writeBatch, serverTimestamp } from './firebase.js';
 import { cabAktif, namaCabang, multiCabang, cabangList, CABANG_UTAMA } from './cabang.js';
 import { loadLoginList } from './akun.js';
@@ -273,7 +273,7 @@ async function bersihkanFoto(a) {
   try {
     const batas = dkey(new Date(Date.now() - (+a.simpanFoto || 90) * 864e5));
     const s = await getDocs(query(collection(db, 'absenFoto'), where('tgl', '<', batas), limit(300)));
-    if (!s.size) return;
+    if (!s.docs.length) return;
     const b = writeBatch(db); s.docs.forEach(d => b.delete(d.ref)); await b.commit();
   } catch (e) { console.warn('Bersihkan foto absen', e); }
 }
@@ -329,17 +329,18 @@ async function tabRekap(a) {
 }
 
 let layarList = [];
+const fmtDetik = d => d >= 60 ? '= ' + Math.floor(d / 60) + ' menit' + (d % 60 ? ' ' + (d % 60) + ' detik' : '') : '';
 const waktuTs = t => t?.toDate ? t.toDate() : (t ? new Date(t) : null);
 const sejak = d => { if (!d) return '–'; const m = Math.round((Date.now() - d) / 60000); return m < 2 ? 'baru saja' : m < 60 ? m + ' menit lalu' : m < 1440 ? Math.round(m / 60) + ' jam lalu' : Math.round(m / 1440) + ' hari lalu'; };
 function tabLayar() {
   const per = new Map(layarList.map(l => [l.id, l]));
   const url = new URL('absen.html', location.href).href.replace(/\.html$/, '');
   $('#ab-body').innerHTML = `<div class="grid"><p class="small muted" style="margin:0">Satu cabang = satu layar QR. Di TV/tablet cabang buka <b>${esc(url)}</b> → <b>Minta aktivasi</b> → muncul kode 4 angka → Anda atau admin menyetujui di menu <b>Persetujuan</b> setelah mencocokkan kodenya. Sejak itu layar langsung menampilkan QR setiap dinyalakan, tanpa login. Perangkat lain yang membuka link ditolak.</p>
-   <div class="tw"><table><thead><tr><th>Cabang</th><th>Status</th><th>Terakhir menyala</th><th>Jam QR aktif</th><th>Lokasi</th><th></th></tr></thead><tbody>
+   <div class="tw"><table><thead><tr><th>Cabang</th><th>Status</th><th>Terakhir menyala</th><th>Jam QR aktif &amp; pergantian</th><th>Lokasi</th><th></th></tr></thead><tbody>
     ${cabangList(true).map(c => { const l = per.get(c.id), st2 = l?.status; return `<tr><td>${esc(c.nama)}<div class="small muted">${esc(l?.info || '')}</div></td>
      <td>${st2 === 'aktif' ? `<span class="pill p-good">Aktif</span><div class="small muted">disetujui ${esc(l.disetujuiOleh || '')} ${esc(l.tglSetuju || '')}</div>` : st2 === 'menunggu' ? `<span class="pill p-warn">Menunggu · kode ${esc(l.kode)}</span>` : st2 ? `<span class="pill">${esc(st2)}</span>` : '<span class="pill">Belum ada</span>'}</td>
      <td class="small">${st2 === 'aktif' ? esc(sejak(waktuTs(l.terakhir))) : '–'}</td>
-     <td>${l ? `<input class="ly-m" data-c="${esc(c.id)}" type="time" value="${esc(l.jamMulai || '07:00')}" style="width:auto"> – <input class="ly-s" data-c="${esc(c.id)}" type="time" value="${esc(l.jamSelesai || '18:00')}" style="width:auto"> <button class="btn sm" type="button" data-act="ly-jam" data-c="${esc(c.id)}">Simpan</button>` : '<span class="small muted">–</span>'}</td>
+     <td>${l ? `<input class="ly-m" data-c="${esc(c.id)}" type="time" value="${esc(l.jamMulai || '07:00')}" style="width:auto"> – <input class="ly-s" data-c="${esc(c.id)}" type="time" value="${esc(l.jamSelesai || '18:00')}" style="width:auto"><div class="row" style="gap:6px;margin-top:6px;align-items:center"><span class="small">QR berganti tiap</span><input class="ly-j" data-c="${esc(c.id)}" type="number" data-raw min="10" max="600" value="${+l.jedaQr || 15}" style="width:80px" aria-label="Detik"><span class="small">detik</span><button class="btn sm" type="button" data-act="ly-jam" data-c="${esc(c.id)}">Simpan</button></div><div class="small muted ly-jl" data-c="${esc(c.id)}" style="min-height:1.3em">${fmtDetik(+l.jedaQr || 15)}</div>` : '<span class="small muted">–</span>'}</td>
      <td class="small">${l?.lokasi ? `✅ ±${l.lokasi.akurasi || '?'} m` : '<span class="muted">belum</span>'}</td>
      <td class="r">${st2 === 'aktif' || st2 === 'menunggu' ? `<button class="btn sm" type="button" data-act="ly-cabut" data-c="${esc(c.id)}">${st2 === 'aktif' ? 'Cabut' : 'Tolak'}</button>` : ''}</td></tr>`; }).join('')}
    </tbody></table></div></div>`;
@@ -394,8 +395,10 @@ Object.assign(actions, {
   'ab-xlsx': exportXlsx,
   'ly-jam': async el => {
     const c = el.dataset.c, m = document.querySelector(`.ly-m[data-c="${c}"]`).value, sl = document.querySelector(`.ly-s[data-c="${c}"]`).value;
+    const j = Math.round(+document.querySelector(`.ly-j[data-c="${c}"]`).value);
     if (!m || !sl || menit(sl) <= menit(m)) { toast('Jam selesai harus setelah jam mulai'); return; }
-    try { await setDoc(doc(db, 'layarAbsen', c), { jamMulai: m, jamSelesai: sl }, { merge: true }); toast('Jam layar ' + namaCabang(c) + ' disimpan'); } catch (e) { toast(errMsg(e)); }
+    if (!(j >= 10 && j <= 600)) { toast('Pergantian QR antara 10 detik dan 10 menit'); return; }
+    try { await setDoc(doc(db, 'layarAbsen', c), { jamMulai: m, jamSelesai: sl, jedaQr: j }, { merge: true }); toast('Layar ' + namaCabang(c) + ' disimpan: QR berganti tiap ' + j + ' detik'); } catch (e) { toast(errMsg(e)); }
   },
   'ly-cabut': async el => {
     const c = el.dataset.c, l = layarList.find(x => x.id === c); if (!l) return;
@@ -438,3 +441,4 @@ changeHandlers.push(e => {
   if (e.target.id === 'ab-tgl' && e.target.value) { AB.tgl = e.target.value; renderAbsensi(); }
   if (e.target.id === 'ab-cab') { AB.cab = e.target.value; renderAbsensi(); }
 });
+inputHandlers.push(e => { if (e.target.classList?.contains('ly-j')) { const l = document.querySelector(`.ly-jl[data-c="${e.target.dataset.c}"]`); if (l) l.textContent = fmtDetik(+e.target.value || 0); } });

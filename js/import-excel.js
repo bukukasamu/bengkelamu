@@ -6,10 +6,47 @@ import { CABANG_UTAMA, cabAktif, stokSet } from './cabang.js';
 import { parseSheet, planImport, LABEL } from './excel-parser.js';
 import { mintaPassword } from './otorisasi.js';
 
+// Membaca file Excel (import): SheetJS resmi versi terbaru.
 let XLSX = null;
-export async function loadXLSX() {
+export async function loadXLSXBaca() {
   if (!XLSX) XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
   return XLSX;
+}
+
+// Membuat file Excel (semua export): xlsx-js-style (SheetJS + gaya sel) supaya tabel punya garis kotak,
+// judul kolom tebal berlatar, angka berpemisah ribuan, dan lebar kolom menyesuaikan isi.
+const XS_URL = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+let XS = null;
+const GARIS = { style: 'thin', color: { rgb: '9AA8BD' } };
+const KOTAK = { top: GARIS, bottom: GARIS, left: GARIS, right: GARIS };
+export function beriKotak(X, ws) {
+  if (!ws || !ws['!ref']) return ws;
+  const r = X.utils.decode_range(ws['!ref']), lebar = [];
+  for (let R = r.s.r; R <= r.e.r; R++) for (let C = r.s.c; C <= r.e.c; C++) {
+    const a = X.utils.encode_cell({ r: R, c: C });
+    if (!ws[a]) ws[a] = { t: 's', v: '' };
+    const c = ws[a], judul = R === r.s.r, angka = c.t === 'n';
+    c.s = { border: KOTAK, alignment: { vertical: 'center', wrapText: false, horizontal: judul ? 'center' : angka ? 'right' : 'left' },
+      ...(judul ? { font: { bold: true, color: { rgb: '0E2B63' } }, fill: { patternType: 'solid', fgColor: { rgb: 'DDE6F4' } } } : {}) };
+    if (angka && !judul && Number.isInteger(c.v) && Math.abs(c.v) >= 1000) c.z = '#,##0';
+    const pj = String(c.v ?? '').length + (angka && Math.abs(c.v) >= 1000 ? Math.floor(String(Math.abs(c.v)).length / 3) : 0);
+    lebar[C - r.s.c] = Math.max(lebar[C - r.s.c] || 0, Math.min(50, pj + 2));
+  }
+  ws['!cols'] = lebar.map(w => ({ wch: Math.max(8, w) }));
+  return ws;
+}
+export async function loadXLSX() {
+  if (!XS) {
+    await new Promise((res, rej) => {
+      if (window.XLSX?.style_version) return res();
+      const sc = document.createElement('script'); sc.src = XS_URL; sc.async = true;
+      sc.onload = res; sc.onerror = () => rej(new Error('Pustaka Excel gagal dimuat. Periksa koneksi internet.'));
+      document.head.appendChild(sc);
+    });
+    const X = window.XLSX;
+    XS = { ...X, writeFile: (wb, nama, opts) => { wb.SheetNames.forEach(n => beriKotak(X, wb.Sheets[n])); return X.writeFile(wb, nama, { cellStyles: true, ...opts }); } };
+  }
+  return XS;
 }
 
 let parsed = null, fileName = '';
@@ -34,7 +71,7 @@ async function readFile(file) {
   fileName = file.name;
   $('#imp-body').innerHTML = '<div class="empty">Membaca file…</div>';
   try {
-    const X = await loadXLSX();
+    const X = await loadXLSXBaca();
     const wb = X.read(await file.arrayBuffer(), { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = X.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
