@@ -3,9 +3,9 @@ import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber } from './util.js'
 import { loaderHTML, getBrand, resizeImage, saveLogo } from './brand.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole } from './state.js';
 import { ROLES } from './config.js';
-import { db, doc, collection, getDocs, query, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
+import { db, doc, getDoc, collection, getDocs, writeBatch, query, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
-import { statusPill, rebuildPantau } from './wo-common.js';
+import { statusPill, rebuildPantau, syncLayar } from './wo-common.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
 import { loadXLSX } from './import-excel.js';
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
@@ -18,6 +18,7 @@ const TABS = [
   ['rekening', 'Rekening', ['admin']],
   ['tipe', 'Tipe Motor', ['admin']],
   ['petugas', 'Petugas & PIN', ['admin']],
+  ['layar', 'Layar TV', ['admin']],
   ['logo', 'Logo', ['admin'], 'super']
 ];
 const tabsFor = () => TABS.filter(t => isRole(...t[2]) && (t[3] !== 'super' || st.petugas?.super));
@@ -35,7 +36,7 @@ const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p
 function renderMaster() {
   const tabs = tabsFor(); if (!tabs.find(t => t[0] === st.masterTab)) st.masterTab = tabs[0][0];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="ms-tab" data-t="${k}" aria-selected="${k === st.masterTab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
-  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, logo: renderLogo })[st.masterTab]();
+  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, logo: renderLogo })[st.masterTab]();
 }
 
 /* ---------- Pemilik & kendaraan ---------- */
@@ -48,6 +49,24 @@ async function loadKend() {
   try { const s = await getDocs(query(collection(db, 'kendaraan'), orderBy('updated', 'desc'), limit(1000))); kend = s.docs.map(d => ({ id: d.id, ...d.data() })); }
   catch (e) { kend = []; toast(errMsg(e)); }
   if (st.masterTab === 'kendaraan') renderKend();
+  rapikanKend();
+}
+// Data kendaraan lama (sebelum v2.4) belum punya kolom pencarian nopolKey/hpNorm, sehingga tidak bisa dicari
+// dengan sebagian no. HP di Registrasi. Dilengkapi otomatis sekali saat daftar ini dibuka.
+let sudahRapi = false;
+async function rapikanKend() {
+  if (sudahRapi || !kend?.length) return; sudahRapi = true;
+  const perlu = kend.map(k => {
+    const patch = {};
+    if (!k.nopolKey && k.nopol) patch.nopolKey = nopolKey(k.nopol);
+    if (k.hpNorm === undefined && k.hp) patch.hpNorm = waNumber(k.hp);
+    return [k, patch];
+  }).filter(([, p]) => Object.keys(p).length);
+  for (let i = 0; i < perlu.length; i += 400) {
+    const b = writeBatch(db);
+    perlu.slice(i, i + 400).forEach(([k, p]) => { b.set(doc(db, 'kendaraan', k.id), p, { merge: true }); Object.assign(k, p); });
+    try { await b.commit(); } catch (e) { console.warn('Rapikan data kendaraan', e); return; }
+  }
 }
 const uniq = a => [...new Set(a.filter(Boolean))].sort((x, y) => x.localeCompare(y));
 function kendFiltered() {
@@ -83,7 +102,7 @@ function renderKForm() {
   el.innerHTML = `<div class="panel" style="background:var(--panel-2);box-shadow:none;margin-block:12px"><h3>${isNew ? 'Kendaraan baru' : 'Ubah ' + esc(k.nopol)}</h3>
    ${[['k', 'Data konsumen (KTP)'], ['u', 'Data kendaraan (STNK)']].map(([g, judul]) => `<h3>${judul}</h3><div class="form">${KF.filter(x => x[3] === g).map(([f, l, c]) => f === 'jk'
       ? `<label class="f" for="mk-jk">${l}<select id="mk-jk" data-kf="jk"><option value="">–</option>${['LAKI-LAKI', 'PEREMPUAN'].map(x => `<option ${x === k.jk ? 'selected' : ''}>${x}</option>`).join('')}</select></label>`
-      : `<label class="f" for="mk-${f}">${l}<input id="mk-${f}" data-kf="${f}" ${c === 'mono' ? 'class="mono"' : c === 'num' ? 'class="num" inputmode="numeric"' : ''} ${c === 'date' ? 'type="date"' : ''} value="${esc(k[f] || '')}" ${f === 'nopol' && !isNew ? 'disabled' : ''} ${f === 'tipe' ? 'list="dl-tipe"' : ''}></label>`).join('')}</div>${g === 'k' ? `<div class="form form-wil">${wilayahHTML('mw', k)}</div>` : ''}`).join('')}<datalist id="dl-tipe">${tipeList().map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+      : `<label class="f" for="mk-${f}">${l}<input id="mk-${f}" data-kf="${f}" ${c === 'mono' ? 'class="mono"' : c === 'num' ? 'class="num" inputmode="numeric"' : ''} ${c === 'date' ? 'type="date"' : ''} value="${esc(k[f] || '')}" ${f === 'nopol' && !isNew ? 'disabled' : ''} ${f === 'tipe' ? 'list="dl-tipe"' : ''} ${f === 'km' ? 'data-num' : ''}></label>`).join('')}</div>${g === 'k' ? `<div class="form form-wil">${wilayahHTML('mw', k)}</div>` : ''}`).join('')}<datalist id="dl-tipe">${tipeList().map(t => `<option value="${esc(t)}">`).join('')}</datalist>
    ${riwayat.length ? `<div class="small"><b>Riwayat servis:</b> ${riwayat.map(w => `${esc(w.no)} (${esc(w.tgl.slice(0, 10))}) ${statusPill(w.status)}`).join(' · ')}</div>` : ''}
    <div class="row" style="justify-content:flex-end">${!isNew && isRole('admin') ? '<button class="btn ghost" type="button" data-act="ms-kdel">Hapus</button>' : ''}<button class="btn" type="button" data-act="ms-kclose">Batal</button><button class="btn pri" type="button" data-act="ms-ksave">Simpan [F2]</button></div></div>`;
   fillWilayah('mw', { get: () => kendEdit });
@@ -139,7 +158,7 @@ async function saveKsg() {
 /* ---------- Mekanik (+ login PIN) ---------- */
 function renderMek() {
   const list = [...S.mekanik].sort((a, b) => a.nama.localeCompare(b.nama));
-  const row = (m, id) => `<tr><td><input class="inline-input" id="mm-n-${id}" value="${esc(m.nama || '')}" placeholder="Nama mekanik" aria-label="Nama"></td><td><input class="inline-input num" type="number" min="0" step="50000" id="mm-g-${id}" value="${m.gaji ?? ''}" placeholder="0" style="text-align:right;width:120px" aria-label="Gaji pokok"></td><td><input class="inline-input num" type="number" min="0" max="100" step="0.5" id="mm-k-${id}" value="${m.komisi ?? ''}" placeholder="0" style="text-align:right;width:70px" aria-label="Komisi persen"></td>
+  const row = (m, id) => `<tr><td><input class="inline-input" id="mm-n-${id}" value="${esc(m.nama || '')}" placeholder="Nama mekanik" aria-label="Nama"></td><td><input class="inline-input num" type="number" min="0" step="50000" id="mm-g-${id}" value="${m.gaji ?? ''}" placeholder="0" style="text-align:right;width:120px" aria-label="Gaji pokok"></td><td><input class="inline-input num" type="number" min="0" max="100" step="0.5" data-raw id="mm-k-${id}" value="${m.komisi ?? ''}" placeholder="0" style="text-align:right;width:70px" aria-label="Komisi persen"></td>
     <td>${id === 'new' ? `<input class="inline-input num" id="mm-p-new" inputmode="numeric" maxlength="6" placeholder="PIN 6 angka" style="width:110px" aria-label="PIN login">` : m.loginId ? `<span class="pill p-good">Aktif</span> <button class="btn sm ghost" type="button" data-act="mm-pin" data-id="${id}">Reset PIN</button>` : `<button class="btn sm" type="button" data-act="mm-pin" data-id="${id}">Buat PIN</button>`}</td>
     <td>${id === 'new' ? '' : `<input type="checkbox" id="mm-a-${id}" style="width:auto" ${m.aktif !== false ? 'checked' : ''} aria-label="Aktif">`}</td>
     <td class="r" style="white-space:nowrap">${id === 'new' ? '<button class="btn sm pri" type="button" data-act="mm-add">Tambah</button>' : `<button class="btn sm" type="button" data-act="mm-save" data-id="${id}">Simpan</button> <button class="btn sm ghost" type="button" data-act="mm-del" data-id="${id}">Hapus</button>`}</td></tr>`;
@@ -218,10 +237,33 @@ function renderLogo() {
    </div>`;
 }
 
+// Layar TV ruang tunggu: teks berjalan + petunjuk pemasangan
+async function renderLayar() {
+  const url = new URL('layar.html', location.href).toString();
+  $('#ms-body').innerHTML = loaderHTML('Memuat pengaturan layar…');
+  let info = '';
+  try { const s = await getDoc(doc(db, 'publik', 'layar')); info = (s.exists() && s.data().info) || ''; } catch (e) { /* tetap tampilkan form */ }
+  if (st.masterTab !== 'layar') return;
+  $('#ms-body').innerHTML = intro('Layar untuk konsumen di ruang tunggu: nomor antrian yang dipanggil, motor yang sedang dikerjakan, yang menunggu, dan yang siap diambil. Tidak menampilkan nama, no. HP, maupun biaya. Tidak perlu login.') + `
+   <div class="form" style="grid-template-columns:minmax(0,1fr)">
+    <label class="f" for="ly-info">Teks berjalan di bawah layar (jam buka, promo, info KSG, dll.)<textarea id="ly-info" rows="3" data-nocaps placeholder="Buka Senin–Sabtu 08.00–17.00 · Ganti oli gratis cek rem · Bawa buku KSG Anda">${esc(info)}</textarea></label>
+   </div>
+   <div class="row"><button class="btn pri" type="button" data-act="ly-save">Simpan teks</button><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Buka layar TV</a><button class="btn ghost" type="button" data-act="ly-sync">Perbarui isi layar sekarang</button></div>
+   <h3>Cara memasang di TV</h3>
+   <ol class="small" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
+    <li>Buka alamat ini di browser TV (Smart TV, Android TV box, atau laptop yang tersambung HDMI): <span class="mono">${esc(url)}</span></li>
+    <li>Klik layar sekali untuk mengaktifkan suara panggilan dan layar penuh (aturan browser: suara baru boleh bunyi setelah ada klik).</li>
+    <li>Nomor dipanggil otomatis saat kasir menandai motor <b>Selesai</b>. Di menu Pembayaran ada tombol <b>Panggil ulang di layar</b>.</li>
+    <li>Suara memakai pembaca teks Bahasa Indonesia bawaan perangkat. Bila perangkat tidak punya, yang terdengar hanya bunyi bel.</li>
+   </ol>`;
+}
+
 views.master = renderMaster;
 refreshers.master = () => {};   // jangan timpa isian yang sedang diketik saat data berubah
 fkeys.master = { baru: () => st.masterTab === 'kendaraan' ? 'ms-kadd' : null, simpan: () => st.masterTab === 'kendaraan' && kendEdit ? 'ms-ksave' : st.masterTab === 'tipe' ? 'tp-save' : st.masterTab === 'ksg' ? 'kt-save' : null };
 Object.assign(actions, {
+  'ly-save': async () => { try { await setDoc(doc(db, 'publik', 'layar'), { info: ($('#ly-info')?.value || '').trim() }, { merge: true }); toast('Teks layar disimpan'); } catch (e) { toast(errMsg(e)); } },
+  'ly-sync': async () => { await syncLayar(null, true); toast('Isi layar TV diperbarui'); },
   'ms-tab': el => { st.masterTab = el.dataset.t; kendEdit = null; renderMaster(); },
   'ms-kadd': () => { kendEdit = { nopol: '' }; renderKForm(); $('#mk-nopol')?.focus(); },
   'ms-kedit': el => { const k = kend.find(x => x.id === el.dataset.id); if (k) { kendEdit = { ...k }; renderKForm(); $('#ms-kform').scrollIntoView({ block: 'nearest' }); } },

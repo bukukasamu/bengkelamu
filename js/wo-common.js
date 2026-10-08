@@ -10,6 +10,10 @@ import { counterRef, nextNumber } from './numbering.js';
 export const STATUS = { Antri: 'p-warn', Dikerjakan: 'p-info', Ditunda: 'p-bad', Selesai: 'p-good', Lunas: 'p-good' };
 export const statusPill = s => `<span class="pill ${STATUS[s] || 'p-info'}">${esc(s)}</span>`;
 export const AKTIF = ['Antri', 'Dikerjakan', 'Ditunda', 'Selesai'];
+// Nomor antrian harian (mulai 001 tiap hari), diberikan saat motor didaftarkan
+export const fmtAntri = n => n ? String(n).padStart(3, '0') : '';
+export const antriBadge = w => w.antrian ? `<span class="antri-no" title="Nomor antrian ${esc(w.antrianTgl || '')}">${fmtAntri(w.antrian)}</span>` : '';
+export const kurangBadge = w => w.dataKurang ? '<span class="badge b-kurang">Data belum lengkap</span>' : '';
 
 // Data lama menyimpan jasa sebagai nama saja; ubah ke {nama, harga}
 export const normJasa = w => (w.jasa || []).map(j => typeof j === 'string' ? { nama: j, harga: S.jasa.find(x => x.nama === j)?.harga || 0 } : j);
@@ -49,14 +53,14 @@ export const sibukOleh = (mek, kecualiNo) => { const w = sibukMap()[mek.id] || s
 
 export function woCard(o, current, act = 'pick-wo') {
   return `<button class="wo" type="button" data-act="${act}" data-no="${esc(o.no)}" aria-current="${o.no === current}">
-    <span class="row spread"><span class="np">${esc(o.nopol)}</span>${statusPill(o.status)}</span>
-    <span>${esc(o.tipe)} · ${esc(o.nama || '–')}</span>
+    <span class="row spread"><span class="row" style="gap:8px">${antriBadge(o)}<span class="np">${esc(o.nopol)}</span></span>${statusPill(o.status)}</span>
+    <span>${esc(o.tipe || '–')} · ${esc(o.nama || '–')} ${kurangBadge(o)}</span>
     <span class="row spread small muted"><span>${esc(o.no)} · ${o.tgl.slice(5).replace('-', '/')} · ${esc(mekanikNama(o) || 'belum ada mekanik')}</span>${jenisBadge(o)}</span>
   </button>`;
 }
 
 export function woHeader(w) {
-  return `<div class="note"><div class="row spread"><b class="mono">${esc(w.nopol)}</b><span class="row">${jenisBadge(w)}${statusPill(w.status)}</span></div>
+  return `<div class="note"><div class="row spread"><span class="row" style="gap:8px">${antriBadge(w)}<b class="mono">${esc(w.nopol)}</b></span><span class="row">${jenisBadge(w)}${statusPill(w.status)}</span></div>
     <div>${esc(w.tipe)}${w.km ? ' · ' + esc(w.km) + ' km' : ''} · ${esc(w.nama || 'Umum')}${w.hp ? ' · ' + esc(w.hp) + ' ' + waButton(w.hp, `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol} (${w.no}). `) : ''}</div>
     <div class="small muted">Mekanik: ${esc(mekanikNama(w) || 'belum ditentukan')}${w.noKartu ? ' · No. kartu ' + esc(w.noKartu) : ''}</div>
     ${w.keluhan ? `<div class="small" style="margin-top:4px"><b>Keluhan:</b> ${esc(w.keluhan)}</div>` : ''}
@@ -77,6 +81,8 @@ export async function saveWo(w) {
     return await runTransaction(db, async tx => {
       const cs = await tx.get(counterRef());
       const { no, counter } = nextNumber(cs, 'WO');
+      // nomor antrian harian ikut dibuat di transaksi yang sama supaya tidak pernah kembar
+      counter.AN = (counter.AN || 0) + 1; w.antrian = counter.AN; w.antrianTgl = counter.day;
       tx.set(counterRef(), counter);
       tx.set(doc(db, 'wo', no), { ...clone({ ...w, no }), dibuatOleh: namaPetugas() });
       return no;
@@ -130,12 +136,13 @@ export async function pantauKey(nopol, hp) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k + '|' + n));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
-const ringkasWo = w => ({ no: w.no, tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
+const ringkasWo = w => ({ no: w.no, antrian: fmtAntri(w.antrian), tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
   jasa: normJasa(w).map(j => j.nama), parts: (w.parts || []).map(x => ({ nama: part(x.kode)?.nama || x.kode, qty: x.qty })),
   biaya: (w.biaya || []).filter(b => b.jumlah).map(b => ({ ket: b.ket, jumlah: b.jumlah })), diskon: w.diskon || 0,
   estimasi: Math.max(0, woCalc(w).total - (w.diskon || 0)), alasanTunda: w.alasanTunda || '' });
 // Dipanggil setelah WO disimpan / status berubah / dibayar. Gagal di sini tidak membatalkan pekerjaan kasir.
 export async function syncPantau(w, trx) {
+  syncLayar(w);
   try {
     const key = await pantauKey(w.nopol, w.hp); if (!key) return;
     const ref = doc(db, 'pantau', key), s = await getDoc(ref), cur = s.exists() ? s.data() : {};
@@ -172,4 +179,43 @@ export async function rebuildPantau(onProgress) {
     onProgress?.(++n, grup.size);
   }
   return n;
+}
+
+/* ---------- Layar TV di ruang tunggu (layar.html) ----------
+   Dokumen publik/layar berisi ringkasan yang aman ditampilkan: nomor antrian, nopol, tipe, mekanik.
+   Tanpa nama konsumen, no. HP, maupun biaya. Ditulis oleh aplikasi petugas setiap ada perubahan servis. */
+const urutAntri = w => (w.antrianTgl || String(w.tgl || '').slice(0, 10)) + String(w.antrian || 9999).padStart(4, '0') + (w.tgl || '');
+const itemLayar = w => ({ a: fmtAntri(w.antrian), nopol: w.nopol || '', tipe: w.tipe || '', mek: w.status === 'Dikerjakan' ? mekanikNama(w) : '', tunda: w.status === 'Ditunda' });
+export function dataLayar(list) {
+  const aktif = list.filter(w => AKTIF.includes(w.status) && w.nopol).sort((a, b) => urutAntri(a).localeCompare(urutAntri(b)));
+  return {
+    dikerjakan: aktif.filter(w => w.status === 'Dikerjakan').map(itemLayar),
+    menunggu: aktif.filter(w => w.status === 'Antri' || w.status === 'Ditunda').map(itemLayar),
+    siap: aktif.filter(w => w.status === 'Selesai').map(itemLayar),
+    updated: stamp(new Date())
+  };
+}
+// Ditunda sebentar supaya beberapa perubahan beruntun cukup ditulis sekali.
+// "terbaru" = WO yang barusan diubah (dipakai bila daftar S.wo belum ikut ter-update).
+let layarTimer = null; const layarBaru = new Map();
+export function syncLayar(terbaru, segera) {
+  if (terbaru?.no) layarBaru.set(terbaru.no, { ...terbaru });
+  clearTimeout(layarTimer);
+  const run = async () => {
+    const list = S.wo.map(w => layarBaru.has(w.no) ? { ...w, ...layarBaru.get(w.no) } : w);
+    layarBaru.forEach((b, no) => { if (!list.find(w => w.no === no)) list.push(b); });
+    layarBaru.clear();
+    try { await setDoc(doc(db, 'publik', 'layar'), dataLayar(list), { merge: true }); }
+    catch (e) { console.warn('Gagal memperbarui layar TV', e); }
+  };
+  if (segera) return run();
+  layarTimer = setTimeout(run, 700);
+}
+// Panggil nomor antrian ke layar TV (bunyi + suara). Dipanggil otomatis saat motor ditandai Selesai.
+export async function panggilLayar(w, ke = 'KASIR') {
+  const ref = doc(db, 'publik', 'layar');
+  const s = await getDoc(ref), lama = (s.exists() && s.data().panggil) || [];
+  const p = { id: Date.now() + '-' + Math.random().toString(36).slice(2, 6), a: fmtAntri(w.antrian), nopol: w.nopol, tipe: w.tipe || '', ke, t: stamp(new Date()) };
+  await setDoc(ref, { panggil: [p, ...lama.filter(x => x.nopol !== w.nopol)].slice(0, 6) }, { merge: true });
+  return p;
 }

@@ -5,6 +5,7 @@ import { $, esc, rp, waNumber } from './util.js';
 import { loadBrand, gearsSVG, loaderHTML } from './brand.js';
 import { pantauKey, durasi, fmtDur } from './wo-common.js';
 import { APP_NAME } from './config.js';
+import { pasangTombol } from './pwa.js';
 
 const STEPS = [['Antri', 'Diterima'], ['Dikerjakan', 'Dikerjakan'], ['Selesai', 'Selesai'], ['Lunas', 'Diambil / lunas']];
 const tgl = t => t ? new Date(String(t).replace(' ', 'T')).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
@@ -31,7 +32,7 @@ function render() {
   $('#cek-result').innerHTML = `<div class="cek-card">
     <div class="row spread"><div><div class="mono cek-nopol">${esc(d.nopol)}</div><div class="muted small">${esc(d.tipe || '')}${d.nama ? ' · ' + esc(d.nama) : ''}</div></div><div class="row" style="gap:6px"><button class="btn sm" type="button" id="cek-tambah">+ Kendaraan lain</button><button class="btn sm ghost" type="button" id="cek-keluar">Keluar</button></div></div>
     ${sesi().list.length > 1 ? `<div class="seg" role="group" aria-label="Kendaraan saya">${sesi().list.map(k => `<button type="button" data-kend="${esc(k.key)}" aria-pressed="${k.key === sesi().aktif}">${esc(k.nopol)}</button>`).join('')}</div>` : ''}
-    ${a ? `<h3>Servis saat ini · ${esc(a.no)}</h3>
+    ${a ? `<div class="row spread"><h3>Servis saat ini</h3>${a.antrian ? `<span class="cek-antri">Antrian <b>${esc(a.antrian)}</b></span>` : ''}</div>
       ${stepper(a)}
       <div class="totals small">
         <span class="muted">Masuk</span><span>${esc(tgl(a.tgl))}</span>
@@ -101,6 +102,7 @@ $('#cek-nopol').addEventListener('input', e => { const p = e.target.selectionSta
 const q = new URLSearchParams(location.search).get('nopol');
 if (q) $('#cek-nopol').value = q.toUpperCase().replace(/^([A-Z]{1,2})(\d{1,4})([A-Z]{0,3})$/, (m, a, b, c) => [a, b, c].filter(Boolean).join(' '));
 document.title = 'Cek Servis · ' + APP_NAME;
+pasangTombol($('#cek-pasang'), t => { const el = $('#cek-pasang-info'); el.textContent = t; el.hidden = false; });
 loadBrand().finally(() => {
   $('#boot')?.remove(); $('#cek-screen').hidden = false;
   const v = sesi();

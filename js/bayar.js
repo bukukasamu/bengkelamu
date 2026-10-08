@@ -6,7 +6,7 @@ import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
-import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo, logStatus, timelineHTML, durasi, syncPantau } from './wo-common.js';
+import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo, logStatus, timelineHTML, durasi, syncPantau, panggilLayar, fmtAntri } from './wo-common.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { showNota, cekLink } from './nota.js';
 
@@ -36,7 +36,8 @@ function statusPanel(w) {
     <div class="small muted" style="margin-top:4px">Kedua pilihan membuat mekanik kosong dan bisa menerima motor berikutnya.</div></div>`;
   if (w.status === 'Ditunda') return `<div class="note"><b>Ditunda</b>${w.alasanTunda ? ': ' + esc(w.alasanTunda) : ''}${w.tglTunda ? ` <span class="small muted">(${esc(w.tglTunda)})</span>` : ''}
     <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="bay-status" data-s="Selesai">Motor sudah selesai</button><span class="small muted">Untuk dikerjakan lagi, pilih mekanik kosong di Registrasi → Lanjutkan dikerjakan.</span></div></div>`;
-  if (w.status === 'Antri') return '<div class="note small">Belum ada mekanik. Registrasi perlu memilih mekanik yang kosong.</div>';
+  if (w.status === 'Antri') return `<div class="note small">${w.dataKurang ? 'Data konsumen belum lengkap. ' : ''}Belum ada mekanik. Registrasi perlu memilih mekanik yang kosong.</div>`;
+  if (w.status === 'Selesai') return `<div class="row"><button class="btn" type="button" data-act="bay-panggil">Panggil ulang di layar</button><span class="small muted">Nomor ${esc(fmtAntri(w.antrian) || w.nopol)} dipanggil ke kasir lewat layar TV.</span></div>`;
   return '';
 }
 
@@ -101,7 +102,12 @@ async function setStatus(el) {
   const patch = s === 'Selesai' ? { ...base, status: 'Selesai', selesai: stamp(new Date()) }
     : { ...base, status: 'Ditunda', tglTunda: stamp(new Date()), alasanTunda: ($('#bay-tunda')?.value || '').trim() };
   st.saving = true;
-  try { await updateWo(w.no, patch); Object.assign(w, patch); syncPantau(w); toast(`${w.nopol}: ${s}. ${mekanikNama(w) || 'Mekanik'} sekarang kosong.`); renderList(); renderDetail(); }
+  try {
+    await updateWo(w.no, patch); Object.assign(w, patch); syncPantau(w);
+    // Motor selesai: nomor antrian otomatis dipanggil di layar TV supaya konsumen datang ke kasir
+    if (s === 'Selesai') panggilLayar(w).catch(e => console.warn('Panggilan layar gagal', e));
+    toast(`${w.nopol}: ${s}. ${mekanikNama(w) || 'Mekanik'} sekarang kosong.${s === 'Selesai' ? ' Nomor dipanggil di layar.' : ''}`); renderList(); renderDetail();
+  }
   catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 
@@ -110,6 +116,7 @@ async function confirm() {
   clearTimeout(saveTimer);   // biaya ikut tersimpan lewat transaksi pembayaran
   const w = draftWo(), d = st.bayarDraft;
   if (w.status !== 'Selesai') { toast('Motor belum dilaporkan selesai'); return; }
+  if (w.dataKurang) { toast('Data konsumen belum lengkap. Lengkapi dulu di Registrasi Servis.'); return; }
   const chk = payStatus(d.pay, grandTotal());
   if (chk.err) { toast(chk.err); return; }
   const biaya = d.biaya.filter(b => b.ket.trim() || b.jumlah).map(b => ({ ket: b.ket.trim() || 'Biaya lain', jumlah: +b.jumlah || 0 }));
@@ -164,6 +171,7 @@ Object.assign(actions, {
     renderList(); renderDetail();
   },
   'bay-status': setStatus,
+  'bay-panggil': async () => { const w = findWo(st.bayarNo); if (!w) return; try { await panggilLayar(w); toast('Nomor ' + (fmtAntri(w.antrian) || w.nopol) + ' dipanggil di layar'); } catch (e) { toast(errMsg(e)); } },
   'bay-addbiaya': () => { st.bayarDraft.biaya.push({ ket: '', jumlah: 0 }); renderDetail(); $('#bi-k' + (st.bayarDraft.biaya.length - 1))?.focus(); },
   'bay-rmbiaya': el => { st.bayarDraft.biaya.splice(+el.dataset.i, 1); renderDetail(); simpanDraft(); },
   'bay-confirm': confirm

@@ -1,4 +1,5 @@
 // Titik masuk aplikasi: login + peran, sidebar, sinkron data Firestore, shortcut keyboard.
+import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal)
 import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from './firebase.js';
 import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
 import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can } from './state.js';
@@ -6,6 +7,7 @@ import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANI
 import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
 import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
 import { showNota } from './nota.js';
+import { pasangTombol } from './pwa.js';
 import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
 // Modul menu: cukup diimpor, masing-masing mendaftarkan tampilan & aksinya sendiri.
@@ -243,3 +245,8 @@ document.addEventListener('keydown', e => {
 /* ---------- JAM ---------- */
 const tick = () => { $('#clock').textContent = new Date().toLocaleString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); };
 tick(); setInterval(tick, 30000);
+
+// Pasang aplikasi (PWA) di HP / PC
+const petunjukPasang = t => modal(`<h3>Pasang aplikasi</h3><p style="margin:0">${esc(t)}</p><div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-close="1" data-autofocus>Mengerti</button></div>`);
+pasangTombol($('#pasang-app'), petunjukPasang);
+pasangTombol($('#pasang-login'), petunjukPasang);
