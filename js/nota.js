@@ -1,5 +1,5 @@
 // Nota penjualan / servis: isi nota (dipakai layar, printer, dan PDF), cetak, unduh PDF, kirim via WhatsApp.
-import { $, esc, toast, modal, waLink, waNumber } from './util.js';
+import { $, esc, toast, modal, waLink, waNumber, publicUrl } from './util.js';
 import { S, st, actions, inputHandlers } from './state.js';
 import { APP_NAME, APP_SUB } from './config.js';
 
@@ -41,7 +41,7 @@ export function notaText(t) {
 }
 
 // Link halaman cek servis konsumen (nopol sudah terisi)
-export const cekLink = nopol => { const u = new URL('cek.html', location.href); if (nopol) u.searchParams.set('nopol', String(nopol).replace(/\s+/g, '')); return u.toString(); };
+export const cekLink = nopol => publicUrl('cek', { nopol: nopol ? String(nopol).replace(/\s+/g, '') : '' });
 const waText = t => `Halo ${t.pelanggan && t.pelanggan !== 'Umum' ? t.pelanggan : 'Bapak/Ibu'}, terima kasih telah ${t.jenis === 'SERVIS' ? 'servis' : 'berbelanja'} di ${APP_NAME}. Berikut nota ${t.no}, total Rp ${n(t.total)}.` + (t.nopol ? `\nCek status & riwayat servis ${t.nopol}: ${cekLink(t.nopol)}` : '');
 
 let current = null;

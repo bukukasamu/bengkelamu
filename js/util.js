@@ -1,4 +1,12 @@
 // Fungsi bantu umum: format angka/tanggal, toast, modal.
+import { SITE_DOMAIN } from './config.js';
+// Link halaman publik: di domain sendiri pakai alamat pendek (www.amuservice.id/cek), di tempat lain pakai nama file.
+const domainSendiri = () => location.hostname === SITE_DOMAIN || location.hostname === SITE_DOMAIN.replace(/^www\./, '');
+export const publicUrl = (hal, params = {}) => {
+  const u = new URL(domainSendiri() ? 'https://' + SITE_DOMAIN + '/' + hal : hal + '.html', location.href);
+  Object.entries(params).forEach(([k, v]) => v && u.searchParams.set(k, v));
+  return u.toString();
+};
 export const $ = s => document.querySelector(s);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const rp = n => 'Rp ' + Math.round(n || 0).toLocaleString('id-ID');

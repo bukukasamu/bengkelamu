@@ -1,5 +1,5 @@
 // Menu Master Data: pemilik & kendaraan, jasa servis, tarif KSG, mekanik (+PIN), rekening, tipe motor, petugas (+PIN).
-import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber } from './util.js';
+import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber, publicUrl } from './util.js';
 import { loaderHTML, getBrand, resizeImage, saveLogo } from './brand.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole } from './state.js';
 import { ROLES } from './config.js';
@@ -239,7 +239,7 @@ function renderLogo() {
 
 // Layar TV ruang tunggu: teks berjalan + petunjuk pemasangan
 async function renderLayar() {
-  const url = new URL('layar.html', location.href).toString();
+  const url = publicUrl('layar');
   $('#ms-body').innerHTML = loaderHTML('Memuat pengaturan layar…');
   let info = '';
   try { const s = await getDoc(doc(db, 'publik', 'layar')); info = (s.exists() && s.data().info) || ''; } catch (e) { /* tetap tampilkan form */ }

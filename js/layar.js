@@ -2,7 +2,7 @@
 // Menampilkan nomor yang dipanggil, motor yang sedang dikerjakan, menunggu, dan siap diambil,
 // plus suara panggilan, teks berjalan, dan QR code menuju halaman cek servis.
 import { db, doc, onSnapshot } from './firebase.js';
-import { $, esc, dkey } from './util.js';
+import { $, esc, dkey, publicUrl } from './util.js';
 import { loadBrand } from './brand.js';
 import { APP_NAME, APP_SUB } from './config.js';
 import { qrSvg } from './qr.js';
@@ -148,7 +148,7 @@ pilihSuara();
 // Bila browser sudah mengizinkan suara tanpa klik (mode kiosk), layar langsung jalan
 siapkanAudio(); if (ctx && ctx.state === 'running') mulai();
 loadBrand();
-const cek = new URL('cek.html', location.href).toString();
+const cek = publicUrl('cek');
 $('#tv-url').textContent = cek.replace(/^https?:\/\//, '');
 qrSvg(cek).then(svg => { $('#tv-qr').innerHTML = svg; }).catch(() => { $('#tv-qr').hidden = true; });
 langganan();
