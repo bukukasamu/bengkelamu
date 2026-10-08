@@ -31,10 +31,10 @@ export const st = {
 export const namaPetugas = () => (st.petugas && (st.petugas.nama || st.petugas.email)) || '';
 // ID tetap petugas (tidak berubah walau nama diganti) untuk menghitung penjualan pribadi / insentif
 export const idPetugas = () => (st.petugas && (st.petugas.loginId || st.petugas.email)) || '';
-// Nama & grup menu bisa berbeda untuk admin (mis. "Penghasilan Karyawan" vs "Penghasilan Saya")
-export const menuLabel = m => (st.role === 'admin' && m.adminLabel) || m.label;
-export const menuGroup = m => (st.role === 'admin' && m.adminGroup) || m.group;
-export const can = menuId => !!MENUS.find(m => m.id === menuId)?.roles.includes(st.role);
+// Nama & grup menu bisa berbeda untuk super admin (mis. "Penghasilan Karyawan" vs "Penghasilan Saya")
+export const menuLabel = m => (st.petugas?.super && m.superLabel) || m.label;
+export const menuGroup = m => (st.petugas?.super && m.superGroup) || m.group;
+export const can = menuId => { const m = MENUS.find(x => x.id === menuId); return !!m && m.roles.includes(st.role) && (!m.superOnly || !!st.petugas?.super); };
 export const isRole = (...r) => r.includes(st.role);
 
 /* ---- Registry: tiap modul mendaftarkan tampilan dan aksinya sendiri ---- */

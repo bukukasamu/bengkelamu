@@ -6,14 +6,17 @@
 //   mekanik    = servis yang dia kerjakan          kasir & admin = nota yang dia terima pembayarannya
 //   registrasi = servis yang dia daftarkan          sparepart     = servis yang order sparepartnya dia input
 // Insentif bertingkat: tingkat tertinggi yang tercapai, persennya dikalikan SELURUH nilai penjualan.
-import { $, esc, rp, dkey, toast, errMsg, modal } from './util.js';
+import { $, esc, rp, dkey, stamp, toast, errMsg, modal } from './util.js';
 import { S, st, views, refreshers, actions, changeHandlers, isRole } from './state.js';
-import { db, collection, getDocs, query, where } from './firebase.js';
+import { db, collection, getDocs, getDoc, doc, setDoc, writeBatch, query, where } from './firebase.js';
+import { mintaPassword } from './otorisasi.js';
 import { ROLES, APP_NAME } from './config.js';
 import { loadLoginList } from './akun.js';
 import { namaCabang, multiCabang } from './cabang.js';
 import { loaderHTML } from './brand.js';
 import { loadXLSX } from './import-excel.js';
+import { ambilTrx } from './data-trx.js';
+import { muatAturanAbsen, absenBulan, rekapAbsen } from './absensi.js';
 
 export const SUMBER = {
   part: 'Penjualan sparepart',
@@ -21,16 +24,30 @@ export const SUMBER = {
   biaya: 'Biaya lain (cuci, las, dll.)',
   omzet: 'Total nota'
 };
-export const cfgPenghasilan = () => ({ insentif: [], potongan: [], ...(S.settings.penghasilan || {}) });
+export const cfgPenghasilan = () => ({ insentif: [], potongan: [], ...(S.aturan || S.settings.penghasilan || {}) });
 
 /* ---------- Perhitungan ---------- */
 // org = { peran, id, nama, mekanikId, gaji, komisi }
-export function trxPribadi(list, org) {
+// Dasar penjualan pribadi bisa dipilih per item insentif (kosong = otomatis sesuai peran)
+export const DASAR = {
+  kasir: 'Nota yang ia terima pembayarannya (kasir)',
+  mekanik: 'Servis yang ia kerjakan (mekanik)',
+  registrasi: 'Servis yang ia daftarkan',
+  order: 'Servis yang order sparepart-nya ia input',
+  cabang: 'Semua nota di cabangnya'
+};
+const DASAR_PERAN = { mekanik: ['mekanik'], registrasi: ['registrasi'], sparepart: ['order'], kasir: ['kasir'], admin: ['kasir'] };
+export function trxPribadi(list, org, dasar) {
+  const pakai = dasar && dasar.length ? dasar : (DASAR_PERAN[org.peran] || ['kasir']);
   const sama = (id, nama, idT, namaT) => (id && idT ? id === idT : !!nama && String(nama).toUpperCase() === String(namaT || '').toUpperCase());
-  if (org.peran === 'mekanik') return list.filter(t => t.jenis === 'SERVIS' && (org.mekanikId && t.mekanikId ? t.mekanikId === org.mekanikId : String(t.mekanik || '').toUpperCase() === String(org.nama).toUpperCase()));
-  if (org.peran === 'registrasi') return list.filter(t => t.jenis === 'SERVIS' && sama(org.id, org.nama, t.registrasiId, t.registrasiOleh));
-  if (org.peran === 'sparepart') return list.filter(t => t.jenis === 'SERVIS' && sama(org.id, org.nama, t.orderOlehId, t.orderOleh));
-  return list.filter(t => sama(org.id, org.nama, t.kasirId, t.kasir));   // kasir & admin
+  const cocok = {
+    mekanik: t => t.jenis === 'SERVIS' && (org.mekanikId && t.mekanikId ? t.mekanikId === org.mekanikId : String(t.mekanik || '').toUpperCase() === String(org.nama).toUpperCase()),
+    registrasi: t => t.jenis === 'SERVIS' && sama(org.id, org.nama, t.registrasiId, t.registrasiOleh),
+    order: t => t.jenis === 'SERVIS' && sama(org.id, org.nama, t.orderOlehId, t.orderOleh),
+    kasir: t => sama(org.id, org.nama, t.kasirId, t.kasir),
+    cabang: t => (t.cabang || 'UTM') === (org.cabang || 'UTM')
+  };
+  return list.filter(t => pakai.some(k => cocok[k]?.(t)));
 }
 export function nilaiSumber(list, sumber) {
   return list.reduce((a, t) => a + (
@@ -48,16 +65,18 @@ const urutTingkat = item => [...(item.tingkat || [])].filter(t => t.persen > 0).
 export function hitung(org, list, cfg = cfgPenghasilan()) {
   const pribadi = trxPribadi(list, org);
   const insentif = cfg.insentif.filter(i => berlaku(i, org)).map(item => {
-    const nilai = nilaiSumber(pribadi, item.sumber), tk = urutTingkat(item);
+    const nilai = nilaiSumber(item.dasar?.length ? trxPribadi(list, org, item.dasar) : pribadi, item.sumber), tk = urutTingkat(item);
     const capai = [...tk].reverse().find(t => nilai >= t.min) || null;
     const berikut = tk.find(t => nilai < t.min) || null;
     return { item, nilai, capai, berikut, jumlah: capai ? Math.round(nilai * capai.persen / 100) : 0 };
   });
-  // Komisi mekanik lama (Master Data → Mekanik, % dari nilai jasa) tetap dihitung bila diisi
+  // Komisi mekanik (% dari nilai jasa) dari data gaji privat, bila diisi super admin
   const komisi = org.peran === 'mekanik' && org.komisi ? Math.round(nilaiSumber(pribadi, 'jasa') * org.komisi / 100) : 0;
   const potongan = cfg.potongan.filter(p => berlaku(p, org)).map(item => ({ item, jumlah: +item.jumlah || 0 }));
-  const gaji = +org.gaji || 0, totIns = insentif.reduce((a, x) => a + x.jumlah, 0) + komisi, totPot = potongan.reduce((a, x) => a + x.jumlah, 0);
-  return { org, pribadi, insentif, komisi, potongan, gaji, totIns, totPot, bersih: gaji + totIns - totPot };
+  // Absensi: uang hadir per hari & potongan terlambat (dari menu Absensi), bila datanya dimuat
+  const ab = org.absen ? { hadir: org.absen.hadir, uangHadir: org.absen.uangHadir || 0, telat: org.absen.telat, potongTelat: org.absen.potongTelat || 0, cepat: org.absen.cepat, potongCepat: org.absen.potongCepat || 0, tanpaPulang: org.absen.tanpaPulang, tarifHadir: org.absen.tarifHadir, tarifTelat: org.absen.tarifTelat } : null;
+  const gaji = +org.gaji || 0, totIns = insentif.reduce((a, x) => a + x.jumlah, 0) + komisi + (ab?.uangHadir || 0), totPot = potongan.reduce((a, x) => a + x.jumlah, 0) + (ab ? ab.potongTelat + ab.potongCepat : 0);
+  return { org, pribadi, insentif, komisi, potongan, absen: ab, gaji, totIns, totPot, bersih: gaji + totIns - totPot };
 }
 
 /* ---------- Periode & data ---------- */
@@ -71,28 +90,51 @@ const cache = {};
 async function trxBulan(ym) {
   const from = ym + '-01', to = akhirBulan(ym);
   if (from >= loadedFrom) return (S.trxSemua.length ? S.trxSemua : S.trx).filter(t => t.tgl.slice(0, 10) >= from && t.tgl.slice(0, 10) <= to);
-  if (!cache[ym]) { const s = await getDocs(query(collection(db, 'trx'), where('tgl', '>=', from), where('tgl', '<=', to + ' 99'))); cache[ym] = s.docs.map(d => d.data()); }
+  if (!cache[ym]) cache[ym] = await ambilTrx(from, to);
   return cache[ym];
 }
 
-// Daftar karyawan (untuk rekap admin): petugas PIN + mekanik (termasuk yang belum punya login)
-let staffGaji = null;
+// Gaji pokok & komisi tersimpan privat di gaji/{kunci}: hanya karyawan ybs. dan super admin yang bisa membaca
+let semuaGaji = null;
+export const resetStaffGaji = () => { semuaGaji = null; };
 async function daftarKaryawan() {
-  const [login, sd] = await Promise.all([loadLoginList(), staffGaji ? null : getDocs(collection(db, 'staff')).catch(() => null)]);
-  if (sd) { staffGaji = {}; sd.docs.forEach(d => { const x = d.data(); if (x.loginId) staffGaji[x.loginId] = x; }); }
+  const [login, gs] = await Promise.all([loadLoginList(), semuaGaji ? null : getDocs(collection(db, 'gaji'))]);
+  if (gs) { semuaGaji = {}; gs.docs.forEach(d => { semuaGaji[d.id] = d.data(); }); }
   const mek = S.mekanikSemua.length ? S.mekanikSemua : S.mekanik;
-  const org = login.filter(p => p.peran !== 'mekanik').map(p => ({ peran: p.peran, id: p.id, nama: p.nama, cabang: p.cabang, gaji: staffGaji?.[p.id]?.gaji || 0 }));
-  mek.filter(m => m.aktif !== false).forEach(m => org.push({ peran: 'mekanik', id: m.loginId || '', mekanikId: m.id, nama: m.nama, cabang: m.cabang, gaji: m.gaji || 0, komisi: m.komisi || 0 }));
+  const org = login.filter(p => p.peran !== 'mekanik').map(p => ({ peran: p.peran, id: p.id, nama: p.nama, cabang: p.cabang, gaji: semuaGaji[p.id]?.gaji || 0 }));
+  mek.filter(m => m.aktif !== false).forEach(m => org.push({ peran: 'mekanik', id: m.loginId || '', mekanikId: m.id, nama: m.nama, cabang: m.cabang, gaji: semuaGaji['M:' + m.id]?.gaji || 0, komisi: semuaGaji['M:' + m.id]?.komisi || 0 }));
   return org.sort((a, b) => a.nama.localeCompare(b.nama));
 }
-function saya() {
+async function saya() {
   const p = st.petugas || {};
-  if (st.role === 'mekanik') {
-    const m = (S.mekanikSemua.length ? S.mekanikSemua : S.mekanik).find(x => x.id === p.mekanikId) || {};
-    return { peran: 'mekanik', id: p.loginId, mekanikId: p.mekanikId, nama: m.nama || p.nama, cabang: p.cabang, gaji: m.gaji || 0, komisi: m.komisi || 0 };
-  }
-  return { peran: st.role, id: p.loginId || p.email, nama: p.nama || p.email, cabang: p.cabang, gaji: p.gaji || 0 };
+  const o = st.role === 'mekanik'
+    ? { peran: 'mekanik', id: p.loginId, mekanikId: p.mekanikId, nama: ((S.mekanikSemua.length ? S.mekanikSemua : S.mekanik).find(x => x.id === p.mekanikId) || {}).nama || p.nama, cabang: p.cabang }
+    : { peran: st.role, id: p.loginId || p.email, nama: p.nama || p.email, cabang: p.cabang };
+  let g = {};
+  try { const s = await getDoc(doc(db, 'gaji', kunciOrg(o))); g = s.exists() ? s.data() : {}; } catch (e) { /* belum diatur */ }
+  return { ...o, gaji: +g.gaji || 0, komisi: +g.komisi || 0 };
 }
+
+// Lampirkan rekap absensi bulan itu ke setiap karyawan (org.absen)
+async function lampirkanAbsen(orgs, ym, kunci = null) {
+  try {
+    const a = await muatAturanAbsen(true); if (a.aktif === false) return orgs;
+    const rk = rekapAbsen(await absenBulan(ym, kunci), a);
+    const nol = { hadir: 0, uangHadir: 0, telat: 0, potongTelat: 0, cepat: 0, potongCepat: 0, tanpaPulang: 0 };
+    orgs.forEach(o => { o.absen = { ...nol, ...(rk[kunciOrg(o)] || {}), tarifHadir: +a.uangHadir || 0, tarifTelat: +a.potongTelat || 0 }; delete o.absen.list; });
+  } catch (e) { console.warn('Absensi untuk penghasilan', e); }
+  return orgs;
+}
+
+/* ---------- Kunci bulan ----------
+   Super admin mengunci bulan → hasil hitung setiap karyawan disimpan sebagai slip (slip/{bulan}_{kunci}).
+   Bulan terkunci selalu menampilkan slip tersimpan, jadi perubahan aturan sesudahnya tidak mengubah bulan itu. */
+const slipId = (ym, key) => ym + '_' + key.replace(/[^A-Za-z0-9:_-]/g, '');
+async function statusKunci(ym) { const s = await getDoc(doc(db, 'penghasilanBulan', ym)); return s.exists() && s.data().terkunci ? s.data() : null; }
+const simpanHasil = h => ({ org: h.org, gaji: h.gaji, komisi: h.komisi, totIns: h.totIns, totPot: h.totPot, bersih: h.bersih, nNota: h.pribadi.length,
+  insentif: h.insentif.map(x => ({ item: { nama: x.item.nama, sumber: x.item.sumber, tingkat: x.item.tingkat }, nilai: x.nilai, capai: x.capai, berikut: x.berikut, jumlah: x.jumlah })),
+  potongan: h.potongan.map(p => ({ item: { nama: p.item.nama }, jumlah: p.jumlah })), absen: h.absen || null });
+const dariSlip = d => ({ ...d, pribadi: { length: d.nNota || 0 }, terkunci: true });
 
 /* ---------- Tampilan ---------- */
 const PH = st.ph = st.ph || { bulan: bulanIni(), pilih: null };
@@ -100,7 +142,7 @@ const bar = (v, max) => `<span class="ph-bar"><i style="width:${Math.max(2, Math
 
 // Insight bulan berjalan: laju per hari, perkiraan akhir bulan, kebutuhan per hari untuk target berikutnya
 function insight(x, ym) {
-  if (ym !== bulanIni()) return '';
+  if (ym !== bulanIni() || x.terkunci) return '';
   const now = new Date(), hari = now.getDate(), total = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(), sisa = total - hari + 1;
   const laju = x.nilai / hari, proyeksi = Math.round(laju * total), tk = urutTingkat(x.item);
   const tkProyeksi = [...tk].reverse().find(t => proyeksi >= t.min);
@@ -117,7 +159,7 @@ function insight(x, ym) {
 
 // Ringkasan target di atas: berapa insentif yang masih bisa dikejar bulan ini
 function ringkasTarget(h, ym) {
-  if (ym !== bulanIni() || !h.insentif.length) return '';
+  if (ym !== bulanIni() || h.terkunci || !h.insentif.length) return '';
   const kejar = h.insentif.filter(x => x.berikut), potensi = kejar.reduce((a, x) => a + Math.max(0, Math.round(x.berikut.min * x.berikut.persen / 100) - x.jumlah), 0);
   return `<div class="ph-ringkas">${kejar.length ? `Masih ada <b>${kejar.length}</b> target yang bisa dikejar bulan ini dengan potensi tambahan insentif minimal <b>${rp(potensi)}</b>. Lihat rincian per item di bawah.` : 'Semua target insentif bulan ini sudah tercapai. 👏'}</div>`;
 }
@@ -146,30 +188,45 @@ function rincianHTML(h, judul, ym = PH.bulan, idx = -1) {
     <h3>Insentif</h3>
     ${ins || (h.komisi ? '' : '<div class="small muted">Belum ada insentif untuk peran ini.</div>')}
     ${h.komisi ? `<div class="ph-item"><div class="row spread"><b>Komisi mekanik ${h.org.komisi}%</b><span class="num ph-plus">+${rp(h.komisi)}</span></div><div class="small muted">dari nilai jasa servis yang dikerjakan</div></div>` : ''}
+    ${h.absen ? `<div class="ph-item"><div class="row spread"><b>Uang hadir</b><span class="num ${h.absen.uangHadir ? 'ph-plus' : 'muted'}">+${rp(h.absen.uangHadir)}</span></div><div class="small muted">${h.absen.hadir} hari hadir${h.absen.tarifHadir ? ' × ' + rp(h.absen.tarifHadir) : ''}${h.absen.tanpaPulang ? ` · ${h.absen.tanpaPulang} hari tanpa scan pulang tidak dihitung` : ''} · rincian di menu Absensi</div></div>` : ''}
     <h3>Potongan</h3>
-    ${h.potongan.length ? `<div class="tw"><table><tbody>${h.potongan.map(p => `<tr><td>${esc(p.item.nama)}</td><td class="r num" style="color:var(--bad)">−${rp(p.jumlah)}</td></tr>`).join('')}<tr><td><b>Total potongan</b></td><td class="r num"><b>−${rp(h.totPot)}</b></td></tr></tbody></table></div>` : '<div class="small muted">Tidak ada potongan.</div>'}
+    ${h.potongan.length || h.absen?.potongTelat || h.absen?.potongCepat ? `<div class="tw"><table><tbody>${h.potongan.map(p => `<tr><td>${esc(p.item.nama)}</td><td class="r num" style="color:var(--bad)">−${rp(p.jumlah)}</td></tr>`).join('')}${h.absen?.potongTelat ? `<tr><td>Terlambat ${h.absen.telat}×</td><td class="r num" style="color:var(--bad)">−${rp(h.absen.potongTelat)}</td></tr>` : ''}${h.absen?.potongCepat ? `<tr><td>Pulang cepat ${h.absen.cepat}×</td><td class="r num" style="color:var(--bad)">−${rp(h.absen.potongCepat)}</td></tr>` : ''}<tr><td><b>Total potongan</b></td><td class="r num"><b>−${rp(h.totPot)}</b></td></tr></tbody></table></div>` : '<div class="small muted">Tidak ada potongan.</div>'}
   </div>`;
 }
 
 let rekap = null, milik = null;
 async function renderPenghasilan() {
-  const ym = PH.bulan, admin = isRole('admin');
+  const ym = PH.bulan, admin = !!st.petugas?.super;
   $('#view').innerHTML = `<div class="grid">
     <div class="row spread"><div class="seg" role="group" aria-label="Bulan">${[[bulanIni(), 'Bulan ini'], [geserBulan(bulanIni(), -1), 'Bulan lalu']].map(([k, l]) => `<button type="button" data-act="ph-bulan" data-b="${k}" aria-pressed="${k === ym}">${l}</button>`).join('')}</div>
-     <div class="row"><label class="f" for="ph-bln" style="flex-direction:row;align-items:center;gap:6px">Bulan<input id="ph-bln" type="month" value="${ym}" style="width:auto"></label>${admin ? '<button class="btn" type="button" data-act="ph-xlsx">⬇ Excel</button>' : ''}</div></div>
+     <div class="row"><label class="f" for="ph-bln" style="flex-direction:row;align-items:center;gap:6px">Bulan<input id="ph-bln" type="month" value="${ym}" style="width:auto"></label>${admin ? '<span id="ph-kunci-btn"></span><button class="btn" type="button" data-act="ph-xlsx">⬇ Excel</button>' : ''}</div></div>
     <p class="small muted" style="margin:0">${esc(namaBulan(ym))} · dihitung dari penjualan pribadi. ${admin ? 'Klik nama karyawan untuk melihat rinciannya.' : ''}</p>
     <div id="ph-isi">${loaderHTML('Menghitung…')}</div></div>`;
-  let list;
-  try { list = await trxBulan(ym); } catch (e) { $('#ph-isi').innerHTML = `<div class="err">${esc(errMsg(e))}</div>`; return; }
+  let list, kunci;
+  try { kunci = await statusKunci(ym); } catch (e) { kunci = null; }
+  try { list = kunci ? [] : await trxBulan(ym); } catch (e) { $('#ph-isi').innerHTML = `<div class="err">${esc(errMsg(e))}</div>`; return; }
   if (st.view !== 'penghasilan' || PH.bulan !== ym) return;
-  if (!admin) { milik = hitung(saya(), list); $('#ph-isi').innerHTML = rincianHTML(milik, 'Penghasilan saya · ' + namaBulan(ym), ym, -1); return; }
+  const pita = kunci ? `<div class="ph-kunci">🔒 Bulan ini sudah <b>dikunci</b> oleh super admin (${esc(kunci.tgl || '')}). Angka di bawah adalah slip final dan tidak berubah walau aturan insentif diubah.</div>` : '';
+  if (!admin) {
+    const o = await saya();
+    if (kunci) {
+      const ss = await getDoc(doc(db, 'slip', slipId(ym, kunciOrg(o)))).catch(() => null);
+      milik = ss?.exists() ? dariSlip(ss.data()) : null;
+      $('#ph-isi').innerHTML = pita + (milik ? rincianHTML(milik, 'Penghasilan saya · ' + namaBulan(ym), ym, -1) : '<div class="panel"><div class="empty">Tidak ada slip untuk Anda di bulan ini.</div></div>');
+      return;
+    }
+    await lampirkanAbsen([o], ym, kunciOrg(o));
+    milik = hitung(o, list); $('#ph-isi').innerHTML = rincianHTML(milik, 'Penghasilan saya · ' + namaBulan(ym), ym, -1); return;
+  }
   try {
-    const org = await daftarKaryawan();
-    rekap = org.map(o => hitung(o, list));
+    if (kunci) { const ss = await getDocs(query(collection(db, 'slip'), where('ym', '==', ym))); rekap = ss.docs.filter(d => d.data().kunci !== '__rekap').map(d => dariSlip(d.data())).sort((a, b) => a.org.nama.localeCompare(b.org.nama)); }
+    else { const org = await lampirkanAbsen(await daftarKaryawan(), ym); rekap = org.map(o => hitung(o, list)); }
   } catch (e) { $('#ph-isi').innerHTML = `<div class="err">${esc(errMsg(e))}</div>`; return; }
   if (st.view !== 'penghasilan') return;
+  const kb = document.getElementById('ph-kunci-btn');
+  if (kb) kb.innerHTML = kunci ? '<button class="btn" type="button" data-act="ph-buka">🔓 Buka kunci</button>' : (ym < bulanIni() || new Date().getDate() >= 25 ? '<button class="btn pri" type="button" data-act="ph-kunci">🔒 Kunci bulan ini</button>' : '<button class="btn" type="button" data-act="ph-kunci" title="Biasanya dikunci di akhir bulan">🔒 Kunci bulan</button>');
   const tot = k => rekap.reduce((a, h) => a + h[k], 0), sel = PH.pilih != null ? rekap[PH.pilih] : null;
-  $('#ph-isi').innerHTML = `<div class="panel"><h3>Rekap penghasilan karyawan</h3>
+  $('#ph-isi').innerHTML = pita + `<div class="panel"><h3>Rekap penghasilan karyawan</h3>
     ${rekap.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Peran</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Gaji pokok</th><th class="r">Insentif</th><th class="r">Potongan</th><th class="r">Bersih</th></tr></thead><tbody>
      ${rekap.map((h, i) => `<tr class="row-click" tabindex="0" data-act="ph-pilih" data-i="${i}" aria-current="${i === PH.pilih}"><td>${esc(h.org.nama)}</td><td class="small">${esc(ROLES[h.org.peran] || h.org.peran)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(h.org.cabang))}</td>` : ''}<td class="r num">${rp(h.gaji)}</td><td class="r num" style="color:var(--good)">${h.totIns ? '+' + rp(h.totIns) : '–'}</td><td class="r num" style="color:var(--bad)">${h.totPot ? '−' + rp(h.totPot) : '–'}</td><td class="r num"><b>${rp(h.bersih)}</b></td></tr>`).join('')}
      <tr><td colspan="${multiCabang() ? 3 : 2}"><b>Total</b></td><td class="r num"><b>${rp(tot('gaji'))}</b></td><td class="r num"><b>${rp(tot('totIns'))}</b></td><td class="r num"><b>${rp(tot('totPot'))}</b></td><td class="r num"><b>${rp(tot('bersih'))}</b></td></tr>
@@ -187,6 +244,7 @@ async function exportXlsx() {
       const r = { nama: h.org.nama, peran: ROLES[h.org.peran] || h.org.peran, ...(multiCabang() ? { cabang: namaCabang(h.org.cabang) } : {}), gaji_pokok: h.gaji };
       h.insentif.forEach(x => { r[x.item.nama + ' (dasar)'] = x.nilai; r[x.item.nama] = x.jumlah; });
       if (h.komisi) r['Komisi mekanik'] = h.komisi;
+      if (h.absen) { r['Hari hadir'] = h.absen.hadir; r['Uang hadir'] = h.absen.uangHadir; r['Terlambat (kali)'] = h.absen.telat; r['Potongan terlambat'] = h.absen.potongTelat + h.absen.potongCepat; }
       h.potongan.forEach(p => { r['Potongan ' + p.item.nama] = p.jumlah; });
       return { ...r, total_insentif: h.totIns, total_potongan: h.totPot, penghasilan_bersih: h.bersih };
     });
@@ -205,8 +263,8 @@ let slipAktif = null;
 export function slipData(h, ym = PH.bulan) {
   return {
     periode: namaBulan(ym), ym, nama: h.org.nama, peran: ROLES[h.org.peran] || h.org.peran, cabang: multiCabang() ? namaCabang(h.org.cabang) : '',
-    pendapatan: [['Gaji pokok', h.gaji, ''], ...h.insentif.map(x => [x.item.nama, x.jumlah, `${SUMBER[x.item.sumber] || ''} ${rp(x.nilai)}${x.capai ? ' × ' + x.capai.persen + '%' : ' (target belum tercapai)'}`]), ...(h.komisi ? [['Komisi mekanik ' + h.org.komisi + '%', h.komisi, 'dari nilai jasa']] : [])],
-    potongan: h.potongan.map(p => [p.item.nama, p.jumlah]),
+    pendapatan: [['Gaji pokok', h.gaji, ''], ...h.insentif.map(x => [x.item.nama, x.jumlah, `${SUMBER[x.item.sumber] || ''} ${rp(x.nilai)}${x.capai ? ' × ' + x.capai.persen + '%' : ' (target belum tercapai)'}`]), ...(h.komisi ? [['Komisi mekanik ' + h.org.komisi + '%', h.komisi, 'dari nilai jasa']] : []), ...(h.absen ? [['Uang hadir', h.absen.uangHadir, h.absen.hadir + ' hari hadir']] : [])],
+    potongan: [...h.potongan.map(p => [p.item.nama, p.jumlah]), ...(h.absen?.potongTelat ? [['Terlambat ' + h.absen.telat + 'x', h.absen.potongTelat]] : []), ...(h.absen?.potongCepat ? [['Pulang cepat ' + h.absen.cepat + 'x', h.absen.potongCepat]] : [])],
     totalPendapatan: h.gaji + h.totIns, totalPotongan: h.totPot, bersih: h.bersih, nota: h.pribadi.length
   };
 }
@@ -246,9 +304,24 @@ Object.assign(actions, {
   'ph-bulan': el => { PH.bulan = el.dataset.b; PH.pilih = null; renderPenghasilan(); },
   'ph-pilih': el => { PH.pilih = PH.pilih === +el.dataset.i ? null : +el.dataset.i; renderPenghasilan(); },
   'ph-xlsx': exportXlsx,
+  'ph-kunci': async () => {
+    if (!rekap?.length) { toast('Belum ada data karyawan'); return; }
+    if (!(await mintaPassword('Kunci penghasilan ' + namaBulan(PH.bulan), `Slip ${rekap.length} karyawan disimpan sebagai angka final. Perubahan aturan sesudahnya tidak mengubah bulan ini.`))) return;
+    try {
+      const ym = PH.bulan, b = writeBatch(db);
+      rekap.forEach(h => b.set(doc(db, 'slip', slipId(ym, kunciOrg(h.org))), { ...simpanHasil(h), kunci: kunciOrg(h.org), ym, dibuat: stamp(new Date()) }));
+      // Status kunci bisa dibaca semua karyawan; total biaya gaji per cabang (untuk laba bersih) hanya super admin
+      b.set(doc(db, 'penghasilanBulan', ym), { terkunci: true, tgl: stamp(new Date()), oleh: st.petugas.nama || st.petugas.email });
+      b.set(doc(db, 'slip', ym + '__REKAP'), { kunci: '__rekap', ym, dibuat: stamp(new Date()), total: rekap.reduce((a, h) => a + h.gaji + h.totIns, 0), bersih: rekap.reduce((a, h) => a + h.bersih, 0),
+        perCabang: rekap.reduce((m, h) => { const c = h.org.cabang || 'UTM'; m[c] = (m[c] || 0) + h.gaji + h.totIns; return m; }, {}) });
+      await b.commit(); toast('Penghasilan ' + namaBulan(ym) + ' dikunci'); renderPenghasilan();
+    } catch (e) { toast(errMsg(e)); }
+  },
+  'ph-buka': async () => {
+    if (!(await mintaPassword('Buka kunci ' + namaBulan(PH.bulan), 'Angka akan dihitung ulang dengan aturan yang berlaku sekarang sampai dikunci lagi.'))) return;
+    try { await setDoc(doc(db, 'penghasilanBulan', PH.bulan), { terkunci: false, dibuka: stamp(new Date()) }, { merge: true }); toast('Kunci dibuka'); renderPenghasilan(); } catch (e) { toast(errMsg(e)); }
+  },
   'ph-slip': el => { const h = +el.dataset.i >= 0 ? rekap?.[+el.dataset.i] : milik; if (h) lihatSlip(h); },
   'slip-unduh': unduhSlip
 });
 changeHandlers.push(e => { if (e.target.id === 'ph-bln' && e.target.value) { PH.bulan = e.target.value; PH.pilih = null; renderPenghasilan(); } });
-// Gaji pokok petugas berubah di master → muat ulang
-export const resetStaffGaji = () => { staffGaji = null; };

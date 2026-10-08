@@ -4,7 +4,9 @@ import { getAuth, createUserWithEmailAndPassword, signOut as signOutAuth } from 
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-export const fbApp = initializeApp(firebaseConfig);
+// Layar QR absen memakai "app" Firebase terpisah: identitas perangkat layarnya (anonim) tersimpan sendiri
+// dan tidak bercampur dengan login petugas di aplikasi pada perangkat yang sama.
+export const fbApp = window.AMU_ABSEN ? initializeApp(firebaseConfig, 'layar-absen') : initializeApp(firebaseConfig);
 export const auth = getAuth(fbApp);
 // Cache lokal: data part tidak diunduh ulang penuh setiap kali halaman dibuka (hemat kuota baca).
 // Halaman publik (cek servis & layar TV, tanpa login) memakai cache memori sendiri. Cache bersama antar-tab hanya untuk aplikasi
@@ -22,8 +24,8 @@ export async function createStaffAccount(email, password) {
   await signOutAuth(secondary);
 }
 
-export { onAuthStateChanged, signInWithEmailAndPassword, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+export { onAuthStateChanged, signInWithEmailAndPassword, signInAnonymously, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 export {
   collection, doc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, documentId,
-  runTransaction, setDoc, updateDoc, addDoc, deleteDoc, increment, writeBatch, serverTimestamp
+  runTransaction, setDoc, updateDoc, addDoc, deleteDoc, increment, writeBatch, serverTimestamp, deleteField, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";

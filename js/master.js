@@ -7,7 +7,8 @@ import { db, doc, getDoc, collection, getDocs, writeBatch, query, orderBy, limit
 import { nopolKey } from './registrasi.js';
 import { statusPill, rebuildPantau, syncLayar } from './wo-common.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
-import { SUMBER, cfgPenghasilan, resetStaffGaji } from './penghasilan.js';
+import { SUMBER, DASAR, cfgPenghasilan, resetStaffGaji } from './penghasilan.js';
+import { mintaPassword } from './otorisasi.js';
 import { CABANG_UTAMA, cabangList, namaCabang, multiCabang, cabAktif, simpanCabang, layarDocId } from './cabang.js';
 import { loadXLSX } from './import-excel.js';
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
@@ -162,12 +163,12 @@ async function saveKsg() {
 /* ---------- Mekanik (+ login PIN) ---------- */
 function renderMek() {
   const list = [...S.mekanik].sort((a, b) => a.nama.localeCompare(b.nama));
-  const row = (m, id) => `<tr><td><input class="inline-input" id="mm-n-${id}" value="${esc(m.nama || '')}" placeholder="Nama mekanik" aria-label="Nama"></td><td><input class="inline-input num" type="number" min="0" step="50000" id="mm-g-${id}" value="${m.gaji ?? ''}" placeholder="0" style="text-align:right;width:120px" aria-label="Gaji pokok"></td><td><input class="inline-input num" type="number" min="0" max="100" step="0.5" data-raw id="mm-k-${id}" value="${m.komisi ?? ''}" placeholder="0" style="text-align:right;width:70px" aria-label="Komisi persen"></td>
+  const row = (m, id) => `<tr><td><input class="inline-input" id="mm-n-${id}" value="${esc(m.nama || '')}" placeholder="Nama mekanik" aria-label="Nama"></td>
     <td>${id === 'new' ? `<input class="inline-input num" id="mm-p-new" inputmode="numeric" maxlength="6" placeholder="PIN 6 angka" style="width:110px" aria-label="PIN login">` : m.loginId ? `<span class="pill p-good">Aktif</span> <button class="btn sm ghost" type="button" data-act="mm-pin" data-id="${id}">Reset PIN</button>` : `<button class="btn sm" type="button" data-act="mm-pin" data-id="${id}">Buat PIN</button>`}</td>
     <td>${id === 'new' ? '' : `<input type="checkbox" id="mm-a-${id}" style="width:auto" ${m.aktif !== false ? 'checked' : ''} aria-label="Aktif">`}</td>
     <td class="r" style="white-space:nowrap">${id === 'new' ? '<button class="btn sm pri" type="button" data-act="mm-add">Tambah</button>' : `<button class="btn sm" type="button" data-act="mm-save" data-id="${id}">Simpan</button> <button class="btn sm ghost" type="button" data-act="mm-del" data-id="${id}">Hapus</button>`}</td></tr>`;
-  $('#ms-body').innerHTML = (multiCabang() ? `<p class="note small" style="margin:12px 0 0">Mekanik cabang <b>${esc(namaCabang(cabAktif()))}</b>. Untuk cabang lain, pindah cabang di kanan atas.</p>` : '') + intro('Mekanik login dengan memilih namanya lalu memasukkan PIN, untuk melihat performa dan gajinya. Estimasi gaji = gaji pokok + komisi % × nilai jasa (klaim KSG memakai tarif main dealer).') + `
-   <div class="tw"><table><thead><tr><th>Nama</th><th class="r">Gaji pokok / bulan</th><th class="r">Komisi %</th><th>Login PIN</th><th>Aktif</th><th></th></tr></thead><tbody>${list.map(m => row(m, m.id)).join('')}${row({}, 'new')}</tbody></table></div>`;
+  $('#ms-body').innerHTML = (multiCabang() ? `<p class="note small" style="margin:12px 0 0">Mekanik cabang <b>${esc(namaCabang(cabAktif()))}</b>. Untuk cabang lain, pindah cabang di kanan atas.</p>` : '') + intro('Mekanik login dengan memilih namanya lalu memasukkan PIN, untuk melihat pekerjaan dan penghasilannya. Gaji pokok, komisi, dan insentif mekanik bersifat privat dan hanya diatur super admin di tab Insentif &amp; Potongan.') + `
+   <div class="tw"><table><thead><tr><th>Nama</th><th>Login PIN</th><th>Aktif</th><th></th></tr></thead><tbody>${list.map(m => row(m, m.id)).join('')}${row({}, 'new')}</tbody></table></div>`;
 }
 function askPin(title, onOk) {
   // Isian PIN kecil di bawah tabel (tanpa dialog browser)
@@ -285,9 +286,9 @@ function renderCabang() {
 const cabangDariForm = () => cabangList(true).map((c, i) => ({ ...c, nama: ($('#cb-n-' + i)?.value || c.nama).trim().toUpperCase(), alamat: ($('#cb-a-' + i)?.value || '').trim(), telp: ($('#cb-t-' + i)?.value || '').trim(), aktif: c.id === CABANG_UTAMA ? true : !!$('#cb-x-' + i)?.checked }));
 
 /* ---------- Insentif & potongan (hanya super admin) ----------
-   Disimpan di meta/settings.penghasilan = { insentif: [{ id, nama, sumber, peran[], tingkat[{min, persen}], aktif }],
+   Disimpan di penghasilan/aturan = { insentif: [{ id, nama, sumber, peran[], tingkat[{min, persen}], aktif }],
                                              potongan: [{ id, nama, jumlah, peran[], aktif }] }
-   Gaji pokok: petugas di staff/{email}.gaji, mekanik di mekanik/{id}.gaji. */
+   Gaji pokok & komisi: gaji/{kunci} (privat: karyawan ybs. + super admin). Semua perubahan wajib kata sandi super admin. */
 let phDraft = null, phGaji = null;
 const PERAN = Object.entries(ROLES);
 const idBaru = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -302,6 +303,7 @@ const cekPeran = (pfx, sel) => `<div class="ph-peran">${PERAN.map(([k, l]) => `<
 function kumpulPh() {
   if (!phDraft || !$('#ph-form')) return;
   phDraft.insentif = phDraft.insentif.map((it, i) => ({ ...it, nama: ($('#in-n-' + i)?.value || '').trim().toUpperCase(), sumber: $('#in-s-' + i)?.value || 'part', aktif: !!$('#in-a-' + i)?.checked,
+    dasar: Object.keys(DASAR).filter(k => $(`#in-d-${i}-${k}`)?.checked),
     peran: PERAN.map(([k]) => k).filter(k => $(`#in-r-${i}-${k}`)?.checked), orang: (phGaji || []).filter((g, k) => $(`#in-o-${i}-${k}`)?.checked).map(g => g.kunci),
     tingkat: it.tingkat.map((t, j) => ({ min: +($('#tk-m-' + i + '-' + j)?.value || 0), persen: +String($('#tk-p-' + i + '-' + j)?.value || 0).replace(',', '.') })) }));
   phDraft.potongan = phDraft.potongan.map((it, i) => ({ ...it, nama: ($('#po-n-' + i)?.value || '').trim().toUpperCase(), jumlah: +($('#po-j-' + i)?.value || 0), aktif: !!$('#po-a-' + i)?.checked,
@@ -320,6 +322,7 @@ async function renderInsentif() {
       <label class="f" for="in-s-${i}">Dihitung dari<select id="in-s-${i}">${Object.entries(SUMBER).map(([k, l]) => `<option value="${k}" ${k === it.sumber ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
       <label class="chk" style="align-self:end"><input type="checkbox" id="in-a-${i}" ${it.aktif !== false ? 'checked' : ''}>Aktif</label></div>
      <div class="small muted">Berlaku untuk peran:</div>${cekPeran('in-r-' + i, it.peran || [])}${cekOrang('in-o-' + i, it.orang || [])}
+     <div class="small muted">Penjualan pribadi dihitung dari nota yang… <span class="muted">(kosong = otomatis sesuai peran)</span></div><div class="ph-peran">${Object.entries(DASAR).map(([k, l]) => `<label class="chk"><input type="checkbox" id="in-d-${i}-${k}" ${(it.dasar || []).includes(k) ? 'checked' : ''}>${esc(l)}</label>`).join('')}</div>
      <div class="small muted">Tingkat target (bulanan):</div>
      <div class="ph-tingkat">${it.tingkat.map((t, j) => `<div class="row" style="gap:6px"><span class="small">Penjualan ≥ Rp</span><input id="tk-m-${i}-${j}" data-num value="${t.min || ''}" style="width:150px" aria-label="Target"><span class="small">→</span><input id="tk-p-${i}-${j}" type="number" data-raw step="0.1" min="0" value="${t.persen || ''}" style="width:80px" aria-label="Persen"><span class="small">%</span>${it.tingkat.length > 1 ? `<button class="btn sm ghost" type="button" data-act="tk-del" data-i="${i}" data-j="${j}" aria-label="Hapus tingkat">✕</button>` : ''}</div>`).join('')}</div>
      <div class="row spread"><button class="btn sm" type="button" data-act="tk-add" data-i="${i}">+ Tingkat</button><button class="btn sm ghost" type="button" data-act="in-del" data-i="${i}">Hapus item</button></div>
@@ -339,21 +342,23 @@ async function renderInsentif() {
 }
 async function muatGaji() {
   if (!phGaji) {
-      const [login, sd] = await Promise.all([loadLoginList(), getDocs(collection(db, 'staff'))]);
-      const gaji = {}; sd.docs.forEach(x => { const v = x.data(); if (v.loginId) gaji[v.loginId] = v.gaji || 0; });
-    phGaji = [...login.filter(p => p.peran !== 'mekanik').map(p => ({ jenis: 'staff', email: p.email, kunci: p.id, nama: p.nama, peran: p.peran, cabang: p.cabang, gaji: gaji[p.id] || 0 })),
-      ...(S.mekanikSemua.length ? S.mekanikSemua : S.mekanik).map(m => ({ jenis: 'mekanik', id: m.id, kunci: 'M:' + m.id, nama: m.nama, peran: 'mekanik', cabang: m.cabang, gaji: m.gaji || 0 }))].sort((a, b) => a.nama.localeCompare(b.nama));
+    const [login, gs] = await Promise.all([loadLoginList(), getDocs(collection(db, 'gaji'))]);
+    const g = {}; gs.docs.forEach(x => { g[x.id] = x.data(); });
+    phGaji = [...login.filter(p => p.peran !== 'mekanik').map(p => ({ kunci: p.id, nama: p.nama, peran: p.peran, cabang: p.cabang, gaji: g[p.id]?.gaji || 0 })),
+      ...(S.mekanikSemua.length ? S.mekanikSemua : S.mekanik).map(m => ({ kunci: 'M:' + m.id, nama: m.nama, peran: 'mekanik', cabang: m.cabang, gaji: g['M:' + m.id]?.gaji || 0, komisi: g['M:' + m.id]?.komisi || 0 }))].sort((a, b) => a.nama.localeCompare(b.nama));
   }
 }
 async function renderGaji() {
   try { await muatGaji(); } catch (e) { const el = $('#ph-gaji'); if (el) el.innerHTML = `<div class="err">${esc(errMsg(e))}</div>`; return; }
   const el = $('#ph-gaji'); if (!el) return;
-  el.innerHTML = phGaji.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Peran</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Gaji pokok / bulan (Rp)</th></tr></thead><tbody>${phGaji.map((g, i) => `<tr><td>${esc(g.nama)}</td><td class="small">${esc(ROLES[g.peran] || g.peran)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(g.cabang))}</td>` : ''}<td class="r"><input class="inline-input num" id="gj-${i}" data-num value="${g.gaji || ''}" style="width:150px;text-align:right" aria-label="Gaji pokok ${esc(g.nama)}"></td></tr>`).join('')}</tbody></table></div>
+  el.innerHTML = phGaji.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Peran</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Gaji pokok / bulan (Rp)</th><th class="r">Komisi jasa % <span class="small muted">(mekanik)</span></th></tr></thead><tbody>${phGaji.map((g, i) => `<tr><td>${esc(g.nama)}</td><td class="small">${esc(ROLES[g.peran] || g.peran)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(g.cabang))}</td>` : ''}<td class="r"><input class="inline-input num" id="gj-${i}" data-num value="${g.gaji || ''}" style="width:150px;text-align:right" aria-label="Gaji pokok ${esc(g.nama)}"></td><td class="r">${g.peran === 'mekanik' ? `<input class="inline-input num" id="gk-${i}" type="number" data-raw min="0" max="100" step="0.5" value="${g.komisi || ''}" style="width:80px;text-align:right" aria-label="Komisi ${esc(g.nama)}">` : ''}</td></tr>`).join('')}</tbody></table></div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="gj-save">Simpan gaji pokok</button></div>` : '<div class="small muted">Belum ada karyawan.</div>';
 }
 
 views.master = renderMaster;
 refreshers.master = () => {};   // jangan timpa isian yang sedang diketik saat data berubah
+// Admin tidak bisa mengubah akunnya sendiri dari sini (dikunci juga di database); ganti PIN sendiri lewat tombol Ganti PIN
+const akunSendiri = s => { if (st.petugas?.super || s.id !== st.petugas?.loginId) return false; toast('Akun sendiri: ganti PIN lewat tombol Ganti PIN di bawah menu. Ubah nama/peran/hapus oleh super admin.'); return true; };
 fkeys.master = { baru: () => st.masterTab === 'kendaraan' ? 'ms-kadd' : null, simpan: () => st.masterTab === 'kendaraan' && kendEdit ? 'ms-ksave' : st.masterTab === 'tipe' ? 'tp-save' : st.masterTab === 'ksg' ? 'kt-save' : null };
 Object.assign(actions, {
   'ly-save': async () => { try { await setDoc(doc(db, 'publik', layarDocId()), { info: ($('#ly-info')?.value || '').trim() }, { merge: true }); toast('Teks layar disimpan'); } catch (e) { toast(errMsg(e)); } },
@@ -379,14 +384,18 @@ Object.assign(actions, {
       : phDraft.insentif.find(i => !i.tingkat.some(t => t.persen > 0)) ? `Isi persen insentif ${phDraft.insentif.find(i => !i.tingkat.some(t => t.persen > 0)).nama}` : '';
     if (salah) { toast(salah); return; }
     const { contoh, ...simpan } = phDraft;
-    try { await saveSettings({ penghasilan: simpan }); delete phDraft.contoh; toast('Aturan insentif & potongan disimpan'); renderInsentif(); } catch (e) { toast(errMsg(e)); }
+    if (!(await mintaPassword('Simpan aturan insentif & potongan', 'Berlaku untuk bulan yang belum dikunci.'))) { renderInsentif(); return; }
+    try { await setDoc(doc(db, 'penghasilan', 'aturan'), { ...simpan, diubah: stamp(new Date()), oleh: st.petugas.nama || st.petugas.email }); delete phDraft.contoh; toast('Aturan insentif & potongan disimpan'); renderInsentif(); } catch (e) { toast(errMsg(e)); }
   },
   'gj-save': async () => {
+    const ubah = phGaji.map((g, i) => ({ g, v: +($('#gj-' + i)?.value || 0), k: g.peran === 'mekanik' ? +String($('#gk-' + i)?.value || 0).replace(',', '.') : undefined }))
+      .filter(x => x.v !== (x.g.gaji || 0) || (x.k !== undefined && x.k !== (x.g.komisi || 0)));
+    if (!ubah.length) { toast('Tidak ada perubahan'); return; }
+    if (!(await mintaPassword('Simpan gaji pokok', ubah.length + ' karyawan berubah.'))) return;
     try {
       const b = writeBatch(db);
-      phGaji.forEach((g, i) => { const v = +($('#gj-' + i)?.value || 0); if (v === (g.gaji || 0)) return; g.gaji = v;
-        if (g.jenis === 'staff') b.set(doc(db, 'staff', g.email), { gaji: v }, { merge: true }); else b.update(doc(db, 'mekanik', g.id), { gaji: v }); });
-      await b.commit(); resetStaffGaji(); toast('Gaji pokok disimpan');
+      ubah.forEach(({ g, v, k }) => { g.gaji = v; if (k !== undefined) g.komisi = k; b.set(doc(db, 'gaji', g.kunci), { nama: g.nama, peran: g.peran, cabang: g.cabang || CABANG_UTAMA, gaji: v, ...(k !== undefined ? { komisi: k } : {}) }, { merge: true }); });
+      await b.commit(); resetStaffGaji(); toast('Gaji pokok disimpan'); renderInsentif();
     } catch (e) { toast(errMsg(e)); }
   },
   'ms-tab': el => { phDraft = null; phGaji = null; st.masterTab = el.dataset.t; kendEdit = null; renderMaster(); },
@@ -408,12 +417,12 @@ Object.assign(actions, {
   'js-add': async () => { const nama = $('#js-n-new').value.trim(); if (!nama) { toast('Isi nama jasa'); return; } try { await addDoc(collection(db, 'jasa'), { nama, harga: +$('#js-h-new').value || 0, aktif: true, urut: S.jasa.length }); toast('Jasa ' + nama + ' ditambahkan'); renderJasa(); } catch (e) { toast(errMsg(e)); } },
   'js-del': el => confirmTwice(el, 'j' + el.dataset.id, async () => { try { await deleteDoc(doc(db, 'jasa', el.dataset.id)); toast('Jasa dihapus'); renderJasa(); } catch (e) { toast(errMsg(e)); } }),
   'kt-save': saveKsg,
-  'mm-save': async el => { const id = el.dataset.id, nama = $('#mm-n-' + id).value.trim(); if (!nama) { toast('Nama mekanik wajib diisi'); return; } const m = S.mekanik.find(x => x.id === id); try { await updateDoc(doc(db, 'mekanik', id), { nama, gaji: +$('#mm-g-' + id).value || 0, komisi: +$('#mm-k-' + id).value || 0, aktif: $('#mm-a-' + id).checked }); if (m?.loginId && m.nama !== nama) await ubahPetugas(m.loginId, { nama }); toast('Mekanik ' + nama + ' disimpan'); } catch (e) { toast(errMsg(e)); } },
+  'mm-save': async el => { const id = el.dataset.id, nama = $('#mm-n-' + id).value.trim(); if (!nama) { toast('Nama mekanik wajib diisi'); return; } const m = S.mekanik.find(x => x.id === id); try { await updateDoc(doc(db, 'mekanik', id), { nama, aktif: $('#mm-a-' + id).checked }); if (m?.loginId && m.nama !== nama) await ubahPetugas(m.loginId, { nama }); toast('Mekanik ' + nama + ' disimpan'); } catch (e) { toast(errMsg(e)); } },
   'mm-add': async () => {
     const nama = $('#mm-n-new').value.trim(), pin = $('#mm-p-new').value.trim(); if (!nama) { toast('Isi nama mekanik'); return; }
     if (pin && !validPin(pin)) { toast('PIN harus 6 angka (atau kosongkan dulu)'); return; }
     try {
-      const ref = await addDoc(collection(db, 'mekanik'), { nama, cabang: cabAktif(), gaji: +$('#mm-g-new').value || 0, komisi: +$('#mm-k-new').value || 0, aktif: true });
+      const ref = await addDoc(collection(db, 'mekanik'), { nama, cabang: cabAktif(), aktif: true });
       if (pin) { const { id: loginId } = await tambahPetugas({ nama, peran: 'mekanik', pin, mekanikId: ref.id, cabang: cabAktif() }); await updateDoc(ref, { loginId }); }
       toast('Mekanik ' + nama + ' ditambahkan' + (pin ? ' dengan PIN' : '')); logins = null; renderMek();
     } catch (e) { toast(pinErr(e)); }
@@ -424,9 +433,9 @@ Object.assign(actions, {
   'rk-save': async el => { const i = +el.dataset.i, list = [...(S.settings.rekening || [])]; list[i] = { ...list[i], ...rekData(i), aktif: $('#rk-x-' + i).checked }; try { await saveSettings({ rekening: list }); toast('Rekening disimpan'); } catch (e) { toast(errMsg(e)); } },
   'rk-del': el => confirmTwice(el, 'r' + el.dataset.i, async () => { const list = (S.settings.rekening || []).filter((_, i) => i !== +el.dataset.i); try { await saveSettings({ rekening: list }); toast('Rekening dihapus (transaksi lama tetap tercatat)'); setTimeout(renderRek, 50); } catch (e) { toast(errMsg(e)); } }),
   'tp-save': async () => { const tipe = [...new Set($('#tp-list').value.split('\n').map(s => s.trim()).filter(Boolean))]; if (!tipe.length) { toast('Isi minimal satu tipe'); return; } try { await saveSettings({ tipe }); toast(tipe.length + ' tipe motor disimpan'); } catch (e) { toast(errMsg(e)); } },
-  'sf-save': async el => { const i = +el.dataset.i, s = logins[i]; try { await ubahPetugas(s.id, { nama: $('#sf-n-' + i).value.trim() || s.nama, peran: $('#sf-r-' + i).value, cabang: $('#sf-c-' + i)?.value || s.cabang || CABANG_UTAMA }); toast('Petugas ' + s.nama + ' disimpan'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } },
-  'sf-pin': el => { const s = logins[+el.dataset.i]; askPin('PIN baru untuk ' + s.nama, async pin => { await resetPin(s.id, pin); toast('PIN ' + s.nama + ' diganti'); logins = null; setTimeout(renderStaff, 50); }); },
-  'sf-del': el => { const s = logins[+el.dataset.i]; confirmTwice(el, 's' + s.id, async () => { try { await hapusPetugas(s.id); toast(s.nama + ' dihapus, tidak bisa login lagi'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } }); },
+  'sf-save': async el => { const i = +el.dataset.i, s = logins[i]; if (akunSendiri(s)) return; try { await ubahPetugas(s.id, { nama: $('#sf-n-' + i).value.trim() || s.nama, peran: $('#sf-r-' + i).value, cabang: $('#sf-c-' + i)?.value || s.cabang || CABANG_UTAMA }); toast('Petugas ' + s.nama + ' disimpan'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } },
+  'sf-pin': el => { const s = logins[+el.dataset.i]; if (akunSendiri(s)) return; askPin('PIN baru untuk ' + s.nama, async pin => { await resetPin(s.id, pin); toast('PIN ' + s.nama + ' diganti'); logins = null; setTimeout(renderStaff, 50); }); },
+  'sf-del': el => { const s = logins[+el.dataset.i]; if (akunSendiri(s)) return; confirmTwice(el, 's' + s.id, async () => { try { await hapusPetugas(s.id); toast(s.nama + ' dihapus, tidak bisa login lagi'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } }); },
   'lg-save': async () => { try { await saveLogo(logoDraft); logoDraft = null; toast('Logo dipasang'); renderLogo(); } catch (e) { toast(errMsg(e)); } },
   'lg-cancel': () => { logoDraft = null; renderLogo(); },
   'lg-del': el => confirmTwice(el, 'logo', async () => { try { await saveLogo(''); logoDraft = null; toast('Logo dihapus'); renderLogo(); } catch (e) { toast(errMsg(e)); } }),

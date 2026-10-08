@@ -4,7 +4,8 @@ import { $, esc, rp, toast, errMsg, waButton } from './util.js';
 import { S, st, views, refreshers, actions, go, can } from './state.js';
 import { db, doc, getDoc, getDocs, query, collection, where } from './firebase.js';
 import { cariKendaraan, nopolKey } from './cari-kendaraan.js';
-import { AKTIF, statusPill, jenisBadge, timelineHTML, mekanikNama, woCalc, normJasa, fmtAntri } from './wo-common.js';
+import { AKTIF, statusPill, jenisBadge, timelineHTML, mekanikNama, woCalc, normJasa, fmtAntri, pantauKey } from './wo-common.js';
+import { sah } from './data-trx.js';
 import { stepperHTML, kartuRiwayat, ringkasRiwayat, tglID } from './riwayat-ui.js';
 import { showNota, cekLink } from './nota.js';
 import { namaCabang, cabangOf, multiCabang } from './cabang.js';
@@ -48,10 +49,21 @@ async function muat(nopol) {
   renderDetail(); $('#rw-detail')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   try {
     const ks = await getDoc(doc(db, 'kendaraan', key)), kend = ks.exists() ? ks.data() : null;
-    const varian = [...new Set([nopol, kend?.nopol, key, String(nopol).toUpperCase().replace(/\s+/g, ' ')].filter(Boolean))].slice(0, 10);
-    const ts = await getDocs(query(collection(db, 'trx'), where('nopol', 'in', varian)));
+    let trx;
+    if (st.role === 'admin') {
+      const varian = [...new Set([nopol, kend?.nopol, key, String(nopol).toUpperCase().replace(/\s+/g, ' ')].filter(Boolean))].slice(0, 10);
+      const ts = await getDocs(query(collection(db, 'trx'), where('nopol', 'in', varian)));
+      trx = ts.docs.map(d => d.data()).filter(sah);
+    } else {
+      // Karyawan hanya boleh membaca nota cabangnya; riwayat lintas cabang diambil dari ringkasan cek servis konsumen
+      const hp = kend?.hp || woKendaraan(key)[0]?.hp, pk = hp ? await pantauKey(kend?.nopol || nopol, hp) : '';
+      const ps = pk ? await getDoc(doc(db, 'pantau', pk)) : null;
+      const dariPantau = ps?.exists() ? (ps.data().riwayat || []) : [];
+      const lokal = S.trx.filter(t => nopolKey(t.nopol) === key && !dariPantau.some(x => x.no === t.no));
+      trx = [...dariPantau, ...lokal];
+    }
     if (ke !== cariKe) return;
-    detail = { key, nopol: kend?.nopol || nopol, kend, trx: ts.docs.map(d => d.data()).sort((a, b) => b.tgl.localeCompare(a.tgl)), loading: false };
+    detail = { key, nopol: kend?.nopol || nopol, kend, trx: trx.sort((a, b) => b.tgl.localeCompare(a.tgl)), loading: false };
   } catch (e) { if (ke === cariKe) detail = { key, nopol, error: errMsg(e) }; }
   renderDetail();
 }

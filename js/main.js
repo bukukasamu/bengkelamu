@@ -16,7 +16,13 @@ import './beranda.js';
 import './registrasi.js';
 import './riwayat.js';
 import './insight.js';
+import './opname.js';
+import './keuangan.js';
+import './backup.js';
+import { adaAbsenTertunda, cekAbsenTertunda } from './absensi.js';
+import { pantauPersetujuan } from './persetujuan.js';
 import { setPhLoadedFrom } from './penghasilan.js';
+import { sah } from './data-trx.js';
 import './order.js';
 import './bayar.js';
 import './mekanik.js';
@@ -170,6 +176,7 @@ onAuthStateChanged(auth, async u => {
   renderSidebar();
   let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
   st.view = last && can(last) ? last : HOME[st.role];
+  if (adaAbsenTertunda() && can('absensi') && !st.petugas.super) st.view = 'absensi';
   go(st.view);
   $('#view').innerHTML = loaderHTML('Memuat data bengkel…');
   subscribe();
@@ -181,21 +188,35 @@ function subscribe() {
   const from = dkey(new Date(now.getFullYear(), now.getMonth() - 1, 1));   // awal bulan lalu: cukup untuk grafik, laporan & gaji mekanik
   setLoadedFrom(from); setPhLoadedFrom(from);
   const fail = e => { $('#view').innerHTML = '<div class="panel"><div class="err">Gagal memuat data: ' + esc(errMsg(e)) + '</div></div>'; };
-  need = ['parts', 'trx', 'wo', 'jasa', 'mekanik', 'settings'];
+  need = ['parts', 'trx', 'wo', 'jasa', 'mekanik', 'settings', 'aturan'];
+  if (st.role !== 'admin') need.push('woAktif');
   if (can('pembelian')) need.push('pembelian');
   const mark = k => {
     ready[k] = true;
-    if (need.every(n => ready[n])) { if (!st.loaded) { st.loaded = true; seedMaster(); go(st.view); } else refresh(); }
+    if (need.every(n => ready[n])) { if (!st.loaded) { st.loaded = true; seedMaster(); go(st.view); cekAbsenTertunda(); } else refresh(); }
   };
   const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, fail));
   sub(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
-  sub(query(collection(db, 'trx'), where('tgl', '>=', from)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
-  // Semua cabang dimuat lalu disaring di perangkat (tanpa indeks tambahan di Firestore)
-  sub(query(collection(db, 'wo'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
   sub(collection(db, 'jasa'), 'jasa', s => { S.jasa = s.docs.map(d => ({ id: d.id, ...d.data() })); });
   sub(collection(db, 'mekanik'), 'mekanik', s => { raw.mekanik = s.docs.map(d => ({ id: d.id, ...d.data() })); });
   sub(doc(db, 'meta', 'settings'), 'settings', s => { S.settings = s.exists() ? s.data() : {}; });
-  if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(300)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()); });
+  sub(doc(db, 'penghasilan', 'aturan'), 'aturan', s => { S.aturan = s.exists() ? s.data() : null; });
+  if (st.role === 'admin') {
+    // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
+    sub(query(collection(db, 'trx'), where('tgl', '>=', from)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    sub(query(collection(db, 'wo'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
+    if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(300)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()); });
+  } else {
+    // Karyawan: hanya data cabangnya (dikunci juga oleh aturan database). Dua bulan terakhir + WO yang masih aktif.
+    const cab = cabAktif(), bulan = [from.slice(0, 7), dkey(now).slice(0, 7)];
+    sub(query(collection(db, 'trx'), where('cabang', '==', cab), where('bulan', 'in', bulan)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    let woBulan = [], woAktif = [];
+    const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
+    sub(query(collection(db, 'wo'), where('cabang', '==', cab), where('bulan', 'in', bulan)), 'wo', s => { woBulan = s.docs.map(d => d.data()); gabungWo(); });
+    sub(query(collection(db, 'wo'), where('cabang', '==', cab), where('aktif', '==', true)), 'woAktif', s => { woAktif = s.docs.map(d => d.data()); gabungWo(); });
+    if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
+  }
+  pantauPersetujuan(unsubs);
   unsubs.push(watchCabang(() => { if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA; renderCabangBox(); if (st.loaded) { terapkanCabang(); refresh(); } }));
 }
 
@@ -206,7 +227,9 @@ const raw = { parts: [], trx: [], wo: [], mekanik: [], pembelian: [] };
 function terapkanCabang() {
   const cab = cabAktif(), ini = d => diCabang(d, cab);
   setParts(raw.parts.map(p => ({ ...p, stok: stokOf(p, cab), stokSemua: stokTotal(p) })));
-  S.trxSemua = raw.trx; S.trx = raw.trx.filter(ini);
+  const sahTrx = raw.trx.filter(sah);
+  S.trxBatal = raw.trx.filter(t => !sah(t) && ini(t));
+  S.trxSemua = sahTrx; S.trx = sahTrx.filter(ini);
   S.woSemua = raw.wo; S.wo = raw.wo.filter(ini);
   S.mekanikSemua = raw.mekanik; S.mekanik = raw.mekanik.filter(ini);
   S.pembelian = raw.pembelian.filter(ini);

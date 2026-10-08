@@ -4,6 +4,7 @@ import { S, st, namaPetugas, actions, changeHandlers } from './state.js';
 import { db, doc, collection, writeBatch, addDoc } from './firebase.js';
 import { CABANG_UTAMA, cabAktif, stokSet } from './cabang.js';
 import { parseSheet, planImport, LABEL } from './excel-parser.js';
+import { mintaPassword } from './otorisasi.js';
 
 let XLSX = null;
 export async function loadXLSX() {
@@ -15,6 +16,7 @@ let parsed = null, fileName = '';
 const BATCH = 400; // Firestore maksimal 500 tulisan per batch
 
 function openImport() {
+  if (!st.petugas?.super) { toast('Import Excel hanya untuk super admin'); return; }
   parsed = null;
   modal(`<div class="row spread"><h2>Import part dari Excel</h2><button class="btn sm ghost" type="button" data-close="1" aria-label="Tutup">✕</button></div>
    <p class="small" style="margin:0">Format yang dikenali otomatis:</p>
@@ -67,9 +69,11 @@ function renderPreview() {
 
 async function runImport() {
   if (st.saving || !parsed) return;
+  // Import mengubah banyak data sekaligus: hanya super admin, dengan kata sandi
   const plan = planImport(parsed.items, parsed.cols, S.map, currentMode());
   const ops = [...plan.baru.map(p => [p.kode, p]), ...plan.ubah.map(u => [u.kode, u.patch])];
   if (!ops.length) return;
+  if (!(await mintaPassword('Import data part dari Excel', `${plan.baru.length} part baru, ${plan.ubah.length} diperbarui.`))) return;
   st.saving = true;
   const btn = document.querySelector('[data-act="import-run"]'); if (btn) btn.disabled = true;
   let done = 0;

@@ -4,6 +4,7 @@ import { S, st, part, emptyCart, namaPetugas, idPetugas, views, refreshers, acti
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { cabAktif, stokOf, stokField } from './cabang.js';
+import { catatMutasi, dataMutasi } from './kontrol.js';
 import { showNota } from './nota.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { dipesan } from './wo-common.js';
@@ -93,8 +94,8 @@ async function saveSale() {
       const { no, counter } = nextNumber(cs, 'PJ', cab);
       const trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', nopol: '', items, jasa: [], diskon, total, ...payRecord(c.pay, total), kasir: namaPetugas(), kasirId: idPetugas() };
       tx.set(counterRef(cab), counter);
-      items.forEach((x, i) => tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }));
-      tx.set(doc(db, 'trx', no), { ...trx, dibuat: serverTimestamp() });
+      items.forEach((x, i) => { tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }); catatMutasi(tx, dataMutasi(cab, x.kode, x.nama, -x.qty, 'jual', no)); });
+      tx.set(doc(db, 'trx', no), { ...trx, bulan: trx.tgl.slice(0, 7), dibuat: serverTimestamp() });
       return trx;
     });
     st.lastNota = t; st.cart = emptyCart(); renderKasir(); showNota(t);

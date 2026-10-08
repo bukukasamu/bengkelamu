@@ -5,6 +5,7 @@ import { S, st, part, views, refreshers, actions, inputHandlers, changeHandlers,
 import { db, doc, runTransaction, setDoc, updateDoc, deleteDoc } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { cabAktif, cabangOf, stokOf, stokField, stokTotal } from './cabang.js';
+import { catatMutasi, dataMutasi } from './kontrol.js';
 
 const blank = () => ({ no: null, tglInvoice: dkey(new Date()), noInvoice: '', supplier: '', statusBayar: 'Belum lunas', jatuhTempo: '', totalInvoice: '', catatan: '', items: [], status: 'Draft' });
 const totalOf = items => items.reduce((a, x) => a + (+x.qty || 0) * (+x.harga || 0), 0);
@@ -116,7 +117,7 @@ async function saveDraft(silent) {
         const cs = await tx.get(counterRef());
         const { no, counter } = nextNumber(cs, 'PB');
         tx.set(counterRef(), counter);
-        tx.set(doc(db, 'pembelian', no), { ...toDoc({ ...p, no }), cabang: cabAktif(), input: stamp(new Date()), dibuatOleh: namaPetugas() });
+        tx.set(doc(db, 'pembelian', no), { ...toDoc({ ...p, no }), cabang: cabAktif(), bulan: dkey(new Date()).slice(0, 7), input: stamp(new Date()), dibuatOleh: namaPetugas() });
         return no;
       });
     } else await setDoc(doc(db, 'pembelian', p.no), toDoc(p), { merge: true });
@@ -161,6 +162,7 @@ async function receive() {
         const cab = cabangOf(p), cur = s.data(), s0 = Math.max(0, stokTotal(cur)), q = +p.items[i].qty, h = +p.items[i].harga;
         const beli = s0 + q ? Math.round((s0 * (cur.beli || 0) + q * h) / (s0 + q)) : h;
         tx.update(refs[i], { [stokField(cab)]: stokOf(cur, cab) + q, beli });
+        catatMutasi(tx, dataMutasi(cab, p.items[i].kode, cur.nama || p.items[i].nama, q, 'beli', p.no, p.supplier + ' ' + p.noInvoice));
       });
       tx.update(ref, { status: 'Diterima', tglTerima: stamp(new Date()), diterimaOleh: namaPetugas(), ...(p.statusBayar === 'Lunas' ? { tglBayar: p.tglBayar || dkey(new Date()) } : {}) });
     });

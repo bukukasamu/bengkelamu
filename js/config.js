@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '3.4.0';
+export const APP_VERSION = '4.1.1';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
@@ -24,6 +24,7 @@ export const ROLES = {
 // Menu yang tampil di sidebar, dikelompokkan, beserta peran yang boleh membukanya.
 export const MENUS = [
   { id: 'beranda', label: 'Beranda', group: 'Utama', roles: ['admin', 'registrasi', 'sparepart', 'kasir'] },
+  { id: 'persetujuan', label: 'Persetujuan', group: 'Utama', roles: ['admin'] },   // admin biasa: hanya aktivasi layar absen
   { id: 'registrasi', label: 'Registrasi Servis', group: 'Bengkel', roles: ['admin', 'registrasi'] },
   { id: 'riwayat', label: 'Riwayat Kendaraan', group: 'Bengkel', roles: ['admin', 'registrasi', 'kasir', 'sparepart'] },
   { id: 'order', label: 'Order Sparepart', group: 'Bengkel', roles: ['admin', 'sparepart'] },
@@ -31,12 +32,17 @@ export const MENUS = [
   { id: 'mekanik', label: 'Performa Mekanik', group: 'Bengkel', roles: ['admin', 'mekanik'] },
   { id: 'kasir', label: 'Penjualan Sparepart', group: 'Sparepart', roles: ['admin', 'kasir'] },
   { id: 'stok', label: 'Stok Part', group: 'Sparepart', roles: ['admin', 'sparepart'] },
+  { id: 'opname', label: 'Stok Opname', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'pembelian', label: 'Pembelian Stok', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'laporan', label: 'Laporan Penjualan', group: 'Keuangan', roles: ['admin', 'kasir'] },
+  { id: 'kas', label: 'Kas & Pengeluaran', group: 'Keuangan', roles: ['admin', 'kasir'] },
+  { id: 'klaim', label: 'Klaim KSG', group: 'Keuangan', roles: ['admin', 'kasir'] },
   { id: 'insight', label: 'Insight Konsumen', group: 'Keuangan', roles: ['admin'] },
+  { id: 'backup', label: 'Backup Data', group: 'Pengaturan', roles: ['admin'], superOnly: true },
   { id: 'master', label: 'Master Data', group: 'Pengaturan', roles: ['admin', 'registrasi'] },
+  { id: 'absensi', label: 'Absensi Saya', group: 'Akun Saya', superLabel: 'Absensi Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] },
   // Penghasilan pribadi dipisah dari laporan toko; admin melihat rekap semua karyawan
-  { id: 'penghasilan', label: 'Penghasilan Saya', group: 'Akun Saya', adminLabel: 'Penghasilan Karyawan', adminGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] }
+  { id: 'penghasilan', label: 'Penghasilan Saya', group: 'Akun Saya', superLabel: 'Penghasilan Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] }
 ];
 // Halaman pertama setelah login
 export const HOME = { admin: 'beranda', registrasi: 'registrasi', sparepart: 'order', kasir: 'bayar', mekanik: 'mekanik' };

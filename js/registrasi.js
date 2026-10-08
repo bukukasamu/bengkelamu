@@ -168,7 +168,8 @@ async function save(opts = {}) {
     const no = await saveWo(w);
     w.no = no;
     const kend = Object.fromEntries(KEND_FIELDS.map(f => [f, f === 'stnkSama' ? w[f] !== false : (w[f] || '')]));
-    await setDoc(doc(db, 'kendaraan', nopolKey(w.nopol)), { ...kend, nopolKey: nopolKey(w.nopol), hpNorm: waNumber(w.hp), km: w.km || '', updated: stamp(new Date()), woTerakhir: no }, { merge: true });
+    const kRef = doc(db, 'kendaraan', nopolKey(w.nopol)), kAda = (await getDoc(kRef).catch(() => null))?.exists() ?? true;
+    await setDoc(kRef, { ...kend, ...(kAda === false ? { dibuat: stamp(new Date()) } : {}), nopolKey: nopolKey(w.nopol), hpNorm: waNumber(w.hp), km: w.km || '', updated: stamp(new Date()), woTerakhir: no }, { merge: true });
     w.dataKurang = false;
     syncPantau(w);
     toast(`Antrian ${fmtAntri(w.antrian)} · ${w.nopol} disimpan`);

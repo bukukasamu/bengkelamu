@@ -3,6 +3,7 @@ import { $, esc, toast, modal, waLink, waNumber, publicUrl } from './util.js';
 import { S, st, actions, inputHandlers } from './state.js';
 import { APP_NAME, APP_SUB } from './config.js';
 import { cabangById, cabangOf, multiCabang } from './cabang.js';
+import { batalHTML, tombolBatal } from './kontrol.js';
 
 const n = x => Math.round(x || 0).toLocaleString('id-ID');
 
@@ -64,10 +65,11 @@ export function showNota(t) {
   if (!t) { toast('Belum ada nota untuk dicetak'); return; }
   current = t;
   import('./nota-pdf.js').then(m => m.preloadPdf()).catch(() => {});   // siapkan pembuat PDF lebih awal
-  modal(`<div class="row spread"><h2>Nota ${esc(t.no)}</h2><span class="pill p-good">Tersimpan</span></div>
+  modal(`<div class="row spread"><h2>Nota ${esc(t.no)}</h2>${t.batal?.status === 'disetujui' ? '<span class="pill p-bad">Dibatalkan</span>' : '<span class="pill p-good">Tersimpan</span>'}</div>
+   ${batalHTML(t)}
    <div class="nota" id="nota-text">${esc(notaText(t))}</div>
    <label class="f" for="nota-hp"><span class="f-wa">No. WhatsApp konsumen<span class="small muted" id="nota-hp-ok"></span></span><input id="nota-hp" inputmode="tel" value="${esc(t.hp || '')}" placeholder="mis. 0812 xxxx xxxx"></label>
-   <div class="row" style="justify-content:flex-end"><button class="btn" data-act="print" type="button">Cetak</button><button class="btn" data-act="nota-pdf" type="button">Unduh PDF</button><button class="btn wa-solid" data-act="nota-wa" type="button">Kirim PDF via WA</button><button class="btn pri" data-close="1" type="button">Tutup</button></div>`);
+   <div class="row" style="justify-content:flex-end">${tombolBatal(t)}<button class="btn" data-act="print" type="button">Cetak</button><button class="btn" data-act="nota-pdf" type="button">Unduh PDF</button><button class="btn wa-solid" data-act="nota-wa" type="button">Kirim PDF via WA</button><button class="btn pri" data-close="1" type="button">Tutup</button></div>`);
   checkHp();
 }
 const checkHp = () => { const ok = $('#nota-hp-ok'); if (ok) ok.textContent = waNumber($('#nota-hp')?.value) ? '✓ nomor valid' : ''; };

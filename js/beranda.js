@@ -5,6 +5,9 @@ import { AKTIF, statusPill, jenisBadge, mekanikNama, sibukOleh, durasi, fmtDur }
 import { trxIn, sums } from './stats.js';
 import { db, doc, writeBatch } from './firebase.js';
 import { SEED_PARTS } from './seed.js';
+import { perluMigrasi, jalankanMigrasi } from './migrasi.js';
+import { perluBackup, umurBackup } from './backup.js';
+import { mintaPassword } from './otorisasi.js';
 
 function chartSVG() {
   const days = [], now = new Date();
@@ -38,7 +41,10 @@ function renderBeranda() {
   const woToday = S.wo.filter(w => w.tgl.slice(0, 10) === t);
   const aktif = S.wo.filter(w => AKTIF.includes(w.status));
   const seedBox = S.parts.length || !can('stok') ? '' : `<div class="panel"><h3>Database part masih kosong</h3><p style="margin:0">Upload data part dari Excel (ekspor DMS Yamaha atau template sendiri), atau isi 20 part contoh untuk mencoba.</p><div class="row">${can('stok') ? '<button class="btn pri" type="button" data-act="import-open">Import dari Excel</button>' : ''}<button class="btn" type="button" data-act="seed">Isi 20 part contoh</button></div></div>`;
-  $('#view').innerHTML = `<div class="grid">${seedBox}
+  const migrasiBox = st.petugas?.super && perluMigrasi() ? `<div class="panel migrasi"><h3>Pembaruan data versi 4 diperlukan</h3><p style="margin:0">Sekali saja: nota/WO/pembelian lama diberi kode cabang (untuk kunci data per cabang), gaji pokok dipindah ke tempat privat, dan aturan insentif dipindah ke pengaturan khusus super admin. Lakukan <b>sebelum</b> publish <code>firestore.rules</code> versi 4.</p><div class="row"><button class="btn pri" type="button" data-act="migrasi-run">Perbarui data sekarang</button><span class="small muted" id="migrasi-info"></span></div></div>` : '';
+  const bu = umurBackup();
+  const backupBox = st.petugas?.super && !perluMigrasi() && perluBackup() ? `<div class="panel migrasi"><h3>${bu == null ? 'Data belum pernah di-backup' : 'Backup terakhir ' + bu + ' hari lalu'}</h3><p style="margin:0">Unduh backup seluruh data minimal seminggu sekali dan simpan di Google Drive + flashdisk/laptop.</p><div class="row"><button class="btn pri" type="button" data-act="go-backup">Backup sekarang</button></div></div>` : '';
+  $('#view').innerHTML = `<div class="grid">${migrasiBox}${backupBox}${seedBox}
    <div class="tiles">
     <button class="tile click" type="button" data-act="hr-trx"><span class="lbl">Omzet hari ini</span><span class="val">${rp(s.total)}</span><span class="sub">${s.n} transaksi · lihat nota</span></button>
     <button class="tile click" type="button" data-act="hr-part"><span class="lbl">Part terjual</span><span class="val">${s.qty} pcs</span><span class="sub">${rp(s.part)} · lihat item</span></button>
@@ -94,6 +100,7 @@ actions['hr-wo'] = () => {
    ${l.length ? `<div class="tw"><table><thead><tr><th>Nopol</th><th>Motor</th><th>Mekanik</th><th>Status</th><th class="r">Lama dikerjakan</th></tr></thead><tbody>${l.map(w => `<tr class="row-click" tabindex="0" data-act="hr-woopen" data-no="${esc(w.no)}"><td class="mono">${esc(w.nopol)}<br>${jenisBadge(w)}</td><td>${esc(w.tipe)}<br><span class="small muted">${esc(w.nama || '')}</span></td><td>${esc(mekanikNama(w) || '–')}</td><td>${statusPill(w.status)}</td><td class="r num">${fmtDur(durasi(w)?.kerja ?? null)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada motor masuk hari ini.</div>'}${tutup}`, 'wide');
 };
 actions['go-stok'] = () => go('stok');
+actions['go-backup'] = () => go('backup');
 actions['go-low'] = () => {
   if (can('stok')) { st.stokLow = true; go('stok'); return; }
   const low = S.parts.filter(p => p.min > 0 && p.stok <= p.min);
@@ -111,3 +118,13 @@ actions['hr-woopen'] = el => {
 actions['hr-mek'] = el => { if (!can('mekanik')) return; st.mekSel = el.dataset.id; go('mekanik'); };
 // Klik part yang perlu dipesan: buka data part di Stok Part
 actions['hr-partedit'] = el => { if (!can('stok')) { actions['go-low'](); return; } go('stok'); actions['part-edit']?.({ dataset: { k: el.dataset.k } }); };
+
+actions['migrasi-run'] = async el => {
+  if (!(await mintaPassword('Perbarui data ke versi 4', 'Membaca semua nota, WO, dan pembelian sekali untuk diberi kode cabang.'))) return;
+  const info = () => document.getElementById('migrasi-info');
+  if (el) el.disabled = true;
+  try {
+    const r = await jalankanMigrasi(t => { if (info()) info().textContent = t; });
+    toast(`Data diperbarui: ${r.trx} nota, ${r.wo} WO, ${r.pembelian} pembelian, ${r.gaji} data gaji dipindah.`);
+  } catch (e) { toast('Pembaruan gagal: ' + errMsg(e)); if (el) el.disabled = false; }
+};

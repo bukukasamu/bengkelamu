@@ -85,15 +85,17 @@ export async function saveWo(w) {
       // nomor antrian harian ikut dibuat di transaksi yang sama supaya tidak pernah kembar
       counter.AN = (counter.AN || 0) + 1; w.antrian = counter.AN; w.antrianTgl = counter.day;
       tx.set(counterRef(), counter);
-      tx.set(doc(db, 'wo', no), { ...clone({ ...w, no, cabang: w.cabang || cabAktif() }), dibuatOleh: namaPetugas(), dibuatOlehId: idPetugas() });
+      tx.set(doc(db, 'wo', no), { ...clone({ ...w, no, cabang: w.cabang || cabAktif(), bulan: String(w.tgl || stamp(new Date())).slice(0, 7), aktif: AKTIF.includes(w.status) }), dibuatOleh: namaPetugas(), dibuatOlehId: idPetugas() });
       return no;
     });
   }
   const { no, ...data } = clone(w);
+  if ('status' in data) data.aktif = AKTIF.includes(data.status);
   await updateDoc(doc(db, 'wo', no), data);
   return no;
 }
-export const updateWo = (no, patch) => updateDoc(doc(db, 'wo', no), clone(patch));
+// aktif = masih di bengkel; dipakai untuk memuat WO aktif per cabang tanpa indeks tambahan
+export const updateWo = (no, patch) => updateDoc(doc(db, 'wo', no), clone('status' in patch ? { ...patch, aktif: AKTIF.includes(patch.status) } : patch));
 export const findWo = no => S.wo.find(x => x.no === no);
 
 /* ---------- Catatan waktu servis ----------
