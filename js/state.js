@@ -29,6 +29,8 @@ export const st = {
   masterTab: 'kendaraan'
 };
 export const namaPetugas = () => (st.petugas && (st.petugas.nama || st.petugas.email)) || '';
+// ID tetap petugas (tidak berubah walau nama diganti) untuk menghitung penjualan pribadi / insentif
+export const idPetugas = () => (st.petugas && (st.petugas.loginId || st.petugas.email)) || '';
 export const can = menuId => !!MENUS.find(m => m.id === menuId)?.roles.includes(st.role);
 export const isRole = (...r) => r.includes(st.role);
 

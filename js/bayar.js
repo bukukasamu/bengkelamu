@@ -3,7 +3,7 @@
 // 2. Motor Selesai: cek jasa, sparepart, biaya lain, diskon, terima pembayaran cash / transfer / campur.
 import { $, esc, rp, stamp, clone, toast, errMsg, waButton } from './util.js';
 import { APP_NAME } from './config.js';
-import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas, idPetugas } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo, logStatus, timelineHTML, durasi, syncPantau, panggilLayar, fmtAntri } from './wo-common.js';
@@ -146,7 +146,7 @@ async function confirm() {
       const { no, counter } = nextNumber(cs, 'SV', cab);
       const log = logStatus(ws.data().log, 'Lunas'), waktu = durasi({ log });
       const trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', hp: w.hp || '', nopol: w.nopol, tipe: w.tipe || '', km: w.km || '', waktu, mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
-        jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', keluhan: w.keluhan || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas() };
+        jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', keluhan: w.keluhan || '', registrasiOleh: ws.data().dibuatOleh || '', registrasiId: ws.data().dibuatOlehId || '', orderOleh: ws.data().orderOleh || '', orderOlehId: ws.data().orderOlehId || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas(), kasirId: idPetugas() };
       tx.set(counterRef(cab), counter);
       items.forEach((x, i) => tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }));
       tx.set(doc(db, 'trx', no), { ...trx, dibuat: serverTimestamp() });

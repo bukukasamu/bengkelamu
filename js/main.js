@@ -15,6 +15,7 @@ import { setLoadedFrom } from './laporan.js';
 import './beranda.js';
 import './registrasi.js';
 import './riwayat.js';
+import { setPhLoadedFrom } from './penghasilan.js';
 import './order.js';
 import './bayar.js';
 import './mekanik.js';
@@ -177,7 +178,7 @@ onAuthStateChanged(auth, async u => {
 function subscribe() {
   const now = new Date();
   const from = dkey(new Date(now.getFullYear(), now.getMonth() - 1, 1));   // awal bulan lalu: cukup untuk grafik, laporan & gaji mekanik
-  setLoadedFrom(from);
+  setLoadedFrom(from); setPhLoadedFrom(from);
   const fail = e => { $('#view').innerHTML = '<div class="panel"><div class="err">Gagal memuat data: ' + esc(errMsg(e)) + '</div></div>'; };
   need = ['parts', 'trx', 'wo', 'jasa', 'mekanik', 'settings'];
   if (can('pembelian')) need.push('pembelian');

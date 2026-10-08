@@ -7,6 +7,7 @@ import { db, doc, getDoc, collection, getDocs, writeBatch, query, orderBy, limit
 import { nopolKey } from './registrasi.js';
 import { statusPill, rebuildPantau, syncLayar } from './wo-common.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
+import { SUMBER, cfgPenghasilan, resetStaffGaji } from './penghasilan.js';
 import { CABANG_UTAMA, cabangList, namaCabang, multiCabang, cabAktif, simpanCabang, layarDocId } from './cabang.js';
 import { loadXLSX } from './import-excel.js';
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
@@ -21,6 +22,7 @@ const TABS = [
   ['petugas', 'Petugas & PIN', ['admin']],
   ['layar', 'Layar TV', ['admin']],
   ['cabang', 'Cabang', ['admin']],
+  ['insentif', 'Insentif & Potongan', ['admin'], 'super'],
   ['logo', 'Logo', ['admin'], 'super']
 ];
 const tabsFor = () => TABS.filter(t => isRole(...t[2]) && (t[3] !== 'super' || st.petugas?.super));
@@ -38,7 +40,7 @@ const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p
 function renderMaster() {
   const tabs = tabsFor(); if (!tabs.find(t => t[0] === st.masterTab)) st.masterTab = tabs[0][0];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="ms-tab" data-t="${k}" aria-selected="${k === st.masterTab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
-  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, logo: renderLogo })[st.masterTab]();
+  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo })[st.masterTab]();
 }
 
 /* ---------- Pemilik & kendaraan ---------- */
@@ -282,6 +284,71 @@ function renderCabang() {
 }
 const cabangDariForm = () => cabangList(true).map((c, i) => ({ ...c, nama: ($('#cb-n-' + i)?.value || c.nama).trim().toUpperCase(), alamat: ($('#cb-a-' + i)?.value || '').trim(), telp: ($('#cb-t-' + i)?.value || '').trim(), aktif: c.id === CABANG_UTAMA ? true : !!$('#cb-x-' + i)?.checked }));
 
+/* ---------- Insentif & potongan (hanya super admin) ----------
+   Disimpan di meta/settings.penghasilan = { insentif: [{ id, nama, sumber, peran[], tingkat[{min, persen}], aktif }],
+                                             potongan: [{ id, nama, jumlah, peran[], aktif }] }
+   Gaji pokok: petugas di staff/{email}.gaji, mekanik di mekanik/{id}.gaji. */
+let phDraft = null, phGaji = null;
+const PERAN = Object.entries(ROLES);
+const idBaru = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+function contohPh() {
+  return { insentif: [
+    { id: idBaru(), nama: 'INSENTIF SPAREPART', sumber: 'part', peran: ['kasir', 'sparepart'], tingkat: [{ min: 7000000, persen: 2 }], aktif: true },
+    { id: idBaru(), nama: 'INSENTIF JASA SERVIS', sumber: 'jasa', peran: ['mekanik'], tingkat: [{ min: 7000000, persen: 2 }], aktif: true }],
+    potongan: [{ id: idBaru(), nama: 'BPJS KESEHATAN', jumlah: 0, peran: PERAN.map(([k]) => k), aktif: true }], contoh: true };
+}
+const cekPeran = (pfx, sel) => `<div class="ph-peran">${PERAN.map(([k, l]) => `<label class="chk"><input type="checkbox" id="${pfx}-${k}" ${sel.includes(k) ? 'checked' : ''}>${esc(l.split(' /')[0])}</label>`).join('')}</div>`;
+function kumpulPh() {
+  if (!phDraft || !$('#ph-form')) return;
+  phDraft.insentif = phDraft.insentif.map((it, i) => ({ ...it, nama: ($('#in-n-' + i)?.value || '').trim().toUpperCase(), sumber: $('#in-s-' + i)?.value || 'part', aktif: !!$('#in-a-' + i)?.checked,
+    peran: PERAN.map(([k]) => k).filter(k => $(`#in-r-${i}-${k}`)?.checked),
+    tingkat: it.tingkat.map((t, j) => ({ min: +($('#tk-m-' + i + '-' + j)?.value || 0), persen: +String($('#tk-p-' + i + '-' + j)?.value || 0).replace(',', '.') })) }));
+  phDraft.potongan = phDraft.potongan.map((it, i) => ({ ...it, nama: ($('#po-n-' + i)?.value || '').trim().toUpperCase(), jumlah: +($('#po-j-' + i)?.value || 0), aktif: !!$('#po-a-' + i)?.checked,
+    peran: PERAN.map(([k]) => k).filter(k => $(`#po-r-${i}-${k}`)?.checked) }));
+}
+async function renderInsentif() {
+  if (!phDraft) { const c = cfgPenghasilan(); phDraft = c.insentif.length || c.potongan.length ? JSON.parse(JSON.stringify({ insentif: c.insentif, potongan: c.potongan })) : contohPh(); }
+  const d = phDraft;
+  $('#ms-body').innerHTML = intro('Penghasilan karyawan per bulan = gaji pokok + insentif − potongan. Insentif dihitung dari <b>penjualan pribadi</b> (mekanik: servis yang dikerjakan; kasir/admin: nota yang dibayar di dia; registrasi: servis yang didaftarkan; sparepart: servis yang order part-nya dia input). Bila target tercapai, persen dikalikan <b>seluruh</b> penjualan; tingkat tertinggi yang tercapai yang dipakai. Karyawan melihat hasilnya di menu <b>Penghasilan</b>.') + `
+   ${d.contoh ? '<div class="note small">Contoh awal (belum tersimpan). Ubah sesuai kebijakan, lalu tekan <b>Simpan aturan</b>.</div>' : ''}
+   <div id="ph-form">
+   <div class="row spread"><h3>Insentif penjualan</h3><button class="btn sm" type="button" data-act="in-add">+ Item insentif</button></div>
+   ${d.insentif.map((it, i) => `<div class="ph-card">
+     <div class="form"><label class="f wide-2" for="in-n-${i}">Nama insentif<input id="in-n-${i}" value="${esc(it.nama)}" placeholder="mis. INSENTIF SPAREPART"></label>
+      <label class="f" for="in-s-${i}">Dihitung dari<select id="in-s-${i}">${Object.entries(SUMBER).map(([k, l]) => `<option value="${k}" ${k === it.sumber ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+      <label class="chk" style="align-self:end"><input type="checkbox" id="in-a-${i}" ${it.aktif !== false ? 'checked' : ''}>Aktif</label></div>
+     <div class="small muted">Berlaku untuk peran:</div>${cekPeran('in-r-' + i, it.peran || [])}
+     <div class="small muted">Tingkat target (bulanan):</div>
+     <div class="ph-tingkat">${it.tingkat.map((t, j) => `<div class="row" style="gap:6px"><span class="small">Penjualan ≥ Rp</span><input id="tk-m-${i}-${j}" data-num value="${t.min || ''}" style="width:150px" aria-label="Target"><span class="small">→</span><input id="tk-p-${i}-${j}" type="number" data-raw step="0.1" min="0" value="${t.persen || ''}" style="width:80px" aria-label="Persen"><span class="small">%</span>${it.tingkat.length > 1 ? `<button class="btn sm ghost" type="button" data-act="tk-del" data-i="${i}" data-j="${j}" aria-label="Hapus tingkat">✕</button>` : ''}</div>`).join('')}</div>
+     <div class="row spread"><button class="btn sm" type="button" data-act="tk-add" data-i="${i}">+ Tingkat</button><button class="btn sm ghost" type="button" data-act="in-del" data-i="${i}">Hapus item</button></div>
+    </div>`).join('') || '<div class="small muted">Belum ada item insentif.</div>'}
+   <div class="row spread"><h3>Potongan</h3><button class="btn sm" type="button" data-act="po-add">+ Item potongan</button></div>
+   ${d.potongan.map((it, i) => `<div class="ph-card">
+     <div class="form"><label class="f wide-2" for="po-n-${i}">Nama potongan<input id="po-n-${i}" value="${esc(it.nama)}" placeholder="mis. BPJS KESEHATAN"></label>
+      <label class="f" for="po-j-${i}">Jumlah per bulan (Rp)<input id="po-j-${i}" data-num value="${it.jumlah || ''}"></label>
+      <label class="chk" style="align-self:end"><input type="checkbox" id="po-a-${i}" ${it.aktif !== false ? 'checked' : ''}>Aktif</label></div>
+     <div class="small muted">Berlaku untuk peran:</div>${cekPeran('po-r-' + i, it.peran || [])}
+     <div class="row" style="justify-content:flex-end"><button class="btn sm ghost" type="button" data-act="po-del" data-i="${i}">Hapus item</button></div>
+    </div>`).join('') || '<div class="small muted">Belum ada potongan.</div>'}
+   <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="ph-save">Simpan aturan</button></div>
+   </div>
+   <h3>Gaji pokok karyawan</h3><div id="ph-gaji">${loaderHTML('Memuat karyawan…')}</div>`;
+  renderGaji();
+}
+async function renderGaji() {
+  try {
+    if (!phGaji) {
+      const [login, sd] = await Promise.all([loadLoginList(), getDocs(collection(db, 'staff'))]);
+      const gaji = {}; sd.docs.forEach(x => { const v = x.data(); if (v.loginId) gaji[v.loginId] = v.gaji || 0; });
+      phGaji = [...login.filter(p => p.peran !== 'mekanik').map(p => ({ jenis: 'staff', email: p.email, nama: p.nama, peran: p.peran, cabang: p.cabang, gaji: gaji[p.id] || 0 })),
+        ...(S.mekanikSemua.length ? S.mekanikSemua : S.mekanik).map(m => ({ jenis: 'mekanik', id: m.id, nama: m.nama, peran: 'mekanik', cabang: m.cabang, gaji: m.gaji || 0 }))].sort((a, b) => a.nama.localeCompare(b.nama));
+    }
+  } catch (e) { const el = $('#ph-gaji'); if (el) el.innerHTML = `<div class="err">${esc(errMsg(e))}</div>`; return; }
+  const el = $('#ph-gaji'); if (!el) return;
+  el.innerHTML = phGaji.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Peran</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Gaji pokok / bulan (Rp)</th></tr></thead><tbody>${phGaji.map((g, i) => `<tr><td>${esc(g.nama)}</td><td class="small">${esc(ROLES[g.peran] || g.peran)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(g.cabang))}</td>` : ''}<td class="r"><input class="inline-input num" id="gj-${i}" data-num value="${g.gaji || ''}" style="width:150px;text-align:right" aria-label="Gaji pokok ${esc(g.nama)}"></td></tr>`).join('')}</tbody></table></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="gj-save">Simpan gaji pokok</button></div>` : '<div class="small muted">Belum ada karyawan.</div>';
+}
+
 views.master = renderMaster;
 refreshers.master = () => {};   // jangan timpa isian yang sedang diketik saat data berubah
 fkeys.master = { baru: () => st.masterTab === 'kendaraan' ? 'ms-kadd' : null, simpan: () => st.masterTab === 'kendaraan' && kendEdit ? 'ms-ksave' : st.masterTab === 'tipe' ? 'tp-save' : st.masterTab === 'ksg' ? 'kt-save' : null };
@@ -296,7 +363,30 @@ Object.assign(actions, {
     if (!nama) { toast('Isi nama cabang'); $('#cb-nama').focus(); return; }
     try { await simpanCabang([...cabangDariForm(), { id, nama, alamat: ($('#cb-alamat').value || '').trim(), telp: ($('#cb-telp').value || '').trim(), aktif: true }]); toast('Cabang ' + nama + ' ditambahkan'); setTimeout(renderCabang, 100); } catch (e) { toast(errMsg(e)); }
   },
-  'ms-tab': el => { st.masterTab = el.dataset.t; kendEdit = null; renderMaster(); },
+  'in-add': () => { kumpulPh(); phDraft.insentif.push({ id: idBaru(), nama: '', sumber: 'part', peran: [], tingkat: [{ min: 0, persen: 0 }], aktif: true }); renderInsentif(); },
+  'in-del': el => { kumpulPh(); phDraft.insentif.splice(+el.dataset.i, 1); renderInsentif(); },
+  'tk-add': el => { kumpulPh(); const it = phDraft.insentif[+el.dataset.i], last = it.tingkat[it.tingkat.length - 1] || { min: 0, persen: 0 }; it.tingkat.push({ min: (last.min || 0) + 3000000, persen: (last.persen || 0) + 1 }); renderInsentif(); },
+  'tk-del': el => { kumpulPh(); phDraft.insentif[+el.dataset.i].tingkat.splice(+el.dataset.j, 1); renderInsentif(); },
+  'po-add': () => { kumpulPh(); phDraft.potongan.push({ id: idBaru(), nama: '', jumlah: 0, peran: [], aktif: true }); renderInsentif(); },
+  'po-del': el => { kumpulPh(); phDraft.potongan.splice(+el.dataset.i, 1); renderInsentif(); },
+  'ph-save': async () => {
+    kumpulPh();
+    const salah = phDraft.insentif.find(i => !i.nama) ? 'Isi nama setiap item insentif' : phDraft.potongan.find(p => !p.nama) ? 'Isi nama setiap item potongan'
+      : phDraft.insentif.find(i => !i.peran.length) ? `Pilih peran untuk ${phDraft.insentif.find(i => !i.peran.length).nama}` : phDraft.potongan.find(p => !p.peran.length) ? `Pilih peran untuk ${phDraft.potongan.find(p => !p.peran.length).nama}`
+      : phDraft.insentif.find(i => !i.tingkat.some(t => t.persen > 0)) ? `Isi persen insentif ${phDraft.insentif.find(i => !i.tingkat.some(t => t.persen > 0)).nama}` : '';
+    if (salah) { toast(salah); return; }
+    const { contoh, ...simpan } = phDraft;
+    try { await saveSettings({ penghasilan: simpan }); delete phDraft.contoh; toast('Aturan insentif & potongan disimpan'); renderInsentif(); } catch (e) { toast(errMsg(e)); }
+  },
+  'gj-save': async () => {
+    try {
+      const b = writeBatch(db);
+      phGaji.forEach((g, i) => { const v = +($('#gj-' + i)?.value || 0); if (v === (g.gaji || 0)) return; g.gaji = v;
+        if (g.jenis === 'staff') b.set(doc(db, 'staff', g.email), { gaji: v }, { merge: true }); else b.update(doc(db, 'mekanik', g.id), { gaji: v }); });
+      await b.commit(); resetStaffGaji(); toast('Gaji pokok disimpan');
+    } catch (e) { toast(errMsg(e)); }
+  },
+  'ms-tab': el => { phDraft = null; phGaji = null; st.masterTab = el.dataset.t; kendEdit = null; renderMaster(); },
   'ms-kadd': () => { kendEdit = { nopol: '' }; renderKForm(); $('#mk-nopol')?.focus(); },
   'ms-kedit': el => { const k = kend.find(x => x.id === el.dataset.id); if (k) { kendEdit = { ...k }; renderKForm(); $('#ms-kform').scrollIntoView({ block: 'nearest' }); } },
   'ms-kclose': () => { kendEdit = null; renderKForm(); },

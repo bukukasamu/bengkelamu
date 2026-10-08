@@ -1,7 +1,7 @@
 // Fungsi bersama untuk work order (WO) servis: hitung biaya, tampilan ringkas, simpan.
 import { esc, rp, clone, stamp, waButton, waNumber, toast } from './util.js';
 import { APP_NAME } from './config.js';
-import { S, part, mekanikById, namaPetugas, can } from './state.js';
+import { S, part, mekanikById, namaPetugas, idPetugas, can } from './state.js';
 import { db, doc, getDoc, getDocs, setDoc, runTransaction, updateDoc, collection, query, where } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { cabAktif, cabangOf, namaCabang, layarDocId, multiCabang } from './cabang.js';
@@ -85,7 +85,7 @@ export async function saveWo(w) {
       // nomor antrian harian ikut dibuat di transaksi yang sama supaya tidak pernah kembar
       counter.AN = (counter.AN || 0) + 1; w.antrian = counter.AN; w.antrianTgl = counter.day;
       tx.set(counterRef(), counter);
-      tx.set(doc(db, 'wo', no), { ...clone({ ...w, no, cabang: w.cabang || cabAktif() }), dibuatOleh: namaPetugas() });
+      tx.set(doc(db, 'wo', no), { ...clone({ ...w, no, cabang: w.cabang || cabAktif() }), dibuatOleh: namaPetugas(), dibuatOlehId: idPetugas() });
       return no;
     });
   }

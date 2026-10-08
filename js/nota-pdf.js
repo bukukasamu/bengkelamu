@@ -18,7 +18,7 @@ export function preloadPdf() {
 
 // Logo diubah ke PNG hitam-putih (tanpa warna) + ukuran aslinya. Tepi kosong di sekeliling logo dipangkas
 // supaya logo pas di tengah nota dan proporsinya tidak berubah.
-async function logoPng() {
+export async function logoPng() {
   let b = getBrand(); if (b.logo === undefined) b = await loadBrand();
   if (!b.logo) return null;
   return new Promise(res => {
@@ -49,7 +49,7 @@ async function logoPng() {
   });
 }
 // Ukuran gambar agar muat di kotak maxW x maxH tanpa mengubah perbandingan sisinya
-function muat(logo, maxW, maxH) { const k = Math.min(maxW / logo.w, maxH / logo.h); return { w: logo.w * k, h: logo.h * k }; }
+export function muat(logo, maxW, maxH) { const k = Math.min(maxW / logo.w, maxH / logo.h); return { w: logo.w * k, h: logo.h * k }; }
 
 const W = 80, M = 5, LH = 4.3;   // lebar kertas, margin, tinggi baris (mm)
 

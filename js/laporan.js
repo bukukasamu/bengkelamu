@@ -55,13 +55,25 @@ async function source(from, to) {
   return s.docs.map(d => d.data()).filter(t => gabungan() || cabangOf(t) === cabAktif());
 }
 
+let terakhir = null;
+// Rekap per part / mekanik / kasir / cabang dari daftar transaksi
+function rekap(list) {
+  const top = {};
+  list.forEach(t => t.items.forEach(x => { top[x.kode] = top[x.kode] || { nama: x.nama, qty: 0, nilai: 0 }; top[x.kode].qty += x.qty; top[x.kode].nilai += x.qty * x.harga; }));
+  const per = key => { const m = {}; list.forEach(t => { const k = t[key]; if (k) { m[k] = m[k] || { n: 0, total: 0 }; m[k].n++; m[k].total += t.total; } }); return Object.entries(m).sort((a, b) => b[1].total - a[1].total); };
+  const perCab = cabangList(true).map(c => { const l = list.filter(t => cabangOf(t) === c.id); return [c.id, { n: l.length, total: l.reduce((a, t) => a + t.total, 0) }]; }).filter(([, v]) => v.n).sort((a, b) => b[1].total - a[1].total);
+  return { top: Object.entries(top).sort((a, b) => b[1].qty - a[1].qty), mek: per('mekanik'), kas: per('kasir'), perCab };
+}
+const tglLabel = d => new Date(d + 'T00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+const periodeLabel = (from, to) => from === to ? tglLabel(from) : tglLabel(from) + ' s/d ' + tglLabel(to);
+
 async function renderLaporan() {
   const [from, to] = range(), L = st.lap;
   let base;
   try { base = await source(from, to); } catch (e) { toast(errMsg(e)); base = []; }
   if (st.view !== 'laporan') return;
   base.sort((a, b) => b.tgl.localeCompare(a.tgl));
-  const list = applyFilter(base); L.list = list;
+  const list = applyFilter(base); L.list = list; terakhir = { from, to, base, list };
   const all = sums(base), s = sums(list);
   const top = {};
   base.forEach(t => t.items.forEach(x => { top[x.kode] = top[x.kode] || { nama: x.nama, qty: 0, nilai: 0 }; top[x.kode].qty += x.qty; top[x.kode].nilai += x.qty * x.harga; }));
@@ -73,7 +85,7 @@ async function renderLaporan() {
   $('#view').innerHTML = `<div class="grid">
    <div class="row spread">
     <div class="seg" role="group" aria-label="Periode">${RANGES.map(([k, l]) => `<button type="button" data-act="lap-r" data-r="${k}" aria-pressed="${k === L.range}">${l}</button>`).join('')}</div>
-    <div class="row">${isRole('admin') && multiCabang() ? `<select id="lap-cab" style="width:auto" aria-label="Cabang"><option value="ini" ${gabungan() ? '' : 'selected'}>Cabang ${esc(namaCabang(cabAktif()))}</option><option value="semua" ${gabungan() ? 'selected' : ''}>Semua cabang</option></select>` : ''}<button class="btn" type="button" data-act="lap-xlsx">Export Excel</button></div>
+    <div class="row">${isRole('admin') && multiCabang() ? `<select id="lap-cab" style="width:auto" aria-label="Cabang"><option value="ini" ${gabungan() ? '' : 'selected'}>Cabang ${esc(namaCabang(cabAktif()))}</option><option value="semua" ${gabungan() ? 'selected' : ''}>Semua cabang</option></select>` : ''}<button class="btn" type="button" data-act="lap-xlsx" title="Unduh laporan Excel">⬇ Excel</button><button class="btn" type="button" data-act="lap-pdf" title="Unduh laporan PDF">⬇ PDF</button></div>
    </div>
    ${L.range === 'pilih' ? `<div class="row"><label class="f" for="lap-from">Dari<input id="lap-from" type="date" value="${esc(L.from)}"></label><label class="f" for="lap-to">Sampai<input id="lap-to" type="date" value="${esc(L.to)}"></label><button class="btn pri" type="button" data-act="lap-go" style="align-self:flex-end">Tampilkan</button></div>` : ''}
    <p class="small muted" style="margin:0">${from === to ? from : from + ' s/d ' + to} · klik angka, part, mekanik, atau kasir untuk menyaring daftar transaksi.</p>
@@ -111,10 +123,50 @@ async function exportXlsx() {
     const X = await loadXLSX();
     const rows = list.map(t => ({ nota: t.no, ...(multiCabang() ? { cabang: namaCabang(cabangOf(t)) } : {}), waktu: t.tgl, jenis: t.jenis === 'SERVIS' ? 'Servis ' + (t.jenisServis || 'Reguler') : 'Part', pelanggan: t.pelanggan, nopol: t.nopol || '', mekanik: t.mekanik || '', kasir: t.kasir || '',
       sparepart: t.items.reduce((a, x) => a + x.qty * x.harga, 0), jasa: (t.jasa || []).reduce((a, j) => a + j.harga, 0), klaim_ksg: t.jasaKlaim || 0, biaya_lain: (t.biaya || []).reduce((a, b) => a + b.jumlah, 0), diskon: t.diskon || 0, total: t.total, metode: t.metode || 'Cash', cash_bersih: t.cash == null ? t.total : (t.cash || 0) - (t.kembali || 0), transfer: t.transfer || 0, rekening: t.rekening || '' }));
-    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Penjualan');
-    const [from, to] = range();
+    const r = rekap(list), sm = sums(list), [from, to] = range();
+    const ringkas = [
+      { keterangan: 'Periode', nilai: periodeLabel(from, to) },
+      { keterangan: 'Cabang', nilai: gabungan() ? 'Semua cabang' : namaCabang(cabAktif()) },
+      ...(st.lap.filter ? [{ keterangan: 'Filter', nilai: filterLabel(st.lap.filter) }] : []),
+      { keterangan: 'Jumlah transaksi', nilai: sm.n }, { keterangan: 'Total omzet', nilai: sm.total }, { keterangan: 'Penjualan sparepart', nilai: sm.part },
+      { keterangan: 'Sparepart terjual (pcs)', nilai: sm.qty }, { keterangan: 'Jasa servis', nilai: sm.jasa }, { keterangan: 'Biaya lain', nilai: sm.biaya },
+      { keterangan: 'Klaim KSG (main dealer)', nilai: sm.klaim }, { keterangan: 'Diskon', nilai: sm.dis }, { keterangan: 'Laba kotor', nilai: sm.laba },
+      { keterangan: 'Uang masuk cash', nilai: sm.cash }, { keterangan: 'Uang masuk transfer', nilai: sm.transfer }
+    ];
+    const items = []; list.forEach(t => t.items.forEach(x => items.push({ nota: t.no, waktu: t.tgl, kode: x.kode, nama: x.nama, qty: x.qty, harga: x.harga, jumlah: x.qty * x.harga, harga_beli: x.beli || 0, laba: x.qty * (x.harga - (x.beli || 0)) })));
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, X.utils.json_to_sheet(ringkas), 'Ringkasan');
+    X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Transaksi');
+    if (items.length) X.utils.book_append_sheet(wb, X.utils.json_to_sheet(items), 'Item sparepart');
+    if (r.top.length) X.utils.book_append_sheet(wb, X.utils.json_to_sheet(r.top.map(([kode, v]) => ({ kode, nama: v.nama, qty: v.qty, nilai: v.nilai }))), 'Part terlaris');
+    if (r.mek.length) X.utils.book_append_sheet(wb, X.utils.json_to_sheet(r.mek.map(([m, v]) => ({ mekanik: m, motor: v.n, total: v.total }))), 'Per mekanik');
+    if (multiCabang()) X.utils.book_append_sheet(wb, X.utils.json_to_sheet(r.perCab.map(([id, v]) => ({ cabang: namaCabang(id), nota: v.n, total: v.total }))), 'Per cabang');
     X.writeFile(wb, `laporan-penjualan-${from}_${to}.xlsx`);
   } catch (e) { toast('Gagal export: ' + e.message); }
+}
+
+async function exportPdf(el) {
+  const list = st.lap.list || [];
+  if (!list.length) { toast('Tidak ada transaksi untuk dibuat PDF'); return; }
+  const label = el?.textContent; if (el) { el.disabled = true; el.textContent = 'Menyiapkan…'; }
+  try {
+    const [from, to] = range(), r = rekap(list), sm = sums(list);
+    const { laporanPdfBlob } = await import('./laporan-pdf.js');
+    const { saveBlob } = await import('./nota-pdf.js');
+    const rpx = v => rp(v);
+    const blob = await laporanPdfBlob({
+      judul: 'Laporan penjualan ' + periodeLabel(from, to), periode: periodeLabel(from, to),
+      cabang: gabungan() ? 'Semua cabang' : multiCabang() ? 'Cabang ' + namaCabang(cabAktif()) : '',
+      filter: st.lap.filter ? filterLabel(st.lap.filter) : '',
+      ringkasan: [['Total omzet', rpx(sm.total), sm.n + ' transaksi'], ['Penjualan part', rpx(sm.part), sm.qty + ' pcs'], ['Jasa servis', rpx(sm.jasa), ''], ['Biaya lain', rpx(sm.biaya), ''],
+        ['Klaim KSG', rpx(sm.klaim), sm.ksg + ' servis KSG'], ['Diskon', rpx(sm.dis), ''], ['Laba kotor', rpx(sm.laba), ''], ['Uang masuk', rpx(sm.cash + sm.transfer), 'cash ' + rpx(sm.cash)]],
+      perCabang: multiCabang() && gabungan() ? r.perCab.map(([id, v]) => [namaCabang(id), v]) : [],
+      uangMasuk: [['Cash (setelah kembalian)', rpx(sm.cash)], ...Object.values(sm.rek).map(x => ['Transfer - ' + x.label + ' (' + x.n + ' nota)', rpx(x.total)]), ['Total uang masuk', rpx(sm.cash + sm.transfer)]],
+      top: r.top.slice(0, 15), mekanik: r.mek, kasir: r.kas, list
+    });
+    saveBlob(blob, `laporan-penjualan-${from}_${to}.pdf`);
+  } catch (e) { toast('Gagal membuat PDF: ' + e.message); }
+  finally { if (el) { el.disabled = false; el.textContent = label; } }
 }
 
 views.laporan = renderLaporan;
@@ -127,7 +179,8 @@ Object.assign(actions, {
     renderLaporan();
   },
   'lap-clear': () => { st.lap.filter = null; renderLaporan(); },
-  'lap-xlsx': exportXlsx
+  'lap-xlsx': exportXlsx,
+  'lap-pdf': exportPdf
 });
 changeHandlers.push(e => { if (e.target.id === 'lap-cab') { st.lap.semuaCabang = e.target.value === 'semua'; st.lap.filter = null; renderLaporan(); } });
 changeHandlers.push(e => { if (e.target.id === 'lap-from') st.lap.from = e.target.value; if (e.target.id === 'lap-to') st.lap.to = e.target.value; });

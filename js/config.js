@@ -1,13 +1,14 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '3.1.0';
+export const APP_VERSION = '3.3.0';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
 export const SITE_DOMAIN = 'www.amuservice.id';
 
 // Super admin masuk dengan email + kata sandi; petugas lain masuk dengan pilih nama + PIN 6 digit.
+export const COPYRIGHT = 'Copyright SRISP 2026';
 export const SUPER_ADMIN = 'cashflow.amu@gmail.com';
 // Domain akun PIN (tidak pernah dikirimi email, hanya penanda akun di Firebase)
 export const PIN_DOMAIN = 'petugas.amu-pos.id';
@@ -31,6 +32,7 @@ export const MENUS = [
   { id: 'kasir', label: 'Penjualan Sparepart', group: 'Sparepart', roles: ['admin', 'kasir'] },
   { id: 'stok', label: 'Stok Part', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'pembelian', label: 'Pembelian Stok', group: 'Sparepart', roles: ['admin', 'sparepart'] },
+  { id: 'penghasilan', label: 'Penghasilan', group: 'Keuangan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] },
   { id: 'laporan', label: 'Laporan Penjualan', group: 'Keuangan', roles: ['admin', 'kasir'] },
   { id: 'master', label: 'Master Data', group: 'Pengaturan', roles: ['admin', 'registrasi'] }
 ];

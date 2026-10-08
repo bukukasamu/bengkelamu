@@ -1,7 +1,7 @@
 // Menu Order Sparepart: bagian sparepart memilih part untuk motor yang sudah diregistrasi,
 // sesuai permintaan mekanik. Stok dipotong saat kasir menerima pembayaran.
 import { $, esc, rp, clone, toast, errMsg } from './util.js';
-import { S, st, part, views, refreshers, actions, inputHandlers, fkeys, partPicker, pickedKode } from './state.js';
+import { S, st, part, views, refreshers, actions, inputHandlers, fkeys, partPicker, pickedKode, namaPetugas, idPetugas } from './state.js';
 import { AKTIF, woCard, woHeader, woCalc, partsTable, updateWo, findWo, dipesan, syncPantau } from './wo-common.js';
 
 function renderList() {
@@ -37,7 +37,7 @@ async function save() {
   const w = st.orderDraft;
   st.saving = true;
   try {
-    await updateWo(w.no, { parts: w.parts, catatanPart: w.catatanPart || '' });
+    await updateWo(w.no, { parts: w.parts, catatanPart: w.catatanPart || '', orderOleh: namaPetugas(), orderOlehId: idPetugas() });
     const o = findWo(w.no); if (o) { o.parts = clone(w.parts); o.catatanPart = w.catatanPart; syncPantau(o); }
     toast('Order sparepart ' + w.no + ' disimpan'); renderDetail();
   } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }

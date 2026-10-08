@@ -1,6 +1,6 @@
 // Menu Kasir Sparepart: cari/scan part, keranjang, simpan penjualan + potong stok.
 import { $, esc, rp, stamp, toast, errMsg } from './util.js';
-import { S, st, part, emptyCart, namaPetugas, views, refreshers, actions, inputHandlers, fkeys } from './state.js';
+import { S, st, part, emptyCart, namaPetugas, idPetugas, views, refreshers, actions, inputHandlers, fkeys } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { cabAktif, stokOf, stokField } from './cabang.js';
@@ -91,7 +91,7 @@ async function saveSale() {
       const total = Math.max(0, items.reduce((a, x) => a + x.qty * x.harga, 0) - diskon);
       const pay = payStatus(c.pay, total); if (pay.err) throw new Error(pay.err);
       const { no, counter } = nextNumber(cs, 'PJ', cab);
-      const trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', nopol: '', items, jasa: [], diskon, total, ...payRecord(c.pay, total), kasir: namaPetugas() };
+      const trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', nopol: '', items, jasa: [], diskon, total, ...payRecord(c.pay, total), kasir: namaPetugas(), kasirId: idPetugas() };
       tx.set(counterRef(cab), counter);
       items.forEach((x, i) => tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }));
       tx.set(doc(db, 'trx', no), { ...trx, dibuat: serverTimestamp() });
