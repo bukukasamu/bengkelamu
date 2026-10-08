@@ -1,7 +1,44 @@
-# Aceh Mandiri Utama POS · versi 3.1.0
+# Aceh Mandiri Utama POS · versi 3.3.0
+
+Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 3.3.0 — penghasilan karyawan (insentif & potongan)
+
+**Pengaturan (super admin): Master Data → Insentif & Potongan**
+- **Item insentif** (bisa ditambah sebanyak perlu): nama, *dihitung dari* (penjualan sparepart / jasa servis termasuk klaim KSG / biaya lain / total nota), **peran** yang mendapat, dan **tingkat target** bulanan. Contoh: penjualan ≥ Rp 7.000.000 → 2%, ≥ Rp 10.000.000 → 3%. Tingkat tertinggi yang tercapai dipakai, persennya dikalikan **seluruh** penjualan (8 jt × 2% = 160.000).
+- **Item potongan** (BPJS, kasbon, dll.): nominal tetap per bulan + peran yang dipotong.
+- **Gaji pokok** setiap karyawan (petugas & mekanik) di tabel yang sama.
+- Saat pertama dibuka terisi contoh (insentif sparepart & jasa 7 jt → 2%, BPJS) yang baru berlaku setelah *Simpan aturan*.
+
+**Penjualan pribadi** yang dihitung:
+| Peran | Dari nota |
+|---|---|
+| Mekanik | servis yang dia kerjakan |
+| Kasir & admin | nota yang pembayarannya dia terima (servis & penjualan part) |
+| Registrasi | servis yang dia daftarkan |
+| Sparepart | servis yang order sparepart-nya dia input |
+
+Nota yang dibuat sebelum versi 3.3 dicocokkan lewat nama petugas.
+
+**Menu Penghasilan** (semua peran): karyawan melihat penghasilannya sendiri per bulan — gaji pokok, tiap insentif (nilai penjualan pribadi, target yang tercapai, *kurang berapa lagi* untuk tingkat berikutnya), potongan, dan **penghasilan bersih**. Admin/pemilik melihat **rekap semua karyawan** (klik nama untuk rincian) dan bisa **⬇ Excel** (sheet penghasilan + sheet aturan). Komisi % mekanik di tab Mekanik tetap ikut dihitung bila diisi.
+
+Update: upload semua file (baru: `js/penghasilan.js`). `firestore.rules` sama dengan 3.0.0.
+
+## Fitur baru 3.2.0 — laporan Excel & PDF, dashboard bisa diklik
+
+- **Laporan Penjualan → ⬇ Excel** berisi beberapa sheet: *Ringkasan* (periode, cabang, omzet, part, jasa, klaim KSG, diskon, laba, uang masuk), *Transaksi*, *Item sparepart* (per item + laba), *Part terlaris*, *Per mekanik*, dan *Per cabang* (bila multi cabang).
+- **Laporan Penjualan → ⬇ PDF** (A4, hitam-putih, logo toko): kotak ringkasan, omzet per cabang, uang masuk, part terlaris, per mekanik, per kasir, dan daftar transaksi lengkap dengan nomor halaman. Mengikuti periode, cabang (atau *Semua cabang*), dan filter yang sedang dipilih.
+- **Beranda bisa diklik di semua bagian**:
+  - kotak *Omzet hari ini* → daftar nota → klik untuk membuka nota;
+  - **batang grafik 7 hari** → daftar nota pada hari itu;
+  - kotak *Motor masuk* / baris **Antrian bengkel** → langsung membuka motor itu di Pembayaran (motor yang sudah lunas → Riwayat Kendaraan);
+  - **Status mekanik** → Performa Mekanik orang tersebut;
+  - baris **Perlu dipesan ulang** → membuka data part di Stok Part.
+
+Update: upload semua file (baru: `js/laporan-pdf.js`). `firestore.rules` sama dengan 3.0.0.
 
 ## Fitur baru 3.1.0 — tracking & riwayat kendaraan
 
@@ -253,6 +290,8 @@ js/
   riwayat.js          menu Riwayat Kendaraan (petugas)
   riwayat-ui.js       tampilan tracking & kartu riwayat (konsumen & petugas)
   cari-kendaraan.js   pencarian kendaraan dengan sebagian data
+  laporan-pdf.js      laporan penjualan dalam PDF (A4)
+  penghasilan.js      menu Penghasilan: gaji, insentif, potongan
   pwa.js              pasang aplikasi (PWA) + daftar service worker
   state.js            data bersama & navigasi
   util.js             format rupiah/tanggal, toast, modal
