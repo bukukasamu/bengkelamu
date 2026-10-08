@@ -1,7 +1,49 @@
-# Aceh Mandiri Utama POS · versi 2.6.0
+# Aceh Mandiri Utama POS · versi 2.7.0
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Domain www.amuservice.id (versi 2.7.0)
+
+Alamat setelah domain aktif:
+
+| Untuk | Alamat |
+|---|---|
+| Petugas (login PIN / super admin) | `https://www.amuservice.id` |
+| Konsumen cek servis | `https://www.amuservice.id/cek` |
+| Layar TV antrian | `https://www.amuservice.id/layar` |
+
+Yang berubah di aplikasi: file `CNAME` (berisi `www.amuservice.id`), alamat pendek `/cek` dan `/layar` (lewat `404.html`), link WA & QR code memakai alamat pendek saat dibuka dari domain, gambar pratinjau link untuk WhatsApp (`icons/og-cek.jpg`), `robots.txt` + `sitemap.xml` (hanya halaman cek servis yang boleh muncul di Google; halaman petugas dan layar TV tidak).
+
+### Langkah 1 — GitHub
+1. Upload semua file versi 2.7.0, termasuk file baru **`CNAME`**, **`404.html`**, **`robots.txt`**, **`sitemap.xml`**, `icons/og-cek.jpg`.
+2. Repository `bengkelamu` → **Settings → Pages** → *Custom domain*: isi `www.amuservice.id` → **Save**.
+3. Tunggu pemeriksaan DNS berhasil (setelah langkah 2 di DomaiNesia), lalu centang **Enforce HTTPS** (sertifikat bisa butuh sampai 24 jam).
+
+### Langkah 2 — DNS di DomaiNesia
+Member area → **Domain** → amuservice.id → **Kelola DNS** (DNS Management). Hapus dulu record bawaan untuk `@` dan `www` (parkir/redirect DomaiNesia), lalu tambahkan:
+
+| Tipe | Nama/Host | Isi/Nilai |
+|---|---|---|
+| CNAME | `www` | `bukukasamu.github.io` |
+| A | `@` | `185.199.108.153` |
+| A | `@` | `185.199.109.153` |
+| A | `@` | `185.199.110.153` |
+| A | `@` | `185.199.111.153` |
+| AAAA (opsional) | `@` | `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153`, `2606:50c0:8003::153` |
+
+Record A untuk `@` membuat `amuservice.id` (tanpa www) otomatis diarahkan ke `www.amuservice.id`. CNAME `www` diisi **tanpa** nama repository. Perubahan DNS biasanya aktif dalam beberapa menit sampai beberapa jam.
+
+Disarankan (keamanan): GitHub → foto profil → **Settings → Pages → Add a domain** → `amuservice.id`, lalu tambahkan record **TXT** yang diminta GitHub di DomaiNesia. Ini mencegah orang lain memakai domain Anda di GitHub.
+
+### Langkah 3 — Firebase
+1. Firebase Console → **Authentication → Settings → Authorized domains** → *Add domain*: `www.amuservice.id` dan `amuservice.id`.
+2. Bila API key pernah dibatasi di Google Cloud Console (*Credentials → API key → Website restrictions*), tambahkan `https://www.amuservice.id/*` dan `https://amuservice.id/*`. Bila tidak dibatasi, lewati.
+
+### Setelah pindah domain
+- Alamat lama `bukukasamu.github.io/bengkelamu` otomatis dialihkan GitHub ke `www.amuservice.id`, jadi link lama di WA tetap jalan.
+- Bagi browser, domain baru adalah situs baru: petugas **login sekali lagi**, konsumen memasukkan nopol + HP sekali lagi, dan aplikasi yang sudah dipasang (PWA) dari alamat lama **dihapus lalu dipasang ulang** dari `www.amuservice.id`.
+- Cetak ulang QR/tiket yang memakai alamat lama bila ada.
 
 ## Fitur baru 2.6.0
 
@@ -38,13 +80,13 @@ Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekal
 1. Upload ke GitHub: `index.html`, `cek.html`, **`layar.html` (baru)**, `style.css`, dan seluruh isi folder `js` (ada file baru `antrian.js`, `layar.js`, `qr.js`).
 2. **Wajib:** Firebase Console → Firestore → Rules → tempel `firestore.rules` yang baru → *Publish* (ada aturan baru `publik/layar` untuk layar TV).
 3. Tekan Ctrl+Shift+R sampai versi di kiri bawah menunjukkan **2.5.0**. Nomor antrian mulai dari 001 untuk motor yang didaftarkan setelah update.
-4. Isi teks berjalan di Master Data → Layar TV, lalu buka `https://bukukasamu.github.io/bengkelamu/layar.html` di TV.
+4. Isi teks berjalan di Master Data → Layar TV, lalu buka `https://www.amuservice.id/layar` di TV.
 
 ### Memasang layar TV
 
 - Perangkat: Smart TV dengan browser, Android TV box, atau laptop/PC mini yang disambung HDMI. Disarankan Chrome.
 - Setelah halaman terbuka, **klik layar sekali** (atau tekan OK di remote) supaya suara dan layar penuh aktif — aturan browser melarang suara sebelum ada klik. Klik dua kali kapan saja untuk kembali ke layar penuh.
-- Supaya tidak perlu klik setiap TV dinyalakan (PC/laptop): buat shortcut Chrome dengan tambahan `--kiosk --autoplay-policy=no-user-gesture-required https://bukukasamu.github.io/bengkelamu/layar.html`.
+- Supaya tidak perlu klik setiap TV dinyalakan (PC/laptop): buat shortcut Chrome dengan tambahan `--kiosk --autoplay-policy=no-user-gesture-required https://www.amuservice.id/layar`.
 - Suara memakai pembaca teks Bahasa Indonesia bawaan perangkat (di Android: Google Text-to-Speech, bahasa Indonesia). Jika tidak ada, layar hanya berbunyi bel; keterangan suaranya terlihat di layar pembuka.
 - Titik hijau di samping jam = tersambung; merah berkedip = internet putus (layar tersambung lagi sendiri).
 
@@ -132,6 +174,9 @@ cek.html              halaman cek servis untuk konsumen (tanpa login)
 layar.html            layar TV antrian ruang tunggu (tanpa login)
 sw.js                 service worker PWA (harus sejajar index.html)
 *.webmanifest         data aplikasi PWA: petugas, cek servis, layar TV
+CNAME                 nama domain untuk GitHub Pages (www.amuservice.id)
+404.html              alamat pendek /cek & /layar + halaman tidak ditemukan
+robots.txt, sitemap.xml  aturan mesin pencari
 icons/                ikon aplikasi PWA
 wilayah/              data wilayah Indonesia (index.json + 1 file per provinsi, mis. 11.json = Aceh)
 style.css             tampilan

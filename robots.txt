@@ -1,0 +1,6 @@
+# Hanya halaman cek servis yang boleh muncul di mesin pencari
+User-agent: *
+Allow: /cek.html
+Allow: /icons/
+Disallow: /
+Sitemap: https://www.amuservice.id/sitemap.xml

@@ -4,7 +4,7 @@
 // - Pustaka dari CDN (Firebase, PDF, Excel, QR, font) bernomor versi tetap, jadi disimpan sekali lalu dipakai ulang.
 // - Data Firestore & login TIDAK lewat sini (ditangani Firebase sendiri).
 // Ganti VERSI setiap ada update besar supaya salinan lama dibersihkan.
-const VERSI = 'amu-2.6.0';
+const VERSI = 'amu-2.7.0';
 const INTI = [
   './',
   'index.html',
@@ -17,7 +17,7 @@ const INTI = [
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png',
-  'icons/favicon-48.png',
+  'icons/favicon-48.png', '404.html',
   'wilayah/index.json',
   'wilayah/11.json',
   'js/akun.js',
@@ -64,10 +64,15 @@ self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSI).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
+// Alamat pendek (www.amuservice.id/cek, /layar) saat offline diarahkan ke file halamannya
+function halamanUntuk(url) {
+  const akhir = new URL(url).pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
+  return { cek: 'cek.html', servis: 'cek.html', layar: 'layar.html', tv: 'layar.html', antrian: 'layar.html' }[akhir] || 'index.html';
+}
 function jaringanDulu(req) {
   return new Promise(resolve => {
     let selesai = false;
-    const dariCache = () => caches.match(req, { ignoreSearch: req.mode === 'navigate' }).then(r => r || (req.mode === 'navigate' ? caches.match('index.html') : null));
+    const dariCache = () => caches.match(req, { ignoreSearch: req.mode === 'navigate' }).then(r => r || (req.mode === 'navigate' ? caches.match(halamanUntuk(req.url)) : null));
     const t = setTimeout(() => dariCache().then(r => { if (r && !selesai) { selesai = true; resolve(r); } }), 4000);
     fetch(req).then(res => {
       clearTimeout(t);
