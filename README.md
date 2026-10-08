@@ -1,7 +1,23 @@
-# Aceh Mandiri Utama POS · versi 2.3.2
+# Aceh Mandiri Utama POS · versi 2.4.0
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 2.4.0
+
+- **Registrasi dipisah tiga bagian**: (1) **Data konsumen sesuai KTP** — NIK, nama lengkap, tempat & tanggal lahir, jenis kelamin, pekerjaan, no. HP/WA, alamat (provinsi → kabupaten/kota → kecamatan → kelurahan/gampong, jalan, RT/RW); (2) **Data kendaraan sesuai STNK** — no. polisi, **nama pemilik di STNK** (centang *sama dengan konsumen* bila sama), tipe, tahun, warna, no. rangka, no. mesin, kilometer; (3) **Servis**. Yang wajib hanya nama, no. polisi, dan tipe motor; kolom lain boleh dikosongkan dan dilengkapi belakangan.
+- **Cari data lama dengan satu data saja**: di atas form registrasi ada kotak *Pernah servis di sini?* — ketik salah satu dari no. polisi, no. rangka, no. mesin, NIK, atau no. HP lalu Enter. Tombol **Pakai data** mengisi konsumen + kendaraan; **Konsumen saja** untuk konsumen lama yang membawa motor lain. Semua isian tetap bisa diubah sebelum disimpan.
+- **Konsumen luar Aceh**: pilih provinsinya di kolom Provinsi (38 provinsi tersedia, default Aceh). Plat luar daerah (BK, B, BM, dll.) diketik biasa.
+- **Halaman cek servis konsumen tetap masuk**: cukup sekali memasukkan no. polisi + no. HP; perangkat itu tetap masuk sampai konsumen menekan **Keluar**. Status servis ter-update sendiri tanpa perlu muat ulang. Konsumen dengan beberapa motor bisa menambah **+ Kendaraan lain** dan berpindah antar motor. Yang disimpan di HP konsumen hanya kode acak dan no. polisi, bukan nomor HP.
+- **Nota PDF hitam-putih**: logo di kepala nota dan watermark dibuat tanpa warna (abu-abu), tepi kosong logo dipangkas, dan perbandingan sisi logo dijaga (tidak gepeng) untuk logo persegi maupun melebar.
+- **Tampilan HP potret & PC**: di HP menu samping jadi laci (tombol ☰), tombol cepat jadi satu baris, kolom isian lebih besar (tidak zoom sendiri di iPhone), tabel lebar digeser ke samping, jendela dialog naik dari bawah. Di PC tampilan dua kolom seperti sebelumnya, dan melebar di monitor besar.
+
+## Update ke versi 2.4.0
+
+1. Upload ke GitHub: `index.html`, `cek.html`, `style.css`, dan seluruh isi folder `js`. Folder `wilayah` dan `firestore.rules` **tidak berubah** dari 2.3 (tidak perlu publish rules lagi).
+2. Buka aplikasi, tekan Ctrl+Shift+R (atau tutup-buka tab) sampai versi di kiri bawah menunjukkan **2.4.0**.
+3. Data kendaraan lama tetap terpakai. Kolom baru (NIK, tempat/tanggal lahir, nama STNK, dll.) kosong dan terisi saat kendaraan itu servis lagi atau diedit di Master Data → Pemilik & Kendaraan.
+4. Pencarian dengan no. HP untuk data lama: buka kendaraan di Master Data lalu simpan sekali, atau cukup registrasikan servis berikutnya; setelah itu no. HP-nya bisa dicari.
 
 ## Fitur baru 2.3.0
 
