@@ -488,3 +488,21 @@ svg.chart .bar-hit:hover{fill:rgba(23,71,166,.07)}
 .ph-tk span{font-size:.75rem;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--muted)}
 .ph-tk span.on{border-color:var(--good);color:var(--good);font-weight:600}
 tr[aria-current="true"] td{background:var(--accent-soft)}
+/* v3.4: insight insentif & slip gaji */
+.ph-insight{margin:2px 0 0;padding:8px 10px 8px 26px;background:var(--accent-soft);border-radius:8px;display:flex;flex-direction:column;gap:3px;font-size:.86rem}
+.ph-ringkas{background:var(--panel-2);border:1px dashed var(--accent);border-radius:8px;padding:8px 12px;font-size:.9rem}
+.ph-orang{display:flex;flex-wrap:wrap;gap:6px 14px;max-height:120px;overflow:auto;padding:6px 8px;border:1px dashed var(--line);border-radius:8px;background:var(--panel)}
+.slip{background:#fff;color:#1a1f2b;border:1px solid var(--line);border-radius:6px;padding:16px 18px;font-size:.88rem;display:flex;flex-direction:column;gap:4px}
+.slip .small{font-size:.75rem;color:#5b6474}
+.slip-head{display:flex;justify-content:space-between;gap:10px;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:6px}
+.slip-head .r{text-align:right}
+.slip-id{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;margin-bottom:6px}
+.slip-id span{color:#5b6474}
+.slip-sec{background:#eef0f4;font-weight:700;font-size:.75rem;letter-spacing:.06em;padding:3px 8px;margin-top:6px}
+.slip-row{display:flex;justify-content:space-between;gap:12px;padding:2px 8px}
+.slip-row small{display:block;color:#6b7280;font-size:.72rem}
+.slip-sub{font-weight:700;border-top:1px solid #cfd4dc;padding-top:4px}
+.slip-net{font-weight:800;font-size:1rem;border:2px solid #333;border-radius:4px;padding:6px 8px;margin-top:8px}
+.slip .muted{color:#5b6474}
+.lap-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lap-nav b{font-family:var(--f-display);font-size:1.1rem;min-width:12ch;text-align:center}

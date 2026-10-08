@@ -1,9 +1,33 @@
-# Aceh Mandiri Utama POS · versi 3.3.0
+# Aceh Mandiri Utama POS · versi 3.4.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 3.4.0
+
+**Tampilan per peran**
+- Tombol cepat F1/F2/F8 hanya muncul di halaman yang memakainya (F8 hanya untuk kasir & admin). **Mekanik** tidak melihat bar tombol sama sekali.
+- Halaman mekanik tidak lagi menampilkan gaji/komisi atau nota kasir; ada pintasan ke *Penghasilan Saya*.
+- Menu penghasilan dipisah dari laporan toko: karyawan melihat **Akun Saya → Penghasilan Saya**; admin melihat **Karyawan → Penghasilan Karyawan**.
+
+**Penghasilan & insentif**
+- **Pola per orang**: setiap item insentif/potongan bisa berlaku per peran **atau khusus karyawan tertentu** (dicentang namanya), jadi tiap PIC boleh beda pola.
+- **Insight target** di setiap item (bulan berjalan): kekurangan untuk tingkat berikutnya, **kebutuhan per hari** untuk sisa hari, rata-rata harian saat ini, **perkiraan akhir bulan** dengan laju sekarang, dan potensi insentif. Di atas ada ringkasan target yang masih bisa dikejar.
+- **Slip gaji**: tombol *Slip gaji (PDF)* membuka **pratinjau** slip, lalu *Unduh PDF* (A5, logo, tanda tangan). Karyawan untuk dirinya; admin untuk karyawan yang dipilih di rekap.
+
+**Laporan Penjualan: Harian / Mingguan / Bulanan / Tahunan / Custom**
+- Tombol ‹ › untuk mundur/maju periode, atau pilih tanggal; *Hari ini* untuk kembali.
+- **Rincian per hari** (mingguan, bulanan, custom) atau **per bulan** (tahunan) dengan grafik batang; klik barisnya untuk membuka laporan hari/bulan itu. Excel & PDF mengikuti periode yang dibuka.
+
+**Insight Konsumen** (Keuangan → Insight Konsumen, admin)
+- Kendaraan terdaftar, kendaraan servis 12 bulan & rata-rata kunjungan, konsumen baru bulan ini, persentase yang kembali servis.
+- Grafik kunjungan & konsumen baru 12 bulan; sebaran tipe motor, jenis servis (Reguler/KSB/KSG), kabupaten/kota & kecamatan, usia & jenis kelamin (dari data KTP).
+- **Konsumen terbaik** (klik → riwayat motor) dan **Perlu diingatkan servis** (tidak servis ≥ 2/3/4/6 bulan) dengan tombol **WA “Ingatkan”** berisi pesan servis berkala + link riwayat.
+- Bisa disaring per cabang dan **⬇ Excel** (database konsumen + daftar perlu diingatkan).
+
+Update: upload semua file (baru: `js/insight.js`, `js/slip-pdf.js`). `firestore.rules` sama dengan 3.0.0.
 
 ## Fitur baru 3.3.0 — penghasilan karyawan (insentif & potongan)
 
@@ -291,7 +315,9 @@ js/
   riwayat-ui.js       tampilan tracking & kartu riwayat (konsumen & petugas)
   cari-kendaraan.js   pencarian kendaraan dengan sebagian data
   laporan-pdf.js      laporan penjualan dalam PDF (A4)
-  penghasilan.js      menu Penghasilan: gaji, insentif, potongan
+  penghasilan.js      menu Penghasilan: gaji, insentif, potongan, insight target
+  slip-pdf.js         slip gaji PDF (A5)
+  insight.js          menu Insight Konsumen
   pwa.js              pasang aplikasi (PWA) + daftar service worker
   state.js            data bersama & navigasi
   util.js             format rupiah/tanggal, toast, modal
