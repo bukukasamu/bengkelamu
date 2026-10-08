@@ -1,4 +1,4 @@
-// Halaman cek servis untuk konsumen (cek.html): tanpa login, cukup no. polisi + no. HP.
+// Halaman cek servis untuk konsumen (index.html = halaman utama www.amuservice.id): tanpa login, cukup no. polisi + no. HP.
 // Data diambil dari dokumen pantau/{SHA-256(NOPOL|62HP)} yang diperbarui otomatis oleh bengkel.
 import { db, doc, getDoc, onSnapshot } from './firebase.js';
 import { $, esc, rp, waNumber } from './util.js';

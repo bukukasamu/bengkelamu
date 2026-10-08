@@ -149,6 +149,6 @@ pilihSuara();
 siapkanAudio(); if (ctx && ctx.state === 'running') mulai();
 loadBrand();
 const cek = publicUrl('cek');
-$('#tv-url').textContent = cek.replace(/^https?:\/\//, '');
+$('#tv-url').textContent = cek.replace(/^https?:\/\//, '').replace(/\/$/, '');
 qrSvg(cek).then(svg => { $('#tv-qr').innerHTML = svg; }).catch(() => { $('#tv-qr').hidden = true; });
 langganan();

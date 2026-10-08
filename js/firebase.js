@@ -7,7 +7,7 @@ import { firebaseConfig } from "./firebase-config.js";
 export const fbApp = initializeApp(firebaseConfig);
 export const auth = getAuth(fbApp);
 // Cache lokal: data part tidak diunduh ulang penuh setiap kali halaman dibuka (hemat kuota baca).
-// Halaman publik (cek.html, tanpa login) memakai cache memori sendiri. Cache bersama antar-tab hanya untuk aplikasi
+// Halaman publik (cek servis & layar TV, tanpa login) memakai cache memori sendiri. Cache bersama antar-tab hanya untuk aplikasi
 // petugas: tab tanpa login yang ikut berbagi cache bisa mengambil alih koneksi dan membuat tab petugas ditolak.
 export const db = initializeFirestore(fbApp, {
   localCache: window.AMU_PUBLIC ? memoryLocalCache() : persistentLocalCache({ tabManager: persistentMultipleTabManager() })
