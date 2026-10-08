@@ -4,12 +4,11 @@
 // - Pustaka dari CDN (Firebase, PDF, Excel, QR, font) bernomor versi tetap, jadi disimpan sekali lalu dipakai ulang.
 // - Data Firestore & login TIDAK lewat sini (ditangani Firebase sendiri).
 // Ganti VERSI setiap ada update besar supaya salinan lama dibersihkan.
-const VERSI = 'amu-2.8.0';
+const VERSI = 'amu-3.1.0';
 const INTI = [
   './',
   'index.html',
   'pos.html',
-  'cek.html',
   'layar.html',
   'style.css',
   'manifest.webmanifest',
@@ -18,7 +17,8 @@ const INTI = [
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png',
-  'icons/favicon-48.png', '404.html',
+  'icons/favicon-48.png',
+  '404.html',
   'wilayah/index.json',
   'wilayah/11.json',
   'js/akun.js',
@@ -27,6 +27,8 @@ const INTI = [
   'js/bayar.js',
   'js/beranda.js',
   'js/brand.js',
+  'js/cabang.js',
+  'js/cari-kendaraan.js',
   'js/cek.js',
   'js/config.js',
   'js/excel-parser.js',
@@ -48,6 +50,8 @@ const INTI = [
   'js/pwa.js',
   'js/qr.js',
   'js/registrasi.js',
+  'js/riwayat-ui.js',
+  'js/riwayat.js',
   'js/seed.js',
   'js/state.js',
   'js/stats.js',

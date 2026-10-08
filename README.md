@@ -1,7 +1,47 @@
-# Aceh Mandiri Utama POS · versi 2.8.0
+# Aceh Mandiri Utama POS · versi 3.1.0
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 3.1.0 — tracking & riwayat kendaraan
+
+- **Halaman konsumen (www.amuservice.id)**: riwayat servis tampil sebagai kartu yang bisa dibuka, berisi tanggal, cabang, kilometer, **mekanik**, **keluhan**, jam masuk & selesai, lama dikerjakan, rincian jasa, sparepart, biaya lain, diskon, total, dan cara bayar. Di atasnya ada ringkasan: berapa kali servis, servis terakhir, KM terakhir, total biaya.
+- **Nota dipratinjau dulu**: tombol *Lihat nota* membuka nota berbentuk struk di layar. PDF baru dibuat saat menekan **Unduh PDF** (atau **Bagikan** di HP yang mendukung).
+- **Menu baru “Riwayat Kendaraan”** (admin, registrasi, kasir, sparepart): cari dengan sebagian nopol / nama / no. HP / NIK / no. rangka / no. mesin → data pemilik (KTP) & kendaraan (STNK), **tracking servis yang sedang berjalan** (tahap, jam, mekanik, keluhan, estimasi), dan **seluruh riwayat servis dari semua cabang** dengan nota. Ada tombol kirim link cek servis ke WA konsumen.
+- Tombol **Riwayat motor** di Registrasi, Order Sparepart, dan Pembayaran langsung membuka riwayat motor yang sedang dipilih.
+- Keluhan konsumen kini ikut tersimpan di nota servis (untuk servis yang dibayar mulai versi ini).
+
+Update: upload semua file (baru: `js/riwayat.js`, `js/riwayat-ui.js`, `js/cari-kendaraan.js`). `firestore.rules` sama dengan 3.0.0.
+
+## Fitur baru 3.0.0 — multi cabang
+
+Data yang sudah ada otomatis menjadi **cabang utama** (kode `UTM`). Cabang baru ditambah di **Master Data → Cabang**.
+
+| Dipisah per cabang | Dipakai bersama semua cabang |
+|---|---|
+| Stok part (bisa **transfer** antar cabang) | Master part, harga jual & beli |
+| Nomor WO, nota, pembelian, **antrian** (mis. `WO-LSK-0001`, `SV-LSK-261008-001`) | Jasa & harga, tarif KSG, tipe motor |
+| Work order, transaksi, pembelian stok | Rekening transfer |
+| Mekanik dan petugas | Data konsumen, kendaraan, riwayat servis, halaman cek servis |
+| Layar TV + teks berjalan (`/layar?c=LSK`) | Logo |
+
+- **Karyawan terikat 1 cabang**: saat login, nama dikelompokkan per cabang (mis. *LHOKSEUMAWE · Kasir*). Setelah masuk hanya melihat data cabangnya; nama cabang tampil di kanan atas.
+- **Admin/pemilik & super admin** memilih cabang di kanan atas (pilihan diingat di perangkat). Semua menu mengikuti cabang yang dipilih.
+- **Transfer stok**: Stok Part → *Transfer stok* (muncul bila ada ≥ 2 cabang). Stok langsung berpindah dan dicatat (tanggal, part, jumlah, dari → ke, petugas). Kolom *Cabang lain* di tabel stok menunjukkan stok di cabang lain.
+- **Pembelian stok** menambah stok cabang tempat pembelian dibuat. **Import Excel**: kolom stok = stok cabang yang sedang dibuka.
+- **Laporan**: admin bisa memilih *Semua cabang* → total gabungan + tabel **Omzet per cabang** (bisa diklik untuk menyaring). Export Excel memuat kolom cabang.
+- **Nota** mencetak nama cabang, alamat, dan telepon cabang. Halaman cek servis menampilkan cabang tempat servis.
+- **Layar TV per cabang**: cabang utama `www.amuservice.id/layar`, cabang lain `www.amuservice.id/layar?c=KODE` (alamatnya tertera di Master Data → Layar TV saat cabang itu dipilih).
+- Pencarian data lama di Registrasi mencari konsumen dari **semua cabang**.
+
+### Update ke 3.0.0
+1. Upload semua file (baru: `js/cabang.js`).
+2. **Wajib:** publish ulang `firestore.rules` (aturan baru: daftar cabang, penghitung nomor per cabang, layar per cabang, transfer stok).
+3. Admin: Master Data → **Cabang** → ganti nama cabang utama (mis. BANDA ACEH) dan isi alamat/telepon untuk nota → **Tambah cabang** (kode 2–4 huruf, mis. `LSK`; kode tidak bisa diubah, cabang tidak dihapus tetapi bisa dinonaktifkan).
+4. Pilih cabang baru di kanan atas, lalu: tambah **mekanik** (tab Mekanik), tambah **petugas** dengan cabang tersebut (tab Petugas & PIN), isi stok lewat **Transfer stok** atau **Pembelian stok**, isi teks berjalan layar TV.
+5. Petugas lama otomatis tercatat di cabang utama; untuk memindah, ubah kolom *Cabang* di tab Petugas & PIN (berlaku saat petugas login ulang).
+
+Catatan: aturan database membatasi peran (kasir, sparepart, dll.), tetapi belum memisah hak baca per cabang — petugas yang paham teknis bisa membaca data cabang lain lewat database. Untuk pemakaian sehari-hari, aplikasi hanya menampilkan data cabangnya sendiri.
 
 ## Fitur baru 2.8.0 — halaman utama untuk konsumen
 
@@ -209,6 +249,10 @@ js/
   antrian.js          jendela nomor antrian, kirim WA, cetak tiket
   qr.js               pembuat QR code (dimuat dari CDN)
   angka.js            kolom angka bertitik ribuan
+  cabang.js           daftar cabang, stok per cabang, kode nomor per cabang
+  riwayat.js          menu Riwayat Kendaraan (petugas)
+  riwayat-ui.js       tampilan tracking & kartu riwayat (konsumen & petugas)
+  cari-kendaraan.js   pencarian kendaraan dengan sebagian data
   pwa.js              pasang aplikasi (PWA) + daftar service worker
   state.js            data bersama & navigasi
   util.js             format rupiah/tanggal, toast, modal

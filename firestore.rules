@@ -20,9 +20,15 @@ service cloud.firestore {
       allow write: if isSuper();
     }
     // Layar TV ruang tunggu (tanpa login): nomor antrian, nopol, tipe, mekanik. Ditulis aplikasi petugas.
-    match /publik/layar {
+    // publik/layar = cabang utama, publik/layar-KODE = cabang lain.
+    match /publik/{id} {
+      allow read: if id == 'layar' || id.matches('layar-[A-Z0-9]+');
+      allow write: if isStaff() && (id == 'layar' || id.matches('layar-[A-Z0-9]+'));
+    }
+    // Daftar cabang (nama, alamat, telp): dibaca halaman login, cek servis, dan layar TV.
+    match /publik/cabang {
       allow read: if true;
-      allow write: if isStaff();
+      allow write: if hasRole(['admin']);
     }
 
     // Halaman cek servis konsumen: dokumen hanya bisa dibuka bila tahu ID-nya (hash nopol + no. HP),
@@ -76,5 +82,9 @@ service cloud.firestore {
 
     // Penomoran otomatis nota / WO / pembelian
     match /meta/counter   { allow read, write: if isStaff(); }
+    // Penghitung nomor cabang lain: meta/counter-KODE
+    match /meta/{id}      { allow read, write: if isStaff() && id.matches('counter-[A-Z0-9]+'); }
+    // Catatan transfer stok antar cabang
+    match /transfer/{id}  { allow read: if isStaff(); allow create: if hasRole(['admin', 'sparepart']); }
   }
 }
