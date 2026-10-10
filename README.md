@@ -1,9 +1,35 @@
-# Aceh Mandiri Utama POS · versi 4.5.0
+# Aceh Mandiri Utama POS · versi 4.6.1
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Perbaikan 4.6.1
+
+Update: upload semua file. `firestore.rules` sama.
+
+- **Kendaraan tidak bisa didaftarkan dua kali** selama servisnya masih di bengkel (Antri / Dikerjakan / Ditunda / Selesai belum dibayar), termasuk lewat Nomor cepat dan "Pakai data". Saat nopol diketik langsung muncul peringatan beserta antrian, status, dan alasan tunda, dengan tombol **Buka servis** untuk melanjutkannya.
+- **"Akses ditolak" saat Lanjutkan dikerjakan** diperbaiki. Penyebabnya: formulir servis lama mencoba menulis ulang kode wilayah ke data kendaraan tanpa catatan perubahan, sehingga ditolak database (servisnya sendiri tetap tersimpan). Sekarang, saat mengubah/melanjutkan servis lama, yang ditulis ke data kendaraan hanya kolom yang benar-benar diubah di formulir, jadi data konsumen yang lebih baru juga tidak tertimpa data lama.
+- **Batalkan pendaftaran** (khusus Admin/Super Admin) di Registrasi untuk menghapus pendaftaran ganda/salah daftar yang belum dibayar, sekaligus menghapusnya dari layar TV dan halaman cek servis.
+- Nilai jasa tetap untuk mekanik yang menyelesaikan (pilihan A).
+
+## Fitur baru 4.6.0 — konfirmasi, alasan tunda, riwayat tabel
+
+Update: upload semua file. `firestore.rules` sama.
+
+- **Kotak konfirmasi** sebelum tindakan persetujuan/penting: setujui/tolak/cabut layar absen, motor selesai, tunda, lanjutkan motor ditunda, terima pembayaran servis, simpan penjualan sparepart, kosongkan keranjang, kirim & terima transfer stok, ajukan/hapus stok opname, tutup kas, tandai invoice supplier lunas, hapus data di Master Data. Tombol **Batal** yang mendapat fokus pertama, jadi Enter/klik tidak sengaja tidak langsung menyetujui. Esc = batal.
+- **Order sparepart:** tombol berwarna **kuning "Simpan order"** bila ada perubahan belum disimpan, berubah **hijau "✓ Tersimpan"** setelah tersimpan (lengkap dengan jam & petugas yang menyimpan). Setelah simpan muncul kotak "Order sparepart tersimpan". Pindah motor dengan perubahan belum disimpan → diminta konfirmasi.
+- **Riwayat Kendaraan** tampil sebagai **tabel** (satu baris per servis: tanggal, nota, bengkel, jenis, KM, mekanik, keluhan, jasa, sparepart, lama, total). Klik baris untuk rincian & nota. Halaman cek servis konsumen tetap model kartu (nyaman di HP).
+- **Registrasi:** F1 = formulir baru dengan kursor di **NIK (data konsumen)**. **F3 / tombol Cari** = langsung ke kotak "Pernah servis di sini?". F3 juga dipakai di Riwayat Kendaraan & Penjualan Sparepart.
+- **Ditunda (lanjut lama):** alasan **wajib** diisi kasir. Alasan, sejak kapan, pelapor & mekanik sebelumnya tampil di daftar & detail Registrasi, Pembayaran, timeline, halaman cek servis konsumen, dan tersimpan di nota (riwayat servis). Tab baru **Ditunda** (dengan jumlah) di samping Aktif / Hari ini / Semua.
+- **Lanjutkan motor ditunda:** registrasi memilih mekanik yang kosong (boleh sama atau berbeda) → kotak konfirmasi menampilkan alasan tunda & ganti mekanik. Lama kerja dicatat **per mekanik**; di Performa Mekanik, rata-rata waktu memakai menit mekanik itu sendiri ("bersama …" bila motor dikerjakan bergantian). Nilai jasa tetap untuk mekanik yang menyelesaikan (tercantum di nota).
+
+## Fitur baru 4.5.1 — kotak Beranda per peran
+
+Update: upload semua file. `firestore.rules` sama.
+
+Beranda menampilkan kotak sesuai pekerjaan: **Admin** semua; **Kasir** omzet, part terjual (pcs + Rp), motor masuk; **Sparepart** part terjual (pcs saja) & stok menipis; **Registrasi** motor masuk, antrian & status mekanik. Bisa diubah super admin di **Master Data → Hak Akses Menu → Kotak ringkasan di Beranda**. Super admin selalu melihat semua. Karyawan hanya melihat angka cabangnya sendiri.
 
 ## Fitur baru 4.5.0
 

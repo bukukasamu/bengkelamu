@@ -520,3 +520,24 @@ tr[aria-current="true"] td{background:var(--accent-soft)}
 
 /* Kotak filter yang bisa dibuka-tutup */
 .filter-box{border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin-top:8px;background:var(--panel-2);gap:8px;flex-wrap:wrap;align-items:center}
+
+/* v4.6: tombol status simpan, konfirmasi, tabel riwayat */
+.btn.danger{background:var(--bad);border-color:var(--bad);color:var(--panel)}
+.btn.ok{background:var(--good);border-color:var(--good);color:var(--panel)}
+.btn.warn{background:var(--warn);border-color:var(--warn);color:var(--panel)}
+.btn.ok:hover,.btn.warn:hover,.btn.danger:hover{filter:brightness(1.08)}
+.modal.konfirmasi{max-width:440px}
+.tunda-box{border-left:4px solid var(--warn);background:var(--warn-bg);color:var(--ink);border-radius:6px;padding:8px 10px;font-size:.9rem}
+.tunda-box b{color:var(--warn)}
+.wo-tunda{color:var(--warn);font-size:.82rem;margin-top:2px}
+.seg .cnt{display:inline-block;min-width:1.3em;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--warn-bg);color:var(--warn);font-size:.78rem;font-weight:700}
+.rw-tabel{font-size:.84rem}
+.rw-tabel th,.rw-tabel td{border:1px solid var(--line);padding:4px 6px;vertical-align:top}
+.rw-tabel thead th{background:var(--panel-2);position:sticky;top:0;white-space:nowrap}
+.rw-tabel tbody tr:nth-child(even) td{background:var(--panel-2)}
+.rw-tabel td.r{text-align:right;white-space:nowrap}
+.rw-tabel .rw-det{color:var(--muted);font-size:.78rem}
+.rw-tabel tr.rw-buka{cursor:pointer}
+.rw-tabel tr.rw-buka:hover td{background:var(--accent-soft)}
+.rw-tabel tr.rw-detail td{background:var(--panel)!important;padding:8px 10px}
+.kf-bg{z-index:80}
