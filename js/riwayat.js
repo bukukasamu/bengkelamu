@@ -83,7 +83,7 @@ function renderDetail() {
   const baris = (l, v) => v ? `<span class="muted">${l}</span><span>${v}</span>` : '';
   el.innerHTML = `<div class="panel">
     <div class="row spread"><div><div class="mono cek-nopol">${esc(detail.nopol)}</div><div class="muted small">${esc([k.tipe, k.warna, k.tahun].filter(Boolean).join(' · '))}</div></div>
-     <div class="row">${k.hp ? waButton(k.hp, waMsg, 'Kirim link cek servis') : ''}</div></div>
+     <div class="row">${can('master') ? `<button class="btn" type="button" data-act="rw-ubah" data-id="${esc(nopolKey(detail.nopol))}">✎ Ubah data</button>` : ''}${k.hp ? waButton(k.hp, waMsg, 'Kirim link cek servis') : ''}</div></div>
     <div class="grid g2">
      <div><h3>Konsumen <span class="h-sub">sesuai KTP</span></h3><div class="totals small">${baris('Nama', esc(k.nama || '–'))}${baris('NIK', esc(k.nik || ''))}${baris('No. HP', k.hp ? esc(k.hp) + ' ' + waButton(k.hp, `Halo ${k.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${detail.nopol}. `) : '')}${baris('Alamat', esc(alamat))}</div></div>
      <div><h3>Kendaraan <span class="h-sub">sesuai STNK</span></h3><div class="totals small">${baris('Nama di STNK', esc(k.namaStnk || k.nama || ''))}${baris('No. rangka', `<span class="mono">${esc(k.noRangka || '')}</span>`)}${baris('No. mesin', `<span class="mono">${esc(k.noMesin || '')}</span>`)}${baris('KM terakhir', k.km ? esc(Number(k.km).toLocaleString('id-ID')) + ' km' : '')}</div></div>
@@ -109,6 +109,8 @@ function renderDetail() {
 views.riwayat = renderRiwayat;
 refreshers.riwayat = () => { if (detail && !detail.loading) renderDetail(); };
 Object.assign(actions, {
+  // Ubah data konsumen/kendaraan (salah no. HP, alamat, dll.) → Master Data, form langsung terbuka
+  'rw-ubah': el => { st.masterTab = 'kendaraan'; st.ubahKendaraan = el.dataset.id; go('master'); },
   'rw-cari': cari,
   'rw-buka': el => { const np = el.dataset.np; if (!np) return; if (st.view === 'riwayat') muat(np); else { st.rwBuka = np; go('riwayat'); } },
   'rw-nota': el => showNota(detail?.trx?.[+el.dataset.i])

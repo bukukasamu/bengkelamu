@@ -8,7 +8,7 @@ import { APP_NAME, APP_VERSION } from './config.js';
 
 // Semua koleksi yang disimpan. "pantau" (link cek konsumen) tidak bisa didaftar dan dibuat ulang otomatis dari WO.
 export const KOLEKSI = ['parts', 'kendaraan', 'jasa', 'mekanik', 'meta', 'publik', 'staff', 'trx', 'wo', 'pembelian', 'mutasi', 'transfer', 'opname',
-  'pengeluaran', 'kas', 'klaim', 'penghasilan', 'gaji', 'slip', 'penghasilanBulan', 'absen', 'absenPerangkat', 'pengaturan', 'masuk', 'imports'];
+  'pengeluaran', 'kas', 'klaim', 'penghasilan', 'gaji', 'slip', 'penghasilanBulan', 'absen', 'absenPerangkat', 'pengaturan', 'ubahKonsumen', 'masuk', 'imports'];
 // Foto selfie absen tidak ikut backup (besar dan dihapus otomatis setelah beberapa hari).
 export const HARI_PENGINGAT = 7;
 export const umurBackup = () => { const t = S.settings.backupTerakhir?.tgl; return t ? Math.floor((Date.now() - new Date(t.replace(' ', 'T'))) / 864e5) : null; };

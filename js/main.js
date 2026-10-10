@@ -260,7 +260,7 @@ document.addEventListener('change', e => {
 
 // Admin pertama kali: isi jasa, mekanik, tipe motor default supaya registrasi langsung bisa dipakai
 async function seedMaster() {
-  if (st.role !== 'admin' || S.jasa.length || S.mekanik.length || S.settings.tipe || S.settings.dikosongkan) return;
+  if (!st.petugas?.super || S.jasa.length || S.mekanik.length || S.settings.tipe || S.settings.dikosongkan) return;
   try {
     const b = writeBatch(db);
     DEFAULT_JASA.forEach(([nama, harga], i) => b.set(doc(collection(db, 'jasa')), { nama, harga, aktif: true, urut: i }));

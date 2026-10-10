@@ -2,7 +2,7 @@
 import { esc, rp, clone, stamp, waButton, waNumber, toast } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, part, mekanikById, namaPetugas, idPetugas, can } from './state.js';
-import { db, doc, getDoc, getDocs, setDoc, runTransaction, updateDoc, collection, query, where } from './firebase.js';
+import { db, doc, getDoc, getDocs, setDoc, deleteDoc, runTransaction, updateDoc, collection, query, where } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { cabAktif, cabangOf, namaCabang, layarDocId, multiCabang } from './cabang.js';
 
@@ -154,6 +154,19 @@ export async function syncPantau(w, trx) {
     const aktif = AKTIF.includes(w.status) ? ringkasWo(w) : (cur.aktif && cur.aktif.no !== w.no ? cur.aktif : null);
     await setDoc(ref, { nopol: w.nopol, tipe: w.tipe || '', nama: w.nama || '', updated: stamp(new Date()), aktif, riwayat: riwayat.slice(0, 12) });
   } catch (e) { pantauGagal(e); }
+}
+// Halaman cek servis konsumen memakai kunci nopol + no. HP. Bila no. HP konsumen diganti, datanya dipindah ke
+// kunci baru dan kunci lama dihapus (nomor lama tidak bisa lagi membuka riwayat motor itu).
+export async function pindahPantau(nopol, hpLama, hpBaru, baru = {}, woAktif = null) {
+  try {
+    const kLama = await pantauKey(nopol, hpLama), kBaru = await pantauKey(nopol, hpBaru);
+    const sLama = kLama ? await getDoc(doc(db, 'pantau', kLama)) : null;
+    if (sLama?.exists()) {
+      const d = { ...sLama.data(), nama: baru.nama || sLama.data().nama, tipe: baru.tipe || sLama.data().tipe, updated: stamp(new Date()) };
+      if (kBaru) await setDoc(doc(db, 'pantau', kBaru), d);
+      if (kBaru !== kLama) await deleteDoc(doc(db, 'pantau', kLama));
+    } else if (kBaru && woAktif) await syncPantau({ ...woAktif, ...baru });
+  } catch (e) { console.warn('Perbarui cek servis', e); }
 }
 let warned = false;
 function pantauGagal(e) {

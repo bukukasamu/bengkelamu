@@ -9,7 +9,7 @@ import { mintaPassword } from './otorisasi.js';
 import { KOLEKSI } from './backup.js';
 
 const SEMUA = [...new Set([...KOLEKSI, 'absenFoto', 'absenKode', 'layarAbsen', 'pantau', 'masuk'])];
-const NAMA = { parts: 'Part & stok', kendaraan: 'Konsumen & kendaraan', jasa: 'Jasa', mekanik: 'Mekanik', meta: 'Pengaturan & penomoran', publik: 'Cabang, logo, daftar login, layar TV', staff: 'Akun karyawan', trx: 'Nota', wo: 'Work order', pembelian: 'Pembelian', mutasi: 'Kartu stok', transfer: 'Transfer stok', opname: 'Stok opname', pengeluaran: 'Pengeluaran', kas: 'Kas harian', klaim: 'Klaim KSG', penghasilan: 'Aturan insentif & absensi', gaji: 'Gaji', slip: 'Slip gaji', penghasilanBulan: 'Kunci bulan gaji', absen: 'Absensi', absenPerangkat: 'HP absen', absenFoto: 'Foto absen', absenKode: 'Kode QR', layarAbsen: 'Layar QR', pantau: 'Cek servis konsumen', masuk: 'Barang masuk', imports: 'Riwayat import' };
+const NAMA = { parts: 'Part & stok', kendaraan: 'Konsumen & kendaraan', jasa: 'Jasa', mekanik: 'Mekanik', meta: 'Pengaturan & penomoran', publik: 'Cabang, logo, daftar login, layar TV', staff: 'Akun karyawan', trx: 'Nota', wo: 'Work order', pembelian: 'Pembelian', mutasi: 'Kartu stok', transfer: 'Transfer stok', opname: 'Stok opname', pengeluaran: 'Pengeluaran', kas: 'Kas harian', klaim: 'Klaim KSG', penghasilan: 'Aturan insentif & absensi', gaji: 'Gaji', slip: 'Slip gaji', penghasilanBulan: 'Kunci bulan gaji', absen: 'Absensi', absenPerangkat: 'HP absen', absenFoto: 'Foto absen', absenKode: 'Kode QR', layarAbsen: 'Layar QR', pantau: 'Cek servis konsumen', masuk: 'Barang masuk', imports: 'Riwayat import', ubahKonsumen: 'Riwayat perubahan konsumen', pengaturan: 'Hak akses menu' };
 
 let klik = [];
 document.addEventListener('click', e => {

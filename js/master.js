@@ -1,31 +1,34 @@
 // Menu Master Data: pemilik & kendaraan, jasa servis, tarif KSG, mekanik (+PIN), rekening, tipe motor, petugas (+PIN).
 import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber, publicUrl } from './util.js';
 import { loaderHTML, getBrand, resizeImage, saveLogo } from './brand.js';
-import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole, namaPetugas } from './state.js';
 import { ROLES, MENUS } from './config.js';
-import { db, doc, getDoc, collection, getDocs, writeBatch, query, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
+import { db, doc, getDoc, collection, getDocs, writeBatch, query, where, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
-import { statusPill, rebuildPantau, syncLayar } from './wo-common.js';
+import { statusPill, rebuildPantau, syncLayar, pindahPantau, AKTIF } from './wo-common.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
 import { SUMBER, DASAR, cfgPenghasilan, resetStaffGaji } from './penghasilan.js';
 import { mintaPassword } from './otorisasi.js';
 import { CABANG_UTAMA, cabangList, namaCabang, multiCabang, cabAktif, simpanCabang, layarDocId } from './cabang.js';
 import { loadXLSX } from './import-excel.js';
+import { bedaKonsumen, simpanDenganCatatan, LABEL_KONSUMEN } from './log-konsumen.js';
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
 
 const TABS = [
   ['kendaraan', 'Konsumen & Kendaraan', ['admin', 'registrasi']],
-  ['jasa', 'Jasa Servis', ['admin']],
-  ['ksg', 'Tarif KSG', ['admin']],
-  ['mekanik', 'Mekanik', ['admin']],
-  ['rekening', 'Rekening', ['admin']],
+  // Panel yang menyangkut uang, akun, atau struktur bengkel: khusus super admin (dikunci juga di firestore.rules)
+  ['jasa', 'Jasa Servis', ['admin'], 'super'],
+  ['ksg', 'Tarif KSG', ['admin'], 'super'],
+  ['mekanik', 'Mekanik', ['admin'], 'super'],
+  ['rekening', 'Rekening', ['admin'], 'super'],
   ['tipe', 'Tipe Motor', ['admin']],
-  ['petugas', 'Petugas & PIN', ['admin']],
+  ['petugas', 'Petugas & PIN', ['admin'], 'super'],
   ['layar', 'Layar TV', ['admin']],
-  ['cabang', 'Cabang', ['admin']],
+  ['cabang', 'Cabang', ['admin'], 'super'],
   ['insentif', 'Insentif & Potongan', ['admin'], 'super'],
   ['logo', 'Logo', ['admin'], 'super'],
-  ['akses', 'Hak Akses Menu', ['admin'], 'super']
+  ['akses', 'Hak Akses Menu', ['admin'], 'super'],
+  ['logk', 'Riwayat Perubahan Konsumen', ['admin'], 'super']
 ];
 const tabsFor = () => TABS.filter(t => isRole(...t[2]) && (t[3] !== 'super' || st.petugas?.super));
 let kend = null, kendQ = '', kendEdit = null, logins = null;
@@ -42,7 +45,7 @@ const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p
 function renderMaster() {
   const tabs = tabsFor(); if (!tabs.find(t => t[0] === st.masterTab)) st.masterTab = tabs[0][0];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="ms-tab" data-t="${k}" aria-selected="${k === st.masterTab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
-  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo, akses: renderAkses })[st.masterTab]();
+  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo, akses: renderAkses, logk: renderLogKonsumen })[st.masterTab]();
 }
 
 /* ---------- Konsumen & kendaraan ---------- */
@@ -52,6 +55,7 @@ const KF = [['nik', 'NIK', 'num', 'k'], ['nama', 'Nama sesuai KTP', '', 'k'], ['
 const KSAVE = [...KF.map(f => f[0]), ...WIL_FIELDS];
 let fWil = { kab: '', kec: '', kel: '' };
 async function loadKend() {
+  kendLengkap = false;
   try { const s = await getDocs(query(collection(db, 'kendaraan'), orderBy('updated', 'desc'), limit(1000))); kend = s.docs.map(d => ({ id: d.id, ...d.data() })); }
   catch (e) { kend = []; toast(errMsg(e)); }
   if (st.masterTab === 'kendaraan') renderKend();
@@ -83,6 +87,7 @@ function kendFiltered() {
 function renderKend() {
   const el = $('#ms-body'); if (!el) return;
   if (!kend) { el.innerHTML = loaderHTML('Memuat data kendaraan…'); loadKend(); return; }
+  if (st.ubahKendaraan) { const id = st.ubahKendaraan; st.ubahKendaraan = null; const k = kend.find(x => x.id === id); if (k) kendEdit = { ...k }; else getDoc(doc(db, 'kendaraan', id)).then(s2 => { if (s2.exists()) { kendEdit = { id, ...s2.data() }; renderKForm(); } }); }
   const list = kendFiltered();
   const kabs = uniq(kend.map(k => k.kabupaten));
   const kecs = uniq(kend.filter(k => !fWil.kab || k.kabupaten === fWil.kab).map(k => k.kecamatan));
@@ -92,7 +97,7 @@ function renderKend() {
   const rekap = {}; list.forEach(k => { const v = k[lvl[0]] || '(belum diisi)'; rekap[v] = (rekap[v] || 0) + 1; });
   const rk = Object.entries(rekap).sort((a, b) => b[1] - a[1]), mx = rk.length ? rk[0][1] : 1;
   const sel = (id, v, list, ph) => `<select id="${id}" style="width:auto;max-width:100%" aria-label="${ph}"><option value="">${ph}</option>${list.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
-  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, NIK, HP, rangka, mesin, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row">${isRole('admin') ? '<button class="btn" type="button" data-act="ms-pantau" title="Bangun ulang data halaman cek servis konsumen dari servis yang sudah ada">Sinkron cek servis</button>' : ''}<button class="btn" type="button" data-act="ms-kxlsx">Export Excel</button><button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div></div>
+  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, NIK, HP, rangka, mesin, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row">${isRole('admin') ? '<button class="btn" type="button" data-act="ms-pantau" title="Bangun ulang data halaman cek servis konsumen dari servis yang sudah ada">Sinkron cek servis</button>' : ''}${st.petugas?.super ? '<button class="btn" type="button" data-act="ms-kxlsx">⬇ Excel</button><button class="btn" type="button" data-act="ms-kpdf">⬇ PDF</button>' : ''}<button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div></div>
    <div class="row" style="margin-top:8px"><span class="small muted">Filter wilayah:</span>${sel('fw-kab', fWil.kab, kabs, 'Semua kabupaten/kota')}${sel('fw-kec', fWil.kec, kecs, 'Semua kecamatan')}${sel('fw-kel', fWil.kel, kels, 'Semua kelurahan/gampong')}${fWil.kab || fWil.kec || fWil.kel ? '<button class="btn sm ghost" type="button" data-act="fw-clear">Hapus filter</button>' : ''}</div>
    <div id="ms-kform"></div>
    ${rk.length > 1 || (rk.length === 1 && !fWil.kel) ? `<div class="panel" style="box-shadow:none;margin-block:10px"><h3>Konsumen per ${lvl[2].toLowerCase()}</h3>${rk.slice(0, 12).map(([w, c]) => `<button class="bar-row" type="button" data-act="fw-pick" data-l="${lvl[1]}" data-v="${esc(w)}"><span class="row spread small"><span class="bar-lbl">${esc(w)}</span><span class="num">${c} kendaraan</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${c / mx * 100}%"></span></span></button>`).join('')}</div>` : ''}
@@ -109,10 +114,17 @@ function renderKForm() {
    ${[['k', 'Data konsumen (KTP)'], ['u', 'Data kendaraan (STNK)']].map(([g, judul]) => `<h3>${judul}</h3><div class="form">${KF.filter(x => x[3] === g).map(([f, l, c]) => f === 'jk'
       ? `<label class="f" for="mk-jk">${l}<select id="mk-jk" data-kf="jk"><option value="">–</option>${['LAKI-LAKI', 'PEREMPUAN'].map(x => `<option ${x === k.jk ? 'selected' : ''}>${x}</option>`).join('')}</select></label>`
       : `<label class="f" for="mk-${f}">${l}<input id="mk-${f}" data-kf="${f}" ${c === 'mono' ? 'class="mono"' : c === 'num' ? 'class="num" inputmode="numeric"' : ''} ${c === 'date' ? 'type="date"' : ''} value="${esc(k[f] || '')}" ${f === 'nopol' && !isNew ? 'disabled' : ''} ${f === 'tipe' ? 'list="dl-tipe"' : ''} ${f === 'km' ? 'data-num' : ''}></label>`).join('')}</div>${g === 'k' ? `<div class="form form-wil">${wilayahHTML('mw', k)}</div>` : ''}`).join('')}<datalist id="dl-tipe">${tipeList().map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+   ${!isNew && (k.riwayatUbah || []).length ? `<details class="small"><summary><b>Riwayat perubahan data (${k.riwayatUbah.length})</b></summary>${[...k.riwayatUbah].reverse().map(r => `<div style="margin-top:4px"><span class="muted">${esc(r.tgl)} · ${esc(r.oleh || '')}</span>: ${(r.ubah || []).map(u => `${esc(LABEL_K[u.f] || u.f)} <s class="muted">${esc(u.dari || '–')}</s> → <b>${esc(u.ke || '–')}</b>`).join('; ')}</div>`).join('')}</details>` : ''}
+   ${!isNew ? '<div class="small muted">Perubahan ikut diterapkan ke servis yang masih berjalan dan halaman cek servis konsumen. Nota yang sudah lunas tetap seperti aslinya.</div>' : ''}
    ${riwayat.length ? `<div class="small"><b>Riwayat servis:</b> ${riwayat.map(w => `${esc(w.no)} (${esc(w.tgl.slice(0, 10))}) ${statusPill(w.status)}`).join(' · ')}</div>` : ''}
-   <div class="row" style="justify-content:flex-end">${!isNew && isRole('admin') ? '<button class="btn ghost" type="button" data-act="ms-kdel">Hapus</button>' : ''}<button class="btn" type="button" data-act="ms-kclose">Batal</button><button class="btn pri" type="button" data-act="ms-ksave">Simpan [F2]</button></div></div>`;
+   <div class="row" style="justify-content:flex-end">${!isNew && st.petugas?.super ? '<button class="btn ghost" type="button" data-act="ms-kdel">Hapus</button>' : ''}<button class="btn" type="button" data-act="ms-kclose">Batal</button><button class="btn pri" type="button" data-act="ms-ksave">Simpan [F2]</button></div></div>`;
   fillWilayah('mw', { get: () => kendEdit });
 }
+// Simpan perubahan data konsumen/kendaraan. Perubahan dicatat (siapa, kapan, apa) dan ikut diterapkan ke
+// servis yang masih berjalan serta halaman cek servis konsumen (link baru bila no. HP berubah).
+// Nota yang sudah lunas tidak diubah (bukti transaksi apa adanya).
+const LABEL_K = Object.fromEntries([...KF.map(f => [f[0], f[1]]), ['provinsi', 'Provinsi'], ['kabupaten', 'Kabupaten/kota'], ['kecamatan', 'Kecamatan'], ['kelurahan', 'Kelurahan'], ['alamat', 'Alamat'], ['rtrw', 'RT/RW']]);
+const KE_WO = ['nik', 'nama', 'tempatLahir', 'tglLahir', 'jk', 'pekerjaan', 'hp', 'rtrw', 'namaStnk', 'tipe', 'tahun', 'warna', 'noRangka', 'noMesin', ...WIL_FIELDS];
 async function saveKend() {
   const k = kendEdit; k.nopol = (k.nopol || '').trim().toUpperCase().replace(/\s+/g, ' ');
   if (!k.nopol) { toast('Isi nomor polisi'); return; }
@@ -122,18 +134,64 @@ async function saveKend() {
     const data = Object.fromEntries(KSAVE.map(f => [f, (k[f] || '').toString().trim()]));
     if (data.nik && !/^\d{16}$/.test(data.nik)) { toast('NIK harus 16 angka'); return; }
     data.noRangka = data.noRangka.replace(/\s+/g, ''); data.noMesin = data.noMesin.replace(/\s+/g, '');
-    await setDoc(doc(db, 'kendaraan', id), { ...data, nopolKey: id, hpNorm: waNumber(data.hp), updated: stamp(new Date()) }, { merge: true });
-    toast('Kendaraan ' + k.nopol + ' disimpan'); kendEdit = null; kend = null; renderKend();
+    const lama = k.id ? (kend.find(x => x.id === id) || (await getDoc(doc(db, 'kendaraan', id))).data() || {}) : null;
+    if (!lama) {
+      await setDoc(doc(db, 'kendaraan', id), { ...data, nopolKey: id, hpNorm: waNumber(data.hp), updated: stamp(new Date()), dibuat: stamp(new Date()) }, { merge: true });
+      toast('Kendaraan ' + k.nopol + ' ditambahkan'); kendEdit = null; kend = null; renderKend(); return;
+    }
+    const { isi, ubah } = bedaKonsumen(lama, data, KSAVE);
+    if (!ubah.length) { toast('Tidak ada perubahan'); return; }
+    const log = [...(lama.riwayatUbah || []), { tgl: stamp(new Date()), oleh: namaPetugas(), ubah }].slice(-30);
+    await simpanDenganCatatan(id, k.nopol, isi, ubah, { nopolKey: id, ...('hp' in isi ? { hpNorm: waNumber(data.hp) } : {}), updated: stamp(new Date()), riwayatUbah: log }, 'Master Data');
+    let info = '';
+    if (lama) info = await terapkanPerubahan(k.nopol, lama, data);
+    toast('Data ' + k.nopol + ' disimpan' + info); kendEdit = null; kend = null; renderKend();
   } catch (e) { toast(errMsg(e)); }
 }
+async function terapkanPerubahan(nopol, lama, baru) {
+  const hasil = [];
+  // 1. Servis yang masih berjalan memakai data terbaru (nama/no. HP di WA, nota yang akan dicetak)
+  const aktif = (S.woSemua?.length ? S.woSemua : S.wo).filter(w => nopolKey(w.nopol) === nopolKey(nopol) && AKTIF.includes(w.status));
+  for (const w of aktif) {
+    const patch = Object.fromEntries(KE_WO.filter(f => baru[f] !== undefined && (w[f] ?? '') !== baru[f]).map(f => [f, baru[f]]));
+    if (!Object.keys(patch).length) continue;
+    try { await updateDoc(doc(db, 'wo', w.no), patch); Object.assign(w, patch); hasil.push(w.no); } catch (e) { console.warn('Perbarui WO', w.no, e); }
+  }
+  // 2. Halaman cek servis konsumen ikut pindah bila no. HP berubah
+  await pindahPantau(nopol, lama.hp, baru.hp, baru, aktif[0]);
+  return hasil.length ? ` · ${hasil.length} servis berjalan ikut diperbarui` : '';
+}
+// Export memakai filter pencarian & wilayah yang sedang aktif. Bila daftar baru memuat 1.000 data terbaru,
+// seluruh data kendaraan dibaca dulu supaya export lengkap.
+async function dataExport() {
+  if (kend && kend.length >= 1000 && !kendLengkap) {
+    toast('Memuat seluruh data kendaraan…');
+    const s = await getDocs(collection(db, 'kendaraan')); kend = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || ''))); kendLengkap = true;
+  }
+  return kendFiltered();
+}
+let kendLengkap = false;
+const judulFilter = () => [fWil.kel, fWil.kec, fWil.kab].filter(Boolean).join(', ') + (kendQ ? (fWil.kab ? ' | ' : '') + 'pencarian "' + kendQ + '"' : '');
 async function exportKend() {
-  const list = kendFiltered(); if (!list.length) { toast('Tidak ada data untuk diexport'); return; }
   try {
-    const X = await loadXLSX();
-    const rows = list.map(k => ({ nopol: k.nopol, nama_konsumen: k.nama || '', hp: k.hp || '', tipe: k.tipe || '', tahun: k.tahun || '', warna: k.warna || '', alamat: k.alamat || '', kelurahan: k.kelurahan || '', kecamatan: k.kecamatan || '', kabupaten_kota: k.kabupaten || '', provinsi: k.provinsi || '', servis_terakhir: (k.updated || '').slice(0, 10) }));
-    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Konsumen');
-    X.writeFile(wb, `konsumen-${[fWil.kab, fWil.kec, fWil.kel].filter(Boolean).join('-') || 'semua'}.xlsx`.replace(/\s+/g, '_'));
+    const list = await dataExport(); if (!list.length) { toast('Tidak ada data untuk diexport'); return; }
+    const X = await loadXLSX(), admin = isRole('admin');
+    const rows = list.map((k, i) => ({ no: i + 1, nopol: k.nopol, nama_konsumen: k.nama || '', ...(admin ? { nik: k.nik || '' } : {}), no_hp: k.hp || '', jenis_kelamin: k.jk || '', tempat_lahir: k.tempatLahir || '', tanggal_lahir: k.tglLahir || '', pekerjaan: k.pekerjaan || '',
+      alamat: k.alamat || '', rt_rw: k.rtrw || '', kelurahan: k.kelurahan || '', kecamatan: k.kecamatan || '', kabupaten_kota: k.kabupaten || '', provinsi: k.provinsi || '',
+      nama_di_stnk: k.namaStnk || '', tipe_motor: k.tipe || '', tahun: k.tahun || '', warna: k.warna || '', no_rangka: k.noRangka || '', no_mesin: k.noMesin || '', km_terakhir: k.kmTerakhir || k.km || '',
+      terdaftar: String(k.dibuat || '').slice(0, 10), servis_terakhir: String(k.servisTerakhir || '').slice(0, 10) }));
+    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Konsumen & kendaraan');
+    X.writeFile(wb, `konsumen-kendaraan-${[fWil.kab, fWil.kec, fWil.kel].filter(Boolean).join('-') || 'semua'}.xlsx`.replace(/\s+/g, '_'));
   } catch (e) { toast('Gagal export: ' + e.message); }
+}
+async function exportKendPdf(el) {
+  const label = el?.textContent; if (el) { el.disabled = true; el.textContent = 'Menyiapkan…'; }
+  try {
+    const list = await dataExport(); if (!list.length) { toast('Tidak ada data untuk diexport'); return; }
+    const { konsumenPdfBlob } = await import('./konsumen-pdf.js'), { saveBlob } = await import('./nota-pdf.js');
+    saveBlob(await konsumenPdfBlob(list, { filter: judulFilter(), oleh: namaPetugas() }), `konsumen-kendaraan-${[fWil.kab, fWil.kec, fWil.kel].filter(Boolean).join('-') || 'semua'}.pdf`.replace(/\s+/g, '_'));
+  } catch (e) { toast('Gagal membuat PDF: ' + e.message); }
+  finally { if (el) { el.disabled = false; el.textContent = label; } }
 }
 
 /* ---------- Jasa servis ---------- */
@@ -242,6 +300,22 @@ function renderAkses() {
     ${menu.map(m => `<tr><td>${esc(m.label)}<div class="small muted">${esc(m.group)}</div></td>${PERAN_AKSES.map(r => `<td class="r">${m.roles.includes(r) ? `<input type="checkbox" class="ak-cek" data-r="${r}" data-m="${m.id}" ${boleh(r, m.id) ? 'checked' : ''} aria-label="${esc(m.label)} untuk ${esc(ROLES[r])}" style="width:auto">` : '<span class="muted">–</span>'}</td>`).join('')}</tr>`).join('')}
    </tbody></table></div>
    <div class="row" style="justify-content:space-between;margin-top:8px"><button class="btn ghost" type="button" data-act="ak-bawaan">Kembalikan ke bawaan (semua menu)</button><button class="btn pri" type="button" data-act="ak-simpan">Simpan hak akses</button></div>`;
+}
+
+/* ---------- Riwayat perubahan data konsumen (super admin) ---------- */
+const LK = { bulan: stamp(new Date()).slice(0, 7), data: null };
+const geserBln = (ym, n) => { const d = new Date(ym + '-01T00:00'); d.setMonth(d.getMonth() + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+async function renderLogKonsumen() {
+  const el = $('#ms-body'); el.innerHTML = loaderHTML('Memuat riwayat perubahan…');
+  try { const s2 = await getDocs(query(collection(db, 'ubahKonsumen'), where('bulan', '==', LK.bulan))); LK.data = s2.docs.map(d => d.data()).sort((a, b) => String(b.tgl).localeCompare(String(a.tgl))); }
+  catch (e) { el.innerHTML = `<div class="err">${esc(errMsg(e))}</div>`; return; }
+  if (st.masterTab !== 'logk') return;
+  const nb = new Date(LK.bulan + '-01T00:00').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }), kini = stamp(new Date()).slice(0, 7);
+  const per = {}; LK.data.forEach(r => { per[r.oleh] = (per[r.oleh] || 0) + 1; });
+  el.innerHTML = intro('Setiap perubahan data konsumen & kendaraan (dari Master Data maupun Registrasi) tercatat otomatis di sini. Catatan tidak bisa diubah atau dihapus oleh karyawan.') + `
+   <div class="row spread"><div class="lap-nav"><button class="btn sm" type="button" data-act="lk-bln" data-n="-1" aria-label="Bulan sebelumnya">‹</button><b>${esc(nb)}</b><button class="btn sm" type="button" data-act="lk-bln" data-n="1" aria-label="Bulan berikutnya" ${LK.bulan >= kini ? 'disabled' : ''}>›</button></div>
+    <div class="row"><span class="small muted">${LK.data.length} perubahan${Object.keys(per).length ? ' · ' + Object.entries(per).sort((a, b) => b[1] - a[1]).map(([n, c]) => esc(n) + ' ' + c + '×').join(', ') : ''}</span><button class="btn" type="button" data-act="lk-xlsx" ${LK.data.length ? '' : 'disabled'}>⬇ Excel</button></div></div>
+   ${LK.data.length ? `<div class="tw"><table><thead><tr><th>Waktu</th><th>No. polisi</th><th>Diubah oleh</th><th>Lewat</th><th>Perubahan</th></tr></thead><tbody>${LK.data.map(r => `<tr><td class="small">${esc(r.tgl)}</td><td class="mono"><button class="link-btn" type="button" data-act="lk-buka" data-id="${esc(r.kendaraanId)}">${esc(r.nopol)}</button></td><td>${esc(r.oleh || '')}<div class="small muted">${esc(r.peran === 'super' ? 'Super admin' : ROLES[r.peran] || r.peran || '')}</div></td><td class="small">${esc(r.sumber || '')}</td><td class="small">${(r.ubah || []).map(u => `<div>${esc(LABEL_KONSUMEN[u.f] || u.f)}: <s class="muted">${esc(u.dari || '–')}</s> → <b>${esc(u.ke || '–')}</b></div>`).join('')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada perubahan data konsumen di bulan ini.</div>'}`;
 }
 
 function renderLogo() {
@@ -417,6 +491,7 @@ Object.assign(actions, {
   'ms-kclose': () => { kendEdit = null; renderKForm(); },
   'ms-ksave': saveKend,
   'ms-kxlsx': exportKend,
+  'ms-kpdf': exportKendPdf,
   'ms-pantau': async el => {
     if (el.disabled) return; el.disabled = true; const t = el.textContent;
     try { const n = await rebuildPantau((i, tot) => { el.textContent = `Sinkron ${i}/${tot}…`; }); toast(n ? `Data cek servis ${n} kendaraan diperbarui` : 'Tidak ada servis dengan nomor HP valid untuk disinkronkan'); }
@@ -451,6 +526,13 @@ Object.assign(actions, {
   'sf-del': el => { const s = logins[+el.dataset.i]; if (akunSendiri(s)) return; confirmTwice(el, 's' + s.id, async () => { try { await hapusPetugas(s.id); toast(s.nama + ' dihapus, tidak bisa login lagi'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } }); },
   'lg-save': async () => { try { await saveLogo(logoDraft); logoDraft = null; toast('Logo dipasang'); renderLogo(); } catch (e) { toast(errMsg(e)); } },
   'lg-cancel': () => { logoDraft = null; renderLogo(); },
+  'lk-bln': el => { LK.bulan = geserBln(LK.bulan, +el.dataset.n); renderLogKonsumen(); },
+  'lk-buka': el => { st.masterTab = 'kendaraan'; st.ubahKendaraan = el.dataset.id; renderMaster(); },
+  'lk-xlsx': async () => {
+    try { const X = await loadXLSX(), wb = X.utils.book_new(), rows = [];
+      (LK.data || []).forEach(r => (r.ubah || []).forEach(u => rows.push({ waktu: r.tgl, nopol: r.nopol, diubah_oleh: r.oleh, peran: r.peran === 'super' ? 'Super admin' : ROLES[r.peran] || r.peran, lewat: r.sumber || '', data: LABEL_KONSUMEN[u.f] || u.f, sebelum: u.dari, sesudah: u.ke })));
+      X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), 'Perubahan ' + LK.bulan); X.writeFile(wb, `perubahan-data-konsumen-${LK.bulan}.xlsx`); } catch (e) { toast('Gagal export: ' + e.message); }
+  },
   'ak-semua': el => document.querySelectorAll(`.ak-cek[data-r="${el.dataset.r}"]`).forEach(c => { c.checked = el.dataset.v === '1'; }),
   'ak-simpan': async () => {
     const akses = {}; PERAN_AKSES.forEach(r => { akses[r] = [...document.querySelectorAll(`.ak-cek[data-r="${r}"]:checked`)].map(c => c.dataset.m); });

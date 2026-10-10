@@ -4,8 +4,9 @@ import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, getDocs, setDoc, collection, query, where, limit, documentId } from './firebase.js';
-import { AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, fmtAntri, kurangBadge } from './wo-common.js';
+import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, fmtAntri, kurangBadge } from './wo-common.js';
 import { showAntrian } from './antrian.js';
+import { bedaKonsumen, simpanDenganCatatan } from './log-konsumen.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
 
 import { cariKendaraan, nopolKey } from './cari-kendaraan.js';
@@ -168,8 +169,16 @@ async function save(opts = {}) {
     const no = await saveWo(w);
     w.no = no;
     const kend = Object.fromEntries(KEND_FIELDS.map(f => [f, f === 'stnkSama' ? w[f] !== false : (w[f] || '')]));
-    const kRef = doc(db, 'kendaraan', nopolKey(w.nopol)), kAda = (await getDoc(kRef).catch(() => null))?.exists() ?? true;
-    await setDoc(kRef, { ...kend, ...(kAda === false ? { dibuat: stamp(new Date()) } : {}), nopolKey: nopolKey(w.nopol), hpNorm: waNumber(w.hp), km: w.km || '', updated: stamp(new Date()), woTerakhir: no }, { merge: true });
+    const kId = nopolKey(w.nopol), kRef = doc(db, 'kendaraan', kId), kSnap = await getDoc(kRef).catch(() => null);
+    const kLama = kSnap?.exists() ? kSnap.data() : (kSnap ? null : undefined);
+    const umum = { nopolKey: kId, km: w.km || '', updated: stamp(new Date()), woTerakhir: no };
+    if (kLama === null) await setDoc(kRef, { ...kend, ...umum, hpNorm: waNumber(w.hp), dibuat: stamp(new Date()) }, { merge: true });
+    else if (kLama) {
+      // Data konsumen yang berubah saat registrasi ikut tercatat (siapa, kapan, lama → baru)
+      const { isi, ubah } = bedaKonsumen(kLama, kend, KEND_FIELDS);
+      await simpanDenganCatatan(kId, w.nopol, isi, ubah, { ...umum, ...('hp' in isi ? { hpNorm: waNumber(w.hp) } : {}) }, 'Registrasi ' + no);
+      if ('hp' in isi) await pindahPantau(w.nopol, kLama.hp, w.hp, kend);
+    }
     w.dataKurang = false;
     syncPantau(w);
     toast(`Antrian ${fmtAntri(w.antrian)} · ${w.nopol} disimpan`);
