@@ -19,20 +19,22 @@ export function hitung(m, from, to) {
   const list = trxIn(from, to).filter(t => milik(t, m)).sort((a, b) => b.tgl.localeCompare(a.tgl));
   const jasa = list.reduce((a, t) => a + nilaiJasa(t), 0);
   const ksg = list.filter(t => t.jenisServis === 'KSG').length;
-  const w = waktuStat(list);
+  const w = waktuStat(list, m);
   return { list, unit: list.length, jasa, ksg, ...w };   // gaji & komisi ada di menu Penghasilan (privat)
 }
 
 // Statistik lama kerja (menit, waktu ditunda tidak dihitung). Nota lama tanpa catatan waktu dilewati.
-const kerjaOf = t => t.waktu && t.waktu.kerja > 0 ? t.waktu.kerja : null;
-function waktuStat(list) {
-  const k = list.map(kerjaOf).filter(v => v != null);
+// Bila motor dikerjakan bergantian (ditunda lalu dilanjutkan mekanik lain), yang dihitung hanya menit mekanik ini.
+const kerjaOf = (t, m) => { const own = m && t.kerjaMekanik ? t.kerjaMekanik[m.nama] : undefined; if (own != null) return own > 0 ? own : null; return t.waktu && t.waktu.kerja > 0 ? t.waktu.kerja : null; };
+const bersama = (t, m) => t.kerjaMekanik ? Object.keys(t.kerjaMekanik).filter(n => n !== m.nama) : [];
+function waktuStat(list, m) {
+  const k = list.map(t => kerjaOf(t, m)).filter(v => v != null);
   return { nWaktu: k.length, rata: k.length ? Math.round(k.reduce((a, b) => a + b, 0) / k.length) : null, cepat: k.length ? Math.min(...k) : null, lama: k.length ? Math.max(...k) : null };
 }
 // Rata-rata lama kerja per tipe motor
-function perTipe(list) {
+function perTipe(list, m) {
   const g = {};
-  list.forEach(t => { const v = kerjaOf(t); if (v == null) return; const k = t.tipe || '(tanpa tipe)'; (g[k] = g[k] || []).push(v); });
+  list.forEach(t => { const v = kerjaOf(t, m); if (v == null) return; const k = t.tipe || '(tanpa tipe)'; (g[k] = g[k] || []).push(v); });
   return Object.entries(g).map(([tipe, v]) => ({ tipe, n: v.length, rata: Math.round(v.reduce((a, b) => a + b, 0) / v.length), cepat: Math.min(...v), lama: Math.max(...v) })).sort((a, b) => b.n - a.n);
 }
 
@@ -67,13 +69,13 @@ function renderMekanik() {
    </div>
    <div class="panel"><h3>Waktu servis · ${esc(p.label)}</h3>
     ${h.nWaktu ? `<div class="tiles"><div class="tile"><span class="lbl">Rata-rata dikerjakan</span><span class="val">${fmtDur(h.rata)}</span><span class="sub">${h.nWaktu} motor tercatat</span></div><div class="tile"><span class="lbl">Tercepat</span><span class="val">${fmtDur(h.cepat)}</span></div><div class="tile"><span class="lbl">Terlama</span><span class="val">${fmtDur(h.lama)}</span></div></div>
-    <div class="tw"><table><thead><tr><th>Tipe motor</th><th class="r">Motor</th><th class="r">Rata-rata</th><th class="r">Tercepat</th><th class="r">Terlama</th></tr></thead><tbody>${perTipe(h.list).map(r => `<tr><td>${esc(r.tipe)}</td><td class="r num">${r.n}</td><td class="r num">${fmtDur(r.rata)}</td><td class="r num">${fmtDur(r.cepat)}</td><td class="r num">${fmtDur(r.lama)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada servis dengan catatan waktu di periode ini.</div>'}
+    <div class="tw"><table><thead><tr><th>Tipe motor</th><th class="r">Motor</th><th class="r">Rata-rata</th><th class="r">Tercepat</th><th class="r">Terlama</th></tr></thead><tbody>${perTipe(h.list, m).map(r => `<tr><td>${esc(r.tipe)}</td><td class="r num">${r.n}</td><td class="r num">${fmtDur(r.rata)}</td><td class="r num">${fmtDur(r.cepat)}</td><td class="r num">${fmtDur(r.lama)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada servis dengan catatan waktu di periode ini.</div>'}
     <p class="small muted" style="margin:0">Lama dikerjakan dihitung dari mekanik mulai sampai kasir menerima laporan selesai; waktu Ditunda tidak dihitung.</p>
    </div>
    ${isRole('admin') ? (() => { const all = trxIn(p.from, p.to).filter(t => t.jenis === 'SERVIS'); const rows = perTipe(all); return rows.length ? `<div class="panel"><h3>Rata-rata waktu servis per tipe motor (semua mekanik)</h3><div class="tw"><table><thead><tr><th>Tipe motor</th><th class="r">Motor</th><th class="r">Rata-rata</th><th class="r">Tercepat</th><th class="r">Terlama</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.tipe)}</td><td class="r num">${r.n}</td><td class="r num">${fmtDur(r.rata)}</td><td class="r num">${fmtDur(r.cepat)}</td><td class="r num">${fmtDur(r.lama)}</td></tr>`).join('')}</tbody></table></div></div>` : ''; })() : ''}
    ${semua.length > 1 ? `<div class="panel"><h3>Semua mekanik · ${esc(p.label)}</h3><div class="tw"><table><thead><tr><th>Mekanik</th><th class="r">Motor</th><th class="r">Rata-rata waktu</th><th class="r">Nilai jasa</th></tr></thead><tbody>${semua.map(({ m: x, h: y }) => `<tr class="row-click" tabindex="0" data-act="mk-pick" data-id="${esc(x.id)}"><td>${esc(x.nama)}</td><td class="r num">${y.unit}</td><td class="r num">${fmtDur(y.rata)}</td><td class="r num">${rp(y.jasa)}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
    <div class="panel"><h3>Riwayat servis · ${esc(p.label)}</h3>
-    ${h.list.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Nota</th><th>Motor</th><th>Jenis</th><th class="r">Lama dikerjakan</th><th class="r">Nilai jasa</th></tr></thead><tbody>${h.list.map(t => `<tr${isRole('mekanik') ? '' : ` class="row-click" tabindex="0" data-act="nota" data-no="${esc(t.no)}"`}><td class="num">${t.tgl.slice(5).replace('-', '/')}</td><td class="mono">${esc(t.no)}</td><td><span class="mono">${esc(t.nopol)}</span> <span class="small muted">${esc(t.tipe || '')}</span></td><td>${jenisBadge(t)}</td><td class="r num">${fmtDur(kerjaOf(t))}</td><td class="r num">${rp(nilaiJasa(t))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada servis lunas di periode ini.</div>'}
+    ${h.list.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Nota</th><th>Motor</th><th>Jenis</th><th class="r">Lama dikerjakan</th><th class="r">Nilai jasa</th></tr></thead><tbody>${h.list.map(t => `<tr${isRole('mekanik') ? '' : ` class="row-click" tabindex="0" data-act="nota" data-no="${esc(t.no)}"`}><td class="num">${t.tgl.slice(5).replace('-', '/')}</td><td class="mono">${esc(t.no)}</td><td><span class="mono">${esc(t.nopol)}</span> <span class="small muted">${esc(t.tipe || '')}</span></td><td>${jenisBadge(t)}</td><td class="r num">${fmtDur(kerjaOf(t, m))}${bersama(t, m).length ? `<div class="small muted">bersama ${esc(bersama(t, m).join(', '))}</div>` : ''}</td><td class="r num">${rp(nilaiJasa(t))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada servis lunas di periode ini.</div>'}
    </div></div>`;
 }
 

@@ -1,6 +1,6 @@
 // Menu Pembelian Stok: catat invoice supplier (lunas / belum lunas), cek dulu lewat preview,
 // lalu masukkan ke stok. Harga beli part diperbarui dengan harga rata-rata tertimbang.
-import { $, esc, rp, dkey, stamp, clone, toast, modal, closeModal, errMsg } from './util.js';
+import { $, esc, rp, dkey, stamp, clone, toast, modal, closeModal, errMsg, konfirmasi } from './util.js';
 import { S, st, part, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, partPicker, pickedKode, namaPetugas, go } from './state.js';
 import { db, doc, runTransaction, setDoc, updateDoc, deleteDoc } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
@@ -173,7 +173,9 @@ async function receive() {
 
 async function savePay() {
   if (st.saving) return;
-  const p = st.pbDraft; st.saving = true;
+  const p = st.pbDraft;
+  if (p.statusBayar === 'Lunas' && !(await konfirmasi('Tandai invoice ' + (p.noInvoice || p.no) + ' lunas?', `${esc(p.supplier || '')} · <b>${rp(p.total)}</b>. Hutang ke supplier ini hilang dari daftar.`, { ya: 'Ya, sudah lunas' }))) return;
+  st.saving = true;
   try {
     const patch = p.statusBayar === 'Lunas' ? { statusBayar: 'Lunas', tglBayar: p.tglBayar || dkey(new Date()) } : { statusBayar: 'Belum lunas', jatuhTempo: p.jatuhTempo || '' };
     await updateDoc(doc(db, 'pembelian', p.no), patch);

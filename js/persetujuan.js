@@ -1,6 +1,6 @@
 // Menu Persetujuan. Super admin: pembatalan nota, stok opname, dan layar absen.
 // Admin (pemilik/kepala cabang): hanya permintaan aktivasi layar absen.
-import { $, esc, rp, stamp, toast, errMsg } from './util.js';
+import { $, esc, rp, stamp, toast, errMsg, konfirmasi } from './util.js';
 import { st, views, refreshers, actions, go, namaPetugas } from './state.js';
 import { db, collection, doc, query, where, onSnapshot, setDoc } from './firebase.js';
 import { namaCabang, multiCabang } from './cabang.js';
@@ -45,11 +45,15 @@ Object.assign(actions, {
   'ps-nota': el => showNota(batal[+el.dataset.i]),
   'ps-cabut': async el => {
     const l = layarSemua.find(x => x.id === el.dataset.id); if (!l) return;
-    if (el.dataset.yakin !== '1') { el.dataset.yakin = '1'; el.textContent = 'Yakin cabut?'; setTimeout(() => { el.dataset.yakin = ''; el.textContent = 'Cabut'; }, 3000); return; }
+    if (!(await konfirmasi('Cabut layar absen ' + namaCabang(l.cabang) + '?', `Perangkat ini tidak bisa lagi menampilkan QR absen. ${esc(l.info || '')}<br>Perangkat baru harus meminta aktivasi ulang.`, { ya: 'Ya, cabut', bahaya: true }))) return;
     try { await setDoc(doc(db, 'layarAbsen', l.id), { status: 'dicabut', dicabutOleh: namaPetugas(), tglCabut: stamp(new Date()) }, { merge: true }); toast('Layar absen ' + namaCabang(l.cabang) + ' dicabut'); } catch (e) { toast(errMsg(e)); }
   },
   'ps-layar': async el => {
     const l = layar[+el.dataset.i]; if (!l) return; const s = el.dataset.s;
+    const ok = s === 'aktif'
+      ? await konfirmasi('Setujui layar absen ' + namaCabang(l.cabang) + '?', `Pastikan kode di layar perangkat cabang adalah <b class="mono" style="font-size:1.3rem;letter-spacing:.15em">${esc(l.kode)}</b>.<br>${esc(l.info || '')}`, { ya: 'Ya, setujui' })
+      : await konfirmasi('Tolak permintaan layar ' + namaCabang(l.cabang) + '?', `Kode <b class="mono">${esc(l.kode)}</b>. Perangkat ini tidak bisa menampilkan QR absen.`, { ya: 'Ya, tolak', bahaya: true });
+    if (!ok) return;
     el.disabled = true;
     try {
       await setDoc(doc(db, 'layarAbsen', l.id), s === 'aktif' ? { status: 'aktif', disetujuiOleh: namaPetugas(), tglSetuju: stamp(new Date()) } : { status: 'ditolak', disetujuiOleh: namaPetugas(), tglSetuju: stamp(new Date()) }, { merge: true });

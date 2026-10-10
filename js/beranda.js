@@ -1,6 +1,6 @@
 // Menu Beranda: ringkasan hari ini, grafik 7 hari, antrian bengkel, stok menipis.
 import { $, esc, rp, dkey, HARI, toast, errMsg, modal } from './util.js';
-import { S, st, views, actions, go, can, mekanikAktif } from './state.js';
+import { S, st, views, actions, go, can, mekanikAktif, bolehKotak } from './state.js';
 import { AKTIF, statusPill, jenisBadge, mekanikNama, sibukOleh, durasi, fmtDur } from './wo-common.js';
 import { trxIn, sums } from './stats.js';
 import { db, doc, writeBatch } from './firebase.js';
@@ -45,21 +45,21 @@ function renderBeranda() {
   const bu = umurBackup();
   const backupBox = st.petugas?.super && !perluMigrasi() && perluBackup() ? `<div class="panel migrasi"><h3>${bu == null ? 'Data belum pernah di-backup' : 'Backup terakhir ' + bu + ' hari lalu'}</h3><p style="margin:0">Unduh backup seluruh data minimal seminggu sekali dan simpan di Google Drive + flashdisk/laptop.</p><div class="row"><button class="btn pri" type="button" data-act="go-backup">Backup sekarang</button></div></div>` : '';
   $('#view').innerHTML = `<div class="grid">${migrasiBox}${backupBox}${seedBox}
-   <div class="tiles">
-    <button class="tile click" type="button" data-act="hr-trx"><span class="lbl">Omzet hari ini</span><span class="val">${rp(s.total)}</span><span class="sub">${s.n} transaksi · lihat nota</span></button>
-    <button class="tile click" type="button" data-act="hr-part"><span class="lbl">Part terjual</span><span class="val">${s.qty} pcs</span><span class="sub">${rp(s.part)} · lihat item</span></button>
-    <button class="tile click" type="button" data-act="hr-wo"><span class="lbl">Motor masuk bengkel</span><span class="val">${woToday.length} unit</span><span class="sub">${aktif.length} belum lunas · lihat daftar</span></button>
-    <button class="tile click" type="button" data-act="go-low"><span class="lbl">Stok menipis</span><span class="val" style="color:${low.length ? 'var(--bad)' : 'inherit'}">${low.length} item</span><span class="sub">dari ${S.parts.length.toLocaleString('id-ID')} part</span></button>
-   </div>
-   <div class="panel"><div class="row spread"><h3>Omzet 7 hari terakhir</h3><div class="legend"><span><i style="background:var(--accent)"></i>Sparepart</span><span><i style="background:var(--jasa)"></i>Jasa servis</span></div></div>${chartSVG()}</div>
-   <div class="panel"><h3>Status mekanik</h3><div class="mek-list">${mekanikAktif().map(m => { const w = sibukOleh(m); return `<button type="button" class="mek mek-btn${w ? ' busy' : ''}" data-act="hr-mek" data-id="${esc(m.id)}" title="Lihat performa ${esc(m.nama)}"><span>${esc(m.nama)}</span>${w ? `<span class="small">mengerjakan <span class="mono">${esc(w.nopol)}</span> <span class="pill p-info">Sibuk</span></span>` : '<span class="pill p-good">Kosong</span>'}</button>`; }).join('') || '<div class="small muted">Belum ada data mekanik.</div>'}</div></div>
+   ${['omzet', 'part', 'motor', 'stok'].some(bolehKotak) ? `<div class="tiles">
+    ${bolehKotak('omzet') ? `<button class="tile click" type="button" data-act="hr-trx"><span class="lbl">Omzet hari ini</span><span class="val">${rp(s.total)}</span><span class="sub">${s.n} transaksi · lihat nota</span></button>` : ''}
+    ${bolehKotak('part') ? (bolehKotak('partRp') ? `<button class="tile click" type="button" data-act="hr-part"><span class="lbl">Part terjual</span><span class="val">${s.qty} pcs</span><span class="sub">${rp(s.part)} · lihat item</span></button>` : `<div class="tile"><span class="lbl">Part terjual hari ini</span><span class="val">${s.qty} pcs</span></div>`) : ''}
+    ${bolehKotak('motor') ? `<button class="tile click" type="button" data-act="hr-wo"><span class="lbl">Motor masuk bengkel</span><span class="val">${woToday.length} unit</span><span class="sub">${aktif.length} belum lunas · lihat daftar</span></button>` : ''}
+    ${bolehKotak('stok') ? `<button class="tile click" type="button" data-act="go-low"><span class="lbl">Stok menipis</span><span class="val" style="color:${low.length ? 'var(--bad)' : 'inherit'}">${low.length} item</span><span class="sub">dari ${S.parts.length.toLocaleString('id-ID')} part</span></button>` : ''}
+   </div>` : '<div class="panel"><div class="small muted">Gunakan menu di samping untuk mulai bekerja.</div></div>'}
+   ${bolehKotak('omzet') ? `<div class="panel"><div class="row spread"><h3>Omzet 7 hari terakhir</h3><div class="legend"><span><i style="background:var(--accent)"></i>Sparepart</span><span><i style="background:var(--jasa)"></i>Jasa servis</span></div></div>${chartSVG()}</div>` : ''}
+   ${bolehKotak('motor') ? `<div class="panel"><h3>Status mekanik</h3><div class="mek-list">${mekanikAktif().map(m => { const w = sibukOleh(m); return `<button type="button" class="mek mek-btn${w ? ' busy' : ''}" data-act="hr-mek" data-id="${esc(m.id)}" title="Lihat performa ${esc(m.nama)}"><span>${esc(m.nama)}</span>${w ? `<span class="small">mengerjakan <span class="mono">${esc(w.nopol)}</span> <span class="pill p-info">Sibuk</span></span>` : '<span class="pill p-good">Kosong</span>'}</button>`; }).join('') || '<div class="small muted">Belum ada data mekanik.</div>'}</div></div>` : ''}
    <div class="grid g2">
-    <div class="panel"><div class="row spread"><h3>Antrian bengkel</h3>${can('registrasi') ? '<button class="btn sm" data-act="go-registrasi" type="button">Registrasi</button>' : ''}</div>
+    ${bolehKotak('motor') ? `<div class="panel"><div class="row spread"><h3>Antrian bengkel</h3>${can('registrasi') ? '<button class="btn sm" data-act="go-registrasi" type="button">Registrasi</button>' : ''}</div>
      ${aktif.length ? `<div class="tw"><table><thead><tr><th>Nopol</th><th>Motor</th><th>Mekanik</th><th>Status</th></tr></thead><tbody>${aktif.map(w => `<tr class="row-click" tabindex="0" data-act="hr-woopen" data-no="${esc(w.no)}" title="Buka motor ini"><td class="mono">${esc(w.nopol)}<br>${jenisBadge(w)}</td><td>${esc(w.tipe)}</td><td>${esc(mekanikNama(w) || '–')}</td><td>${statusPill(w.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada motor dalam antrian.</div>'}
-    </div>
-    <div class="panel"><div class="row spread"><h3>Perlu dipesan ulang</h3><button class="btn sm" data-act="go-low" type="button">Lihat semua</button></div>
+    </div>` : ''}
+    ${bolehKotak('stok') ? `<div class="panel"><div class="row spread"><h3>Perlu dipesan ulang</h3><button class="btn sm" data-act="go-low" type="button">Lihat semua</button></div>
      ${low.length ? `<div class="tw"><table><thead><tr><th>Kode</th><th>Part</th><th class="r">Stok</th><th class="r">Min</th></tr></thead><tbody>${low.slice(0, 15).map(p => `<tr class="row-click" tabindex="0" data-act="hr-partedit" data-k="${esc(p.kode)}" title="Buka part ini"><td class="mono">${esc(p.kode)}</td><td>${esc(p.nama)}</td><td class="r"><span class="pill p-bad">${p.stok}</span></td><td class="r num">${p.min}</td></tr>`).join('')}</tbody></table></div>${low.length > 15 ? `<p class="small muted" style="margin:0">+${low.length - 15} part lainnya</p>` : ''}` : '<div class="empty">Semua stok aman.</div>'}
-    </div>
+    </div>` : ''}
    </div></div>`;
 }
 

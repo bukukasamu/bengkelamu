@@ -1,18 +1,18 @@
 // Menu Riwayat Kendaraan (petugas): cari kendaraan/konsumen, lihat data pemilik & STNK, tracking servis yang
 // sedang berjalan, dan seluruh riwayat servis dari semua cabang (jasa, sparepart, mekanik, kilometer, lama servis, nota).
 import { $, esc, rp, toast, errMsg, waButton } from './util.js';
-import { S, st, views, refreshers, actions, go, can } from './state.js';
+import { S, st, views, refreshers, actions, go, can, fkeys } from './state.js';
 import { db, doc, getDoc, getDocs, query, collection, where } from './firebase.js';
 import { cariKendaraan, nopolKey } from './cari-kendaraan.js';
 import { AKTIF, statusPill, jenisBadge, timelineHTML, mekanikNama, woCalc, normJasa, fmtAntri, pantauKey } from './wo-common.js';
 import { sah } from './data-trx.js';
-import { stepperHTML, kartuRiwayat, ringkasRiwayat, tglID } from './riwayat-ui.js';
+import { stepperHTML, tabelRiwayat, ringkasRiwayat, tglID } from './riwayat-ui.js';
 import { showNota, cekLink } from './nota.js';
 import { namaCabang, cabangOf, multiCabang } from './cabang.js';
 import { loaderHTML } from './brand.js';
 import { APP_NAME } from './config.js';
 
-let hasil = null, detail = null, cariKe = 0;
+let hasil = null, detail = null, cariKe = 0, terbuka = new Set();
 
 function renderRiwayat() {
   $('#view').innerHTML = `<div class="grid">
@@ -45,7 +45,7 @@ async function cari() {
 // Muat satu kendaraan: data pemilik, servis aktif (dari WO), dan riwayat nota servis semua cabang
 async function muat(nopol) {
   const key = nopolKey(nopol), ke = ++cariKe;
-  detail = { key, nopol, loading: true };
+  detail = { key, nopol, loading: true }; terbuka = new Set();
   renderDetail(); $('#rw-detail')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   try {
     const ks = await getDoc(doc(db, 'kendaraan', key)), kend = ks.exists() ? ks.data() : null;
@@ -75,7 +75,6 @@ function renderDetail() {
   if (!detail) { el.innerHTML = ''; return; }
   if (detail.loading) { el.innerHTML = `<div class="panel">${loaderHTML('Memuat riwayat ' + esc(detail.nopol) + '…')}</div>`; return; }
   if (detail.error) { el.innerHTML = `<div class="panel"><div class="err">Gagal memuat: ${esc(detail.error)}</div></div>`; return; }
-  const terbuka = new Set([...el.querySelectorAll('.riw-card[open]')].map(x => x.dataset.no));
   const wos = woKendaraan(detail.key), aktif = wos.find(w => AKTIF.includes(w.status));
   const k = { ...(wos[0] || {}), ...(detail.kend || {}) }, trx = detail.trx;
   const alamat = [k.alamat, k.rtrw ? 'RT/RW ' + k.rtrw : '', k.kelurahan, k.kecamatan, k.kabupaten, k.provinsi].filter(Boolean).join(', ');
@@ -102,17 +101,23 @@ function renderDetail() {
       ${baris(aktif.status === 'Selesai' ? 'Total biaya' : 'Estimasi biaya', `<b class="num">${rp(Math.max(0, woCalc(aktif).total - (aktif.diskon || 0)))}</b>`)}
      </div></div>` : ''}
    <div class="panel"><h3>Riwayat servis</h3>
-    ${trx.length ? ringkasRiwayat(trx) + `<div class="riw-list">${trx.map((t, i) => kartuRiwayat(t, { petugas: true, buka: terbuka.has(t.no) || (!terbuka.size && i === 0), notaAttr: `data-act="rw-nota" data-i="${i}"` })).join('')}</div>` : '<div class="small muted">Belum ada riwayat servis yang dibayar.</div>'}
+    ${trx.length ? ringkasRiwayat(trx) + tabelRiwayat(trx, { buka: terbuka, notaAttr: (t, i) => `data-act="rw-nota" data-i="${i}"` }) + '<div class="small muted" style="margin-top:4px">Klik baris untuk melihat rincian jasa, sparepart, dan nota.</div>' : '<div class="small muted">Belum ada riwayat servis yang dibayar.</div>'}
    </div>`;
 }
 
 views.riwayat = renderRiwayat;
+fkeys.riwayat = { cari: 'rw-fokus' };
 refreshers.riwayat = () => { if (detail && !detail.loading) renderDetail(); };
 Object.assign(actions, {
   // Ubah data konsumen/kendaraan (salah no. HP, alamat, dll.) → Master Data, form langsung terbuka
   'rw-ubah': el => { st.ubahKendaraan = el.dataset.id; go('konsumen'); },
   'rw-cari': cari,
+  'rw-fokus': () => { const q = $('#rw-q'); if (q) { q.focus(); q.select(); } },
   'rw-buka': el => { const np = el.dataset.np; if (!np) return; if (st.view === 'riwayat') muat(np); else { st.rwBuka = np; go('riwayat'); } },
-  'rw-nota': el => showNota(detail?.trx?.[+el.dataset.i])
+  'rw-nota': el => showNota(detail?.trx?.[+el.dataset.i]),
+  'rw-baris': el => { const no = el.dataset.no; terbuka.has(no) ? terbuka.delete(no) : terbuka.add(no); renderDetail(); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'rw-q') { e.preventDefault(); cari(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'rw-q') { e.preventDefault(); cari(); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset?.act === 'rw-baris') { e.preventDefault(); actions['rw-baris'](e.target); }
+});

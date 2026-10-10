@@ -1,5 +1,5 @@
 // Menu Kasir Sparepart: cari/scan part, keranjang, simpan penjualan + potong stok.
-import { $, esc, rp, stamp, toast, errMsg } from './util.js';
+import { $, esc, rp, stamp, toast, errMsg, konfirmasi } from './util.js';
 import { S, st, part, emptyCart, namaPetugas, idPetugas, views, refreshers, actions, inputHandlers, fkeys } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
@@ -75,6 +75,9 @@ async function saveSale() {
   if (!c.items.length) { toast('Keranjang masih kosong'); return; }
   const chk = payStatus(c.pay, cartTotal().total);
   if (chk.err) { toast(chk.err); return; }
+  const qty = c.items.reduce((a, x) => a + x.qty, 0);
+  if (!(await konfirmasi('Simpan penjualan sparepart?', `${c.items.length} jenis part (${qty} pcs) · total <b>${rp(cartTotal().total)}</b>${chk.kembali ? ' · kembali <b>' + rp(chk.kembali) + '</b>' : ''}.<br>Stok dipotong dan nota dibuat.`, { ya: 'Ya, simpan & cetak' }))) return;
+  if (st.saving) return;
   st.saving = true;
   try {
     const diskon = c.diskon || 0;
@@ -105,14 +108,15 @@ async function saveSale() {
 registerPay('k', { get: () => st.cart.pay, total: () => cartTotal().total, onChange: renderKTot });
 views.kasir = renderKasir;
 refreshers.kasir = () => { st.cart.items = st.cart.items.filter(x => part(x.kode)); renderKRes(); renderCart(); };
-fkeys.kasir = { baru: 'cart-clear', simpan: 'cart-save' };
+fkeys.kasir = { baru: 'cart-clear', simpan: 'cart-save', cari: 'k-fokus' };
 Object.assign(actions, {
   'add': el => addToCart(el.dataset.k),
   'inc': el => addToCart(el.dataset.k),
   'dec': el => { const it = st.cart.items.find(x => x.kode === el.dataset.k); it.qty--; if (!it.qty) st.cart.items = st.cart.items.filter(x => x !== it); renderCart(); },
   'rm': el => { st.cart.items = st.cart.items.filter(x => x.kode !== el.dataset.k); renderCart(); },
-  'cart-clear': () => { st.cart = emptyCart(); renderKasir(); },
-  'cart-save': saveSale
+  'cart-clear': async () => { if (st.cart.items.length && !(await konfirmasi('Kosongkan keranjang?', st.cart.items.length + ' part di keranjang akan dihapus.', { ya: 'Ya, kosongkan', bahaya: true }))) return; st.cart = emptyCart(); renderKasir(); },
+  'cart-save': saveSale,
+  'k-fokus': () => { const q = $('#k-q'); if (q) { q.focus(); q.select(); } }
 });
 inputHandlers.push(e => {
   const t = e.target;

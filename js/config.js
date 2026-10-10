@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '4.5.0';
+export const APP_VERSION = '4.6.1';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.

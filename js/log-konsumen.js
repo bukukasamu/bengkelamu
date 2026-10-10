@@ -25,6 +25,9 @@ export function bedaKonsumen(lama, baru, kolom) {
     isi[f] = baru[f];
     if (f !== 'kabKode') ubah.push({ f, dari: String(a), ke: String(b) });
   });
+  // Kode wilayah saja (tanpa perubahan data lain) bukan perubahan data konsumen: jangan ditulis.
+  // Menulisnya tanpa catatan ditolak database ("Akses ditolak").
+  if (!ubah.length) return { isi: {}, ubah };
   return { isi, ubah };
 }
 

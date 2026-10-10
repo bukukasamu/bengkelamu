@@ -43,6 +43,11 @@ export const can = menuId => {
 export const menuAwal = () => can(HOME[st.role]) ? HOME[st.role] : (MENUS.find(m => can(m.id))?.id || HOME[st.role]);
 export const isRole = (...r) => r.includes(st.role);
 
+// Kotak ringkasan di Beranda per peran (bisa diatur super admin di Hak Akses Menu; tanpa pengaturan = bawaan)
+export const KOTAK_BERANDA = [['omzet', 'Omzet hari ini & grafik omzet 7 hari (Rp)'], ['part', 'Part terjual hari ini (pcs)'], ['partRp', 'Nilai part terjual (Rp)'], ['motor', 'Motor masuk, antrian & status mekanik'], ['stok', 'Stok menipis & perlu dipesan']];
+export const KOTAK_BAWAAN = { admin: ['omzet', 'part', 'partRp', 'motor', 'stok'], kasir: ['omzet', 'part', 'partRp', 'motor'], sparepart: ['part', 'stok'], registrasi: ['motor'], mekanik: [] };
+export const bolehKotak = id => !!st.petugas?.super || (S.akses?._beranda?.[st.role] || KOTAK_BAWAAN[st.role] || []).includes(id);
+
 // Kotak filter yang bisa disembunyikan (tersembunyi bawaan supaya tidak makan tempat)
 export const filterBuka = key => !!st.filterBuka?.[key];
 export const tombolFilter = (key, aktif = 0, act = 'filter-tgl') => `<button class="btn sm${aktif ? ' pri' : ''}" type="button" data-act="${act}" data-k="${key}" aria-expanded="${filterBuka(key)}">⚲ Filter${aktif ? ' (' + aktif + ')' : ''} ${filterBuka(key) ? '▴' : '▾'}</button>`;
@@ -62,12 +67,13 @@ export function go(v) {
   st.view = v;
   document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const m = MENUS.find(x => x.id === v); if ($('#page-title')) $('#page-title').textContent = m ? menuLabel(m) : '';
-  // Tombol cepat F1/F2/F8 hanya tampil bila berguna di halaman & peran ini
+  // Tombol cepat F1/F2/F3/F8 hanya tampil bila berguna di halaman & peran ini
   const tb = document.querySelector('.toolbar');
   if (tb) {
     const f = fkeys[v] || {};
     if ($('#fk-baru')) $('#fk-baru').hidden = !f.baru;
     if ($('#fk-simpan')) $('#fk-simpan').hidden = !f.simpan;
+    if ($('#fk-cari')) $('#fk-cari').hidden = !f.cari;
     if ($('#fk-cetak')) $('#fk-cetak').hidden = !['admin', 'kasir'].includes(st.role);
     tb.hidden = st.role === 'mekanik' || [...tb.children].every(c => c.hidden);
   }

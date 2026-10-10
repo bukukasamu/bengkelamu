@@ -1,10 +1,10 @@
 // Menu Registrasi Servis: data konsumen & kendaraan, keluhan, jenis servis (Reguler/KSB/KSG), jasa, mekanik.
-import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber } from './util.js';
+import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber, konfirmasi } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole } from './state.js';
 import { JENIS_SERVIS } from './config.js';
-import { db, doc, getDoc, getDocs, setDoc, collection, query, where, limit, documentId } from './firebase.js';
-import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, fmtAntri, kurangBadge } from './wo-common.js';
+import { db, doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, limit, documentId } from './firebase.js';
+import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, fmtAntri, kurangBadge, tundaInfo, mekanikNama, syncLayar } from './wo-common.js';
 import { showAntrian } from './antrian.js';
 import { bedaKonsumen, simpanDenganCatatan } from './log-konsumen.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
@@ -19,17 +19,30 @@ const blank = () => ({ no: null, tgl: stamp(new Date()), nik: '', nama: '', temp
 let filter = 'aktif';
 const waMsg = w => `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol || ''}${w.antrian ? ' (antrian ' + fmtAntri(w.antrian) + ')' : ''}. `;
 
+// Satu kendaraan hanya boleh punya satu servis yang masih di bengkel (Antri/Dikerjakan/Ditunda/Selesai)
+const woAktifNopol = (nopol, kecualiNo) => { const k = nopolKey(nopol); if (!k) return null; return (S.woSemua?.length ? S.woSemua : S.wo).find(w => w.no !== kecualiNo && AKTIF.includes(w.status) && nopolKey(w.nopol) === k) || null; };
+async function peringatanGanda(lama) {
+  const ok = await konfirmasi(lama.nopol + ' masih di bengkel', `Kendaraan ini sudah terdaftar dan belum selesai/dibayar:<br><b>Antrian ${esc(fmtAntri(lama.antrian) || '–')}</b> · <span class="mono">${esc(lama.no)}</span> · ${esc(lama.status)}${mekanikNama(lama) ? ' · ' + esc(mekanikNama(lama)) : ''}
+    ${lama.status === 'Ditunda' ? `<div class="tunda-box" style="margin-top:6px">${tundaInfo(lama)}</div>` : ''}
+    <p style="margin:8px 0 0">Satu kendaraan tidak bisa didaftarkan dua kali. ${lama.status === 'Ditunda' ? 'Buka servis ini lalu tekan <b>Lanjutkan dikerjakan</b>.' : 'Buka servis ini untuk mengubah datanya.'}</p>`, { ya: 'Buka servis ' + (fmtAntri(lama.antrian) || lama.no), tidak: 'Tutup' });
+  if (ok && (S.wo.find(w => w.no === lama.no))) { st.regDraft = { ...blank(), ...clone(lama), jasa: normJasa(lama) }; renderRegistrasi(); }
+  else if (ok) toast(lama.no + ' ada di cabang lain. Pindah cabang dulu untuk membukanya.');
+}
+
 function listWo() {
   const t = dkey(new Date());
   const l = [...S.wo].reverse();
   if (filter === 'aktif') return l.filter(w => AKTIF.includes(w.status));
   if (filter === 'hari') return l.filter(w => w.tgl.slice(0, 10) === t);
+  if (filter === 'tunda') return l.filter(w => w.status === 'Ditunda');
   return l;
 }
 function renderList() {
   const el = $('#reg-list'); if (!el) return;
   const l = listWo();
-  el.innerHTML = l.map(o => woCard(o, st.regDraft?.no, 'reg-pick')).join('') || '<div class="empty">Belum ada motor masuk.</div>';
+  el.innerHTML = l.map(o => woCard(o, st.regDraft?.no, 'reg-pick')).join('') || `<div class="empty">${filter === 'tunda' ? 'Tidak ada motor yang ditunda.' : 'Belum ada motor masuk.'}</div>`;
+  const n = S.wo.filter(w => w.status === 'Ditunda').length, c = $('#reg-ntunda');
+  if (c) { c.textContent = n; c.hidden = !n; }
 }
 
 // Mekanik hanya 1 motor: yang sedang mengerjakan motor lain tidak bisa dipilih
@@ -48,11 +61,12 @@ function renderRegistrasi() {
   const c = woCalc(w);
   $('#view').innerHTML = `<div class="grid g-servis">
    <div class="panel"><div class="row spread"><h3>Motor masuk</h3><button class="btn sm" data-act="reg-new" type="button">+ Motor masuk [F1]</button></div>
-    <div class="seg" role="group" aria-label="Tampilkan">${[['aktif', 'Aktif'], ['hari', 'Hari ini'], ['semua', 'Semua']].map(([k, l]) => `<button type="button" data-act="reg-filter" data-f="${k}" aria-pressed="${k === filter}">${l}</button>`).join('')}</div>
+    <div class="seg" role="group" aria-label="Tampilkan">${[['aktif', 'Aktif'], ['hari', 'Hari ini'], ['tunda', 'Ditunda'], ['semua', 'Semua']].map(([k, l]) => `<button type="button" data-act="reg-filter" data-f="${k}" aria-pressed="${k === filter}" title="${k === 'tunda' ? 'Motor yang pengerjaannya ditunda (lanjut lama) beserta alasannya' : ''}">${l}${k === 'tunda' ? '<span class="cnt" id="reg-ntunda" hidden></span>' : ''}</button>`).join('')}</div>
     <div class="wolist" id="reg-list"></div>
    </div>
    <div class="panel"><div class="row spread"><h2 class="row" style="gap:10px">${w.no ? `<span>Antrian ${fmtAntri(w.antrian) || '–'}</span> <span class="small muted mono" title="Nomor kartu kerja (work order)">${esc(w.no)}</span><button class="btn sm ghost" type="button" data-act="rw-buka" data-np="${esc(w.nopol)}">Riwayat motor</button>` : 'Registrasi motor masuk'}</h2>${w.no ? `<span class="row">${kurangBadge(w)}${jenisBadge(w)}${statusPill(w.status)}</span>` : ''}</div>
-    ${locked ? '' : `<div class="cari-box"><label class="f" for="r-cari">Pernah servis di sini? Cari data lama<span class="row" style="gap:6px"><input id="r-cari" placeholder="No. polisi, nama, no. HP, NIK, no. rangka, atau no. mesin — boleh sebagian" autocomplete="off" style="flex:1 1 220px"><button class="btn" type="button" data-act="reg-cari">Cari</button></span></label><div id="r-cari-hasil"></div></div>`}
+    ${w.status === 'Ditunda' && w.no ? `<div class="tunda-box">${tundaInfo(w)}<div class="small" style="margin-top:4px">Untuk melanjutkan: pilih mekanik yang kosong di bagian <b>3. Servis</b> (boleh mekanik yang sama atau lain), lalu tekan <b>Lanjutkan dikerjakan</b>.</div></div>` : ''}
+    ${locked ? '' : `<div class="cari-box"><label class="f" for="r-cari">Pernah servis di sini? Cari data lama<span class="row" style="gap:6px"><input id="r-cari" placeholder="No. polisi, nama, no. HP, NIK, no. rangka, atau no. mesin — boleh sebagian (F3)" autocomplete="off" style="flex:1 1 220px"><button class="btn" type="button" data-act="reg-cari">Cari [F3]</button></span></label><div id="r-cari-hasil"></div></div>`}
     <h3>1. Data konsumen <span class="h-sub">sesuai KTP</span></h3>
     <div class="form">
      ${inp('nik', 'NIK (16 angka)', 'inputmode="numeric" maxlength="16" class="num" autocomplete="off"')}
@@ -91,8 +105,9 @@ function renderRegistrasi() {
     <div class="totals small"><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span>${c.klaim ? `<span class="muted">Klaim KSG</span><span class="num">${rp(c.klaim)}</span>` : ''}${w.parts.length ? `<span class="muted">Order sparepart</span><span class="num">${rp(c.parts)}</span>` : ''}</div>
     <div class="row" style="justify-content:flex-end">
      ${w.no && !locked && isRole('admin') ? `<label class="f" for="r-status" style="flex-direction:row;align-items:center;gap:6px">Status<select id="r-status" style="width:auto">${AKTIF.map(s => `<option ${s === w.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>` : ''}
-     ${w.status === 'Ditunda' && !locked ? '<span class="small muted">Ditunda (lanjut lama). Pilih mekanik kosong lalu</span><button class="btn" type="button" data-act="reg-lanjut">Lanjutkan dikerjakan</button>' : ''}
-     ${locked ? '<span class="small muted">Sudah dibayar, tidak bisa diubah.</span>' : `${w.no ? '' : '<button class="btn" type="button" data-act="reg-cepat" title="Saat ramai: nomor antrian langsung keluar hanya dengan nomor polisi, data lain dilengkapi sesudahnya">Nomor cepat (cukup nopol)</button>'}<button class="btn pri" type="button" data-act="reg-save">${w.no ? 'Simpan perubahan' : 'Daftarkan &amp; beri nomor antrian'} [F2]</button>`}
+     ${w.status === 'Ditunda' && !locked ? '<button class="btn warn" type="button" data-act="reg-lanjut">▶ Lanjutkan dikerjakan</button>' : ''}
+     ${w.no && !locked && isRole('admin') ? '<button class="btn ghost" type="button" data-act="reg-hapus" title="Untuk pendaftaran ganda / salah daftar">Batalkan pendaftaran</button>' : ''}
+    ${locked ? '<span class="small muted">Sudah dibayar, tidak bisa diubah.</span>' : `${w.no ? '' : '<button class="btn" type="button" data-act="reg-cepat" title="Saat ramai: nomor antrian langsung keluar hanya dengan nomor polisi, data lain dilengkapi sesudahnya">Nomor cepat (cukup nopol)</button>'}<button class="btn pri" type="button" data-act="reg-save">${w.no ? 'Simpan perubahan' : 'Daftarkan &amp; beri nomor antrian'} [F2]</button>`}
     </div>
    </div></div>`;
   renderList();
@@ -126,6 +141,7 @@ async function cariData() {
 }
 function pakaiData(el) {
   const k = hasilCari[+el.dataset.i]; if (!k) return;
+  if (el.dataset.m !== 'konsumen' && !st.regDraft.no) { const g = woAktifNopol(k.nopol); if (g) { peringatanGanda(g); return; } }
   const w = st.regDraft, fields = el.dataset.m === 'konsumen' ? KONSUMEN_FIELDS : KEND_FIELDS;
   fields.forEach(f => { if (k[f] != null && k[f] !== '') w[f] = k[f]; });
   if (el.dataset.m !== 'konsumen' && !k.namaStnk) { w.namaStnk = k.nama || ''; w.stnkSama = true; }
@@ -137,6 +153,8 @@ async function save(opts = {}) {
   const w = st.regDraft; w.nopol = w.nopol.trim().toUpperCase().replace(/\s+/g, ' ');
   if (!w.nopol) { toast('Isi nomor polisi dulu'); $('#r-nopol')?.focus(); return; }
   const baru = !w.no;
+  const ganda = baru ? woAktifNopol(w.nopol) : null;
+  if (ganda) { peringatanGanda(ganda); return; }
   // Nomor cepat: saat ramai, nomor antrian keluar hanya dengan nopol. Motor menunggu (Antri) sampai datanya dilengkapi.
   if (opts.cepat) return simpanCepat(w);
   if (!w.nama.trim()) { toast('Isi nama konsumen sesuai KTP'); $('#r-nama')?.focus(); return; }
@@ -158,9 +176,17 @@ async function save(opts = {}) {
     const busy = sibukOleh(mek, w.no);
     if (busy) { toast(mek.nama + ' masih mengerjakan ' + busy.nopol + '. Pilih mekanik lain.'); delete w._lanjut; return; }
   }
-  // Catat jam setiap perubahan status (untuk menghitung lama servis)
+  // Melanjutkan motor yang ditunda: konfirmasi dulu, tampilkan mekanik sebelumnya
   const prevStatus = stored ? stored.status : null;
-  if (status !== prevStatus) w.log = logStatus(w.log || (stored?.log) || [], status);
+  if (prevStatus === 'Ditunda' && status === 'Dikerjakan') {
+    const lama = stored.mekanikTunda || mekanikNama(stored), ganti = lama && lama !== mek.nama;
+    const ok = await konfirmasi('Lanjutkan ' + w.nopol + '?', `${tundaInfo(stored)}<p style="margin:8px 0 0">Dilanjutkan oleh <b>${esc(mek.nama)}</b>${ganti ? ` <span class="diff-bad">(ganti mekanik dari ${esc(lama)})</span>. Lama kerja tiap mekanik tercatat terpisah.` : ' (mekanik yang sama).'}</p>`, { ya: 'Ya, lanjutkan' });
+    if (!ok) { delete w._lanjut; return; }
+  }
+  // Catat jam setiap perubahan status (untuk menghitung lama servis) + mekanik yang mengerjakan
+  const infoMek = mek ? { m: mek.nama, mid: mek.id } : {};
+  if (status !== prevStatus) w.log = logStatus(w.log || (stored?.log) || [], status, status === 'Dikerjakan' ? infoMek : {});
+  else if (status === 'Dikerjakan' && stored && mek && stored.mekanikId !== mek.id) w.log = logStatus(w.log || stored.log || [], 'Dikerjakan', { ...infoMek, a: 'ganti mekanik dari ' + (mekanikNama(stored) || '–') });
   w.status = status; w.mekanik = mek?.nama || '';
   delete w._manual; delete w._lanjut;
   w.jasa = normJasa(w); w.dataKurang = false;
@@ -168,17 +194,25 @@ async function save(opts = {}) {
   try {
     const no = await saveWo(w);
     w.no = no;
-    const kend = Object.fromEntries(KEND_FIELDS.map(f => [f, f === 'stnkSama' ? w[f] !== false : (w[f] || '')]));
+    // Servis lama (mis. dilanjutkan setelah ditunda): yang ditulis ke data kendaraan hanya kolom yang benar-benar
+    // diubah di formulir ini, supaya data konsumen yang lebih baru tidak tertimpa data lama di work order.
+    const nilai = (o, f) => f === 'stnkSama' ? o[f] !== false : String(o[f] ?? '').trim();
+    const kolom = stored ? KEND_FIELDS.filter(f => f !== 'kabKode' && nilai(w, f) !== nilai(stored, f)) : KEND_FIELDS;
+    if (stored && kolom.some(f => WIL_FIELDS.includes(f))) kolom.push('kabKode');
+    const kend = Object.fromEntries(kolom.map(f => [f, f === 'stnkSama' ? w[f] !== false : (w[f] || '')]));
     const kId = nopolKey(w.nopol), kRef = doc(db, 'kendaraan', kId), kSnap = await getDoc(kRef).catch(() => null);
     const kLama = kSnap?.exists() ? kSnap.data() : (kSnap ? null : undefined);
     const umum = { nopolKey: kId, km: w.km || '', updated: stamp(new Date()), woTerakhir: no };
-    if (kLama === null) await setDoc(kRef, { ...kend, ...umum, hpNorm: waNumber(w.hp), dibuat: stamp(new Date()) }, { merge: true });
+    // WO sudah tersimpan. Gagal memperbarui data kendaraan tidak membatalkan servis, cukup diberi tahu.
+    try {
+    if (kLama === null) await setDoc(kRef, { ...Object.fromEntries(KEND_FIELDS.map(f => [f, f === 'stnkSama' ? w[f] !== false : (w[f] || '')])), ...umum, hpNorm: waNumber(w.hp), dibuat: stamp(new Date()) }, { merge: true });
     else if (kLama) {
       // Data konsumen yang berubah saat registrasi ikut tercatat (siapa, kapan, lama → baru)
       const { isi, ubah } = bedaKonsumen(kLama, kend, KEND_FIELDS);
       await simpanDenganCatatan(kId, w.nopol, isi, ubah, { ...umum, ...('hp' in isi ? { hpNorm: waNumber(w.hp) } : {}) }, 'Registrasi ' + no);
       if ('hp' in isi) await pindahPantau(w.nopol, kLama.hp, w.hp, kend);
     }
+    } catch (e) { console.warn('Data kendaraan', e); toast('Servis tersimpan, tetapi data konsumen/kendaraan gagal diperbarui: ' + errMsg(e)); }
     w.dataKurang = false;
     syncPantau(w);
     toast(`Antrian ${fmtAntri(w.antrian)} · ${w.nopol} disimpan`);
@@ -201,16 +235,32 @@ async function simpanCepat(w) {
 
 views.registrasi = renderRegistrasi;
 refreshers.registrasi = () => { renderList(); const sel = $('#r-mek'); if (sel) { const v = sel.value; sel.innerHTML = mekanikOptions(st.regDraft); sel.value = v; } };
-fkeys.registrasi = { baru: 'reg-new', simpan: 'reg-save' };
+fkeys.registrasi = { baru: 'reg-new', simpan: 'reg-save', cari: 'reg-fokus-cari' };
 Object.assign(actions, {
-  'reg-new': () => { st.regDraft = blank(); renderRegistrasi(); $('#r-nopol')?.focus(); },
+  // F1: formulir baru, kursor langsung ke data konsumen (NIK) sesuai urutan formulir
+  'reg-new': () => { st.regDraft = blank(); renderRegistrasi(); $('#r-nik')?.focus(); },
+  // F3: langsung ke kotak "Pernah servis di sini? Cari data lama"
+  'reg-fokus-cari': () => { const c = $('#r-cari'); if (!c) { toast('Pencarian tidak tersedia untuk servis yang sudah dibayar'); return; } c.scrollIntoView({ block: 'center' }); c.focus(); c.select(); },
   'reg-pick': el => { const o = findWo(el.dataset.no); if (o) { st.regDraft = { ...blank(), ...clone(o), jasa: normJasa(o) }; renderRegistrasi(); } },
   'reg-filter': el => { filter = el.dataset.f; document.querySelectorAll('[data-act="reg-filter"]').forEach(b => b.setAttribute('aria-pressed', b === el)); renderList(); },
   'reg-save': () => save(),
   'reg-cepat': () => save({ cepat: true }),
   'reg-cari': cariData,
   'reg-pakai': pakaiData,
-  'reg-lanjut': () => { st.regDraft._lanjut = true; save(); }
+  'reg-lanjut': () => { st.regDraft._lanjut = true; save(); },
+  // Admin: hapus pendaftaran yang salah/ganda (belum dibayar). Nomor antrian tidak dipakai ulang.
+  'reg-hapus': async () => {
+    const w = findWo(st.regDraft?.no); if (!w || w.status === 'Lunas') return;
+    const ok = await konfirmasi('Batalkan pendaftaran ' + w.nopol + '?', `Antrian <b>${esc(fmtAntri(w.antrian) || '–')}</b> · <span class="mono">${esc(w.no)}</span> · ${esc(w.status)}${mekanikNama(w) ? ' · ' + esc(mekanikNama(w)) : ''}${(w.parts || []).length ? `<br><span class="diff-bad">Ada ${w.parts.length} order sparepart yang ikut terhapus.</span>` : ''}<br>Data servis ini dihapus dari daftar, layar TV, dan halaman cek servis konsumen. Data konsumen & kendaraan tidak terhapus.`, { ya: 'Ya, batalkan pendaftaran', bahaya: true });
+    if (!ok) return;
+    try {
+      await deleteDoc(doc(db, 'wo', w.no));
+      const lain = woAktifNopol(w.nopol, w.no);
+      syncLayar({ ...w, status: 'Batal' });
+      syncPantau(lain || { ...w, status: 'Batal' });
+      st.regDraft = blank(); renderRegistrasi(); toast('Pendaftaran ' + w.no + ' dibatalkan');
+    } catch (e) { toast(errMsg(e)); }
+  }
 });
 inputHandlers.push(e => {
   const t = e.target; if (t.dataset.rf && st.regDraft) st.regDraft[t.dataset.rf] = t.value;
@@ -230,5 +280,5 @@ changeHandlers.push(e => {
   }
   if (t.id === 'r-status') { w.status = t.value; w._manual = true; }
   if (t.id === 'r-stnkSama') { w.stnkSama = t.checked; if (!t.checked && !w.namaStnk) w.namaStnk = w.nama; const n = $('#r-namaStnk'); n.disabled = t.checked; n.value = t.checked ? w.nama : w.namaStnk; if (!t.checked) n.focus(); }
-  if (t.id === 'r-nopol' && !w.no) { t.value = t.value.trim().toUpperCase(); w.nopol = t.value; lookupKendaraan(w.nopol); }
+  if (t.id === 'r-nopol' && !w.no) { t.value = t.value.trim().toUpperCase(); w.nopol = t.value; const g = woAktifNopol(w.nopol); if (g) peringatanGanda(g); else lookupKendaraan(w.nopol); }
 });

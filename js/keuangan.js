@@ -3,7 +3,7 @@
 //              (hitung uang fisik, setor). Selisih tercatat. Kas yang sudah ditutup hanya bisa dibuka ulang super admin.
 // Pengeluaran: biaya operasional per cabang. Hanya super admin yang bisa menghapus (dengan kata sandi).
 // Klaim KSG  : nota servis KSG dikumpulkan → diajukan ke main dealer → ditandai dibayar.
-import { $, esc, rp, dkey, stamp, toast, errMsg, modal, closeModal } from './util.js';
+import { $, esc, rp, dkey, stamp, toast, errMsg, modal, closeModal, konfirmasi } from './util.js';
 import { S, st, views, refreshers, actions, changeHandlers, inputHandlers, namaPetugas, idPetugas, isRole } from './state.js';
 import { db, doc, collection, getDoc, getDocs, setDoc, addDoc, deleteDoc, query, where, writeBatch, deleteField } from './firebase.js';
 import { cabAktif, namaCabang, multiCabang, cabangOf } from './cabang.js';
@@ -219,6 +219,7 @@ Object.assign(actions, {
     const h = hitungKas(), fisik = +f, setor = +$('#kas-setor').value || 0, catatan = $('#kas-cat').value.trim(), selisih = fisik - h.harus;
     if (selisih && !catatan) { toast('Ada selisih ' + (selisih > 0 ? 'lebih ' : 'kurang ') + rp(Math.abs(selisih)) + '. Tulis catatan penyebabnya.'); $('#kas-cat').focus(); return; }
     if (setor > fisik) { toast('Setoran lebih besar dari uang di laci'); return; }
+    if (!(await konfirmasi('Tutup kas ' + KU.tgl + '?', `Seharusnya <b>${rp(h.harus)}</b> · uang fisik <b>${rp(fisik)}</b> · ${selisih ? `<span class="diff-bad">selisih ${selisih > 0 ? 'lebih' : 'kurang'} ${rp(Math.abs(selisih))}</span>` : '<span class="diff-ok">pas</span>'}${setor ? ' · disetor ' + rp(setor) : ''}.<br>Setelah ditutup, hanya super admin yang bisa membuka ulang.`, { ya: 'Ya, tutup kas' }))) return;
     el.disabled = true;
     try {
       await setDoc(doc(db, 'kas', kasDoc.id), { tutup: { uangAwal: h.awal, nota: h.nota, penjualanCash: h.cash, transfer: h.transfer, pengeluaranTunai: h.keluarTunai, pengeluaranLain: h.keluarLain, seharusnya: h.harus, uangFisik: fisik, selisih, setor, sisa: fisik - setor, catatan, oleh: namaPetugas(), olehId: idPetugas(), jam: stamp(new Date()).slice(11) } }, { merge: true });

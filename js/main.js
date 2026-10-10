@@ -300,11 +300,12 @@ function fk(k) {
   let a = fkeys[st.view] && fkeys[st.view][k];
   if (typeof a === 'function') a = a();
   if (a && actions[a]) actions[a]({ dataset: {} });
-  else toast(k === 'baru' ? 'Tidak ada data baru di halaman ini' : 'Tidak ada yang perlu disimpan di halaman ini');
+  else toast(k === 'baru' ? 'Tidak ada data baru di halaman ini' : k === 'cari' ? 'Tidak ada pencarian di halaman ini' : 'Tidak ada yang perlu disimpan di halaman ini');
 }
 $('#fk-baru').onclick = () => fk('baru');
 $('#fk-simpan').onclick = () => fk('simpan');
 $('#fk-cetak').onclick = () => fk('cetak');
+if ($('#fk-cari')) $('#fk-cari').onclick = () => fk('cari');
 
 document.addEventListener('keydown', e => {
   if ($('#app-shell').hidden) return;
@@ -314,6 +315,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'r-cari') { e.preventDefault(); actions['reg-cari'](); return; }
   if (e.key === 'F1') { e.preventDefault(); fk('baru'); }
   if (e.key === 'F2') { e.preventDefault(); fk('simpan'); }
+  if (e.key === 'F3') { e.preventDefault(); fk('cari'); }
   if (e.key === 'F8') { e.preventDefault(); fk('cetak'); }
 });
 

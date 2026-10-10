@@ -56,15 +56,23 @@ export function woCard(o, current, act = 'pick-wo') {
   return `<button class="wo" type="button" data-act="${act}" data-no="${esc(o.no)}" aria-current="${o.no === current}">
     <span class="row spread"><span class="row" style="gap:8px">${antriBadge(o)}<span class="np">${esc(o.nopol)}</span></span>${statusPill(o.status)}</span>
     <span>${esc(o.tipe || '–')} · ${esc(o.nama || '–')} ${kurangBadge(o)}</span>
+    ${o.status === 'Ditunda' ? `<span class="wo-tunda">⏸ ${esc(o.alasanTunda || 'Ditunda (alasan tidak diisi)')}${o.tglTunda ? ' · sejak ' + esc(String(o.tglTunda).slice(5, 16).replace('-', '/')) : ''}</span>` : ''}
     <span class="row spread small muted"><span>${esc(o.no)} · ${o.tgl.slice(5).replace('-', '/')} · ${esc(mekanikNama(o) || 'belum ada mekanik')}</span>${jenisBadge(o)}</span>
   </button>`;
 }
 
+// Ringkasan penundaan: alasan, sejak kapan, oleh siapa, mekanik sebelumnya
+export function tundaInfo(w) {
+  const l = [...(w.log || [])].reverse().find(x => x.s === 'Ditunda') || {};
+  const alasan = w.alasanTunda || l.a || '';
+  return `<b>⏸ Ditunda</b>${alasan ? ': ' + esc(alasan) : ' <span class="muted">(alasan tidak diisi)</span>'}<div class="small muted">Sejak ${esc(w.tglTunda || l.t || '–')}${l.o ? ' · dilaporkan ' + esc(l.o) : ''}${(l.m || w.mekanikTunda) ? ' · mekanik sebelumnya ' + esc(l.m || w.mekanikTunda) : ''}</div>`;
+}
 export function woHeader(w) {
   return `<div class="note"><div class="row spread"><span class="row" style="gap:8px">${antriBadge(w)}<b class="mono">${esc(w.nopol)}</b>${can('riwayat') ? `<button class="btn sm ghost" type="button" data-act="rw-buka" data-np="${esc(w.nopol)}">Riwayat motor</button>` : ''}</span><span class="row">${jenisBadge(w)}${statusPill(w.status)}</span></div>
     <div>${esc(w.tipe)}${w.km ? ' · ' + esc(w.km) + ' km' : ''} · ${esc(w.nama || 'Umum')}${w.hp ? ' · ' + esc(w.hp) + ' ' + waButton(w.hp, `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol} (${w.no}). `) : ''}</div>
     <div class="small muted">Mekanik: ${esc(mekanikNama(w) || 'belum ditentukan')}${w.noKartu ? ' · No. kartu ' + esc(w.noKartu) : ''}</div>
     ${w.keluhan ? `<div class="small" style="margin-top:4px"><b>Keluhan:</b> ${esc(w.keluhan)}</div>` : ''}
+    ${w.status === 'Ditunda' ? `<div class="tunda-box" style="margin-top:6px">${tundaInfo(w)}</div>` : ''}
     ${w.catatanPart ? `<div class="small"><b>Permintaan mekanik:</b> ${esc(w.catatanPart)}</div>` : ''}</div>`;
 }
 
@@ -99,9 +107,24 @@ export const updateWo = (no, patch) => updateDoc(doc(db, 'wo', no), clone('statu
 export const findWo = no => S.wo.find(x => x.no === no);
 
 /* ---------- Catatan waktu servis ----------
-   Setiap perubahan status disimpan di w.log = [{ s: status, t: 'YYYY-MM-DD HH:MM', o: petugas }].
-   Lama kerja = jumlah waktu berstatus Dikerjakan (waktu Ditunda tidak dihitung). */
-export const logStatus = (log, s) => [...(log || []), { s, t: stamp(new Date()), o: namaPetugas() }];
+   Setiap perubahan status disimpan di w.log = [{ s: status, t: 'YYYY-MM-DD HH:MM', o: petugas, a?: alasan, m?: mekanik, mid?: id mekanik }].
+   Lama kerja = jumlah waktu berstatus Dikerjakan (waktu Ditunda tidak dihitung).
+   Sejak 4.6: entri Ditunda menyimpan alasannya (a), entri Dikerjakan menyimpan mekanik yang mengerjakan (m, mid),
+   sehingga bila dilanjutkan mekanik lain, lama kerja masing-masing mekanik tetap terlihat. */
+export const logStatus = (log, s, extra = {}) => [...(log || []), { s, t: stamp(new Date()), o: namaPetugas(), ...Object.fromEntries(Object.entries(extra).filter(([, v]) => v)) }];
+// Lama kerja per mekanik (menit) dari log: { 'Nama': menit }.
+export function kerjaPerMekanik(w) {
+  const log = w.log || [], hasil = {};
+  for (let i = 0; i < log.length; i++) {
+    const a = log[i]; if (a.s === 'Selesai' || a.s === 'Lunas') break;
+    if (a.s !== 'Dikerjakan') continue;
+    const end = log[i + 1] ? toDate(log[i + 1].t) : new Date();
+    // Entri lama tanpa nama: ambil dari entri berikutnya yang mencatat mekanik (Ditunda/Selesai), lalu mekanik di WO
+    const nm = a.m || log.slice(i + 1).find(x => x.m)?.m || mekanikNama(w) || '–';
+    hasil[nm] = (hasil[nm] || 0) + Math.max(0, Math.round((end - toDate(a.t)) / 60000));
+  }
+  return hasil;
+}
 const toDate = t => new Date(String(t).replace(' ', 'T'));
 export function durasi(w) {
   const log = [...(w.log || [])];
@@ -127,8 +150,9 @@ export const fmtDur = m => m == null ? '–' : m < 60 ? `${m} mnt` : m < 1440 ? 
 const jam = t => t ? String(t).slice(11, 16) : '';
 export function timelineHTML(w) {
   const d = durasi(w); if (!d) return '';
-  return `<div class="timeline">${(w.log || []).map(l => `<span class="tl"><b>${esc(l.s)}</b> ${esc(l.t.slice(5, 10).replace('-', '/'))} ${esc(jam(l.t))}</span>`).join('<span class="tl-sep">→</span>')}</div>
-    <div class="small muted">Tunggu mekanik ${fmtDur(d.tunggu)} · Lama dikerjakan ${fmtDur(d.kerja)}${d.tunda ? ' · Ditunda ' + fmtDur(d.tunda) : ''}${d.total != null ? ' · Masuk s/d selesai ' + fmtDur(d.total) : ''}</div>`;
+  const per = Object.entries(kerjaPerMekanik(w));
+  return `<div class="timeline">${(w.log || []).map(l => `<span class="tl"><b>${esc(l.s)}</b> ${esc(l.t.slice(5, 10).replace('-', '/'))} ${esc(jam(l.t))}${l.m ? ` <span class="muted">(${esc(l.m)})</span>` : ''}${l.a ? `<span class="wo-tunda"> — ${esc(l.a)}</span>` : ''}</span>`).join('<span class="tl-sep">→</span>')}</div>
+    <div class="small muted">Tunggu mekanik ${fmtDur(d.tunggu)} · Lama dikerjakan ${fmtDur(d.kerja)}${per.length > 1 ? ' (' + per.map(([n, m]) => esc(n) + ' ' + fmtDur(m)).join(', ') + ')' : ''}${d.tunda ? ' · Ditunda ' + fmtDur(d.tunda) : ''}${d.total != null ? ' · Masuk s/d selesai ' + fmtDur(d.total) : ''}</div>`;
 }
 
 /* ---------- Data untuk halaman cek servis konsumen ----------
@@ -142,7 +166,7 @@ export async function pantauKey(nopol, hp) {
 const ringkasWo = w => ({ no: w.no, cabang: namaCabang(cabangOf(w)), antrian: fmtAntri(w.antrian), tgl: w.tgl, status: w.status, tipe: w.tipe, km: w.km || '', jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', keluhan: w.keluhan || '', mekanik: mekanikNama(w), log: w.log || [],
   jasa: normJasa(w).map(j => j.nama), parts: (w.parts || []).map(x => ({ nama: part(x.kode)?.nama || x.kode, qty: x.qty })),
   biaya: (w.biaya || []).filter(b => b.jumlah).map(b => ({ ket: b.ket, jumlah: b.jumlah })), diskon: w.diskon || 0,
-  estimasi: Math.max(0, woCalc(w).total - (w.diskon || 0)), alasanTunda: w.alasanTunda || '' });
+  estimasi: Math.max(0, woCalc(w).total - (w.diskon || 0)), alasanTunda: w.alasanTunda || '', tglTunda: w.tglTunda || '' });
 // Dipanggil setelah WO disimpan / status berubah / dibayar. Gagal di sini tidak membatalkan pekerjaan kasir.
 export async function syncPantau(w, trx) {
   syncLayar(w);

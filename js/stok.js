@@ -1,5 +1,5 @@
 // Menu Stok Part: daftar part, tambah/ubah part, import/export Excel. Barang masuk lewat menu Pembelian Stok.
-import { $, esc, rp, toast, errMsg } from './util.js';
+import { $, esc, rp, toast, errMsg, konfirmasi } from './util.js';
 import { S, st, part, kategoriList, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, go } from './state.js';
 import { db, doc, setDoc, updateDoc, runTransaction, collection, getDocs, query, orderBy, limit, addDoc, where, writeBatch } from './firebase.js';
 import { modal, closeModal, stamp, dkey } from './util.js';
@@ -123,6 +123,8 @@ async function tfRun() {
   if (st.saving) return;
   if (!tfBaris.length) { if (pickedKode('tf-part')) tfTambah(); if (!tfBaris.length) { toast('Tambahkan part yang dikirim'); return; } }
   const ke = $('#tf-ke').value, dari = cabAktif(), catatan = ($('#tf-cat').value || '').trim();
+  if (!(await konfirmasi('Kirim transfer ke ' + namaCabang(ke) + '?', `${tfBaris.length} jenis part (${tfBaris.reduce((a, x) => a + x.qty, 0)} pcs): ${tfBaris.map(x => esc(x.nama) + ' ×' + x.qty).join(', ')}.<br>Stok ${esc(namaCabang(dari))} langsung berkurang.`, { ya: 'Ya, kirim' }))) return;
+  if (st.saving) return;
   st.saving = true;
   try {
     const no = await runTransaction(db, async tx => {
@@ -149,6 +151,8 @@ async function muatTransferMasuk() {
 }
 async function tfTerima(el) {
   const t = tfMasuk[+el.dataset.i]; if (!t || st.saving) return;
+  if (!(await konfirmasi('Terima transfer ' + t.no + '?', `Dari <b>${esc(namaCabang(t.dari))}</b> · ${t.items.length} jenis part (${t.items.reduce((a, x) => a + x.qty, 0)} pcs):<br>${t.items.map(x => esc(x.nama) + ' ×' + x.qty).join(', ')}<br><br>Pastikan barang fisik sudah dicek. Stok cabang ini langsung bertambah.`, { ya: 'Ya, barang sudah diterima' }))) return;
+  if (st.saving) return;
   st.saving = true;
   try {
     await runTransaction(db, async tx => {

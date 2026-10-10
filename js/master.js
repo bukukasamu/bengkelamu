@@ -1,7 +1,7 @@
 // Menu Master Data: pemilik & kendaraan, jasa servis, tarif KSG, mekanik (+PIN), rekening, tipe motor, petugas (+PIN).
-import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber, publicUrl } from './util.js';
+import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber, publicUrl, konfirmasi } from './util.js';
 import { loaderHTML, getBrand, resizeImage, saveLogo } from './brand.js';
-import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole, namaPetugas, go, filterBuka, tombolFilter } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole, namaPetugas, go, filterBuka, tombolFilter, KOTAK_BERANDA, KOTAK_BAWAAN } from './state.js';
 import { ROLES, MENUS } from './config.js';
 import { db, doc, getDoc, collection, getDocs, writeBatch, query, where, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
@@ -32,11 +32,11 @@ const TABS = [
 const tabsFor = () => TABS.filter(t => isRole(...t[2]) && (t[3] !== 'super' || st.petugas?.super));
 let kend = null, kendQ = '', kendEdit = null, logins = null;
 
-// Hapus perlu diklik dua kali (dialog konfirmasi bawaan browser tidak dipakai)
-let armed = null;
-function confirmTwice(el, key, fn) {
-  if (armed !== key) { armed = key; const t = el.textContent; el.textContent = 'Klik lagi'; setTimeout(() => { if (armed === key) { armed = null; el.textContent = t; } }, 3000); return; }
-  armed = null; fn();
+// Hapus: tampilkan kotak konfirmasi dulu (nama data yang akan dihapus diambil dari baris tombolnya)
+const LABEL_HAPUS = { k: 'data kendaraan & konsumen ini', j: 'jasa ini', m: 'mekanik ini (akun login-nya ikut dihapus)', r: 'rekening ini', s: 'akun petugas ini (tidak bisa login lagi)', l: 'logo' };
+async function confirmTwice(el, key, fn) {
+  const baris = el.closest('tr')?.querySelector('td')?.textContent?.trim() || '';
+  if (await konfirmasi('Hapus ' + (LABEL_HAPUS[key[0]] || 'data ini') + '?', (baris ? '<b>' + esc(baris) + '</b><br>' : '') + 'Tindakan ini tidak bisa dibatalkan.', { ya: 'Ya, hapus', bahaya: true })) fn();
 }
 const saveSettings = patch => setDoc(doc(db, 'meta', 'settings'), patch, { merge: true });
 const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p>`;
@@ -298,6 +298,11 @@ function renderAkses() {
    <div class="tw"><table><thead><tr><th>Menu</th>${PERAN_AKSES.map(r => `<th class="r">${esc(ROLES[r])}<div class="row" style="justify-content:flex-end;gap:4px;margin-top:4px"><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="1" title="Centang semua">✓</button><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="0" title="Kosongkan">✕</button></div></th>`).join('')}</tr></thead><tbody>
     ${menu.map(m => `<tr><td>${esc(m.label)}<div class="small muted">${esc(m.group)}</div></td>${PERAN_AKSES.map(r => `<td class="r">${m.roles.includes(r) ? `<input type="checkbox" class="ak-cek" data-r="${r}" data-m="${m.id}" ${boleh(r, m.id) ? 'checked' : ''} aria-label="${esc(m.label)} untuk ${esc(ROLES[r])}" style="width:auto">` : '<span class="muted">–</span>'}</td>`).join('')}</tr>`).join('')}
    </tbody></table></div>
+   <h3 style="margin-top:16px">Kotak ringkasan di Beranda</h3>
+   <p class="small muted" style="margin:0 0 6px">Angka yang tampil di Beranda tiap peran (hanya untuk peran yang boleh membuka Beranda). Karyawan hanya melihat angka cabangnya sendiri.</p>
+   <div class="tw"><table><thead><tr><th>Kotak</th>${['admin', 'kasir', 'sparepart', 'registrasi'].map(r => `<th class="r">${esc(ROLES[r])}</th>`).join('')}</tr></thead><tbody>
+    ${KOTAK_BERANDA.map(([id, l]) => `<tr><td>${esc(l)}</td>${['admin', 'kasir', 'sparepart', 'registrasi'].map(r => `<td class="r"><input type="checkbox" class="ak-kotak" data-r="${r}" data-k="${id}" ${(akses._beranda?.[r] || KOTAK_BAWAAN[r] || []).includes(id) ? 'checked' : ''} aria-label="${esc(l)} untuk ${esc(ROLES[r])}" style="width:auto"></td>`).join('')}</tr>`).join('')}
+   </tbody></table></div>
    <div class="row" style="justify-content:space-between;margin-top:8px"><button class="btn ghost" type="button" data-act="ak-bawaan">Kembalikan ke bawaan (semua menu)</button><button class="btn pri" type="button" data-act="ak-simpan">Simpan hak akses</button></div>`;
 }
 
@@ -539,6 +544,7 @@ Object.assign(actions, {
   'ak-semua': el => document.querySelectorAll(`.ak-cek[data-r="${el.dataset.r}"]`).forEach(c => { c.checked = el.dataset.v === '1'; }),
   'ak-simpan': async () => {
     const akses = {}; PERAN_AKSES.forEach(r => { akses[r] = [...document.querySelectorAll(`.ak-cek[data-r="${r}"]:checked`)].map(c => c.dataset.m); });
+    akses._beranda = {}; ['admin', 'kasir', 'sparepart', 'registrasi'].forEach(r => { akses._beranda[r] = [...document.querySelectorAll(`.ak-kotak[data-r="${r}"]:checked`)].map(c => c.dataset.k); });
     const kosong = PERAN_AKSES.filter(r => !akses[r].length && MENUS.some(m => m.roles.includes(r)));
     if (!(await mintaPassword('Simpan hak akses menu', kosong.length ? `Peran ${kosong.map(r => ROLES[r]).join(', ')} tidak punya menu sama sekali.` : 'Menu karyawan berubah langsung.'))) return;
     try { await setDoc(doc(db, 'pengaturan', 'akses'), akses); S.akses = akses; toast('Hak akses menu disimpan'); renderAkses(); } catch (e) { toast(errMsg(e)); }

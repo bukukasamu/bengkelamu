@@ -1,12 +1,12 @@
 // Menu Pembayaran & Status Servis (kasir):
 // 1. Mekanik melapor ke kasir: motor Selesai, atau harus Lanjut lama (Ditunda). Keduanya membuat mekanik bebas lagi.
 // 2. Motor Selesai: cek jasa, sparepart, biaya lain, diskon, terima pembayaran cash / transfer / campur.
-import { $, esc, rp, stamp, clone, toast, errMsg, waButton } from './util.js';
+import { $, esc, rp, stamp, clone, toast, errMsg, waButton, konfirmasi } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas, idPetugas } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
-import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo, logStatus, timelineHTML, durasi, syncPantau, panggilLayar, fmtAntri } from './wo-common.js';
+import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, updateWo, logStatus, timelineHTML, durasi, syncPantau, panggilLayar, fmtAntri, tundaInfo, kerjaPerMekanik } from './wo-common.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { showNota, cekLink } from './nota.js';
 import { cabangOf, stokOf, stokField } from './cabang.js';
@@ -35,9 +35,9 @@ const grandTotal = () => Math.max(0, woCalc(draftWo()).total - (st.bayarDraft.di
 
 function statusPanel(w) {
   if (w.status === 'Dikerjakan') return `<div class="note"><b>Laporan mekanik ${esc(mekanikNama(w))}</b>
-    <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="bay-status" data-s="Selesai">Motor selesai</button><input id="bay-tunda" class="inline-input" placeholder="Alasan lanjut lama, mis. tunggu part" style="flex:1 1 200px" aria-label="Alasan ditunda"><button class="btn" type="button" data-act="bay-status" data-s="Ditunda">Lanjut lama (tunda)</button></div>
+    <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="bay-status" data-s="Selesai">Motor selesai</button><input id="bay-tunda" class="inline-input" placeholder="Alasan lanjut lama (wajib), mis. tunggu part" style="flex:1 1 200px" aria-label="Alasan ditunda"><button class="btn" type="button" data-act="bay-status" data-s="Ditunda">Lanjut lama (tunda)</button></div>
     <div class="small muted" style="margin-top:4px">Kedua pilihan membuat mekanik kosong dan bisa menerima motor berikutnya.</div></div>`;
-  if (w.status === 'Ditunda') return `<div class="note"><b>Ditunda</b>${w.alasanTunda ? ': ' + esc(w.alasanTunda) : ''}${w.tglTunda ? ` <span class="small muted">(${esc(w.tglTunda)})</span>` : ''}
+  if (w.status === 'Ditunda') return `<div class="tunda-box">${tundaInfo(w)}
     <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="bay-status" data-s="Selesai">Motor sudah selesai</button><span class="small muted">Untuk dikerjakan lagi, pilih mekanik kosong di Registrasi → Lanjutkan dikerjakan.</span></div></div>`;
   if (w.status === 'Antri') return `<div class="note small">${w.dataKurang ? 'Data konsumen belum lengkap. ' : ''}Belum ada mekanik. Registrasi perlu memilih mekanik yang kosong.</div>`;
   if (w.status === 'Selesai') return `<div class="row"><button class="btn" type="button" data-act="bay-panggil">Panggil ulang di layar</button><span class="small muted">Nomor ${esc(fmtAntri(w.antrian) || w.nopol)} dipanggil ke kasir lewat layar TV.</span></div>`;
@@ -100,16 +100,23 @@ function renderTot() {
 
 async function setStatus(el) {
   if (st.saving || !st.bayarNo) return;
-  const s = el.dataset.s, w = findWo(st.bayarNo);
-  const base = { log: logStatus(w.log, s), lapor: namaPetugas() };
+  const s = el.dataset.s, w = findWo(st.bayarNo), mek = mekanikNama(w);
+  const alasan = s === 'Ditunda' ? ($('#bay-tunda')?.value || '').trim() : '';
+  if (s === 'Ditunda' && alasan.length < 3) { toast('Tulis alasan ditunda (mis. tunggu part, konsumen ambil besok)'); $('#bay-tunda')?.focus(); return; }
+  const ok = await konfirmasi(s === 'Selesai' ? `Tandai ${w.nopol} selesai?` : `Tunda pengerjaan ${w.nopol}?`,
+    s === 'Selesai' ? `Mekanik <b>${esc(mek || '–')}</b> menjadi kosong, nomor antrian <b>${esc(fmtAntri(w.antrian) || w.nopol)}</b> dipanggil ke kasir di layar TV, dan motor siap dibayar.`
+      : `Alasan: <b>${esc(alasan)}</b><br>Alasan ini terlihat oleh registrasi, tercatat di riwayat servis, dan tampil di halaman cek servis konsumen. Mekanik <b>${esc(mek || '–')}</b> menjadi kosong.`,
+    { ya: s === 'Selesai' ? 'Ya, motor selesai' : 'Ya, tunda' });
+  if (!ok) return;
+  const base = { log: logStatus(w.log, s, s === 'Ditunda' ? { a: alasan, m: mek } : { m: mek }), lapor: namaPetugas() };
   const patch = s === 'Selesai' ? { ...base, status: 'Selesai', selesai: stamp(new Date()) }
-    : { ...base, status: 'Ditunda', tglTunda: stamp(new Date()), alasanTunda: ($('#bay-tunda')?.value || '').trim() };
+    : { ...base, status: 'Ditunda', tglTunda: stamp(new Date()), alasanTunda: alasan, mekanikTunda: mek };
   st.saving = true;
   try {
     await updateWo(w.no, patch); Object.assign(w, patch); syncPantau(w);
     // Motor selesai: nomor antrian otomatis dipanggil di layar TV supaya konsumen datang ke kasir
     if (s === 'Selesai') panggilLayar(w).catch(e => console.warn('Panggilan layar gagal', e));
-    toast(`${w.nopol}: ${s}. ${mekanikNama(w) || 'Mekanik'} sekarang kosong.${s === 'Selesai' ? ' Nomor dipanggil di layar.' : ''}`); renderList(); renderDetail();
+    toast(`${w.nopol}: ${s}. ${mek || 'Mekanik'} sekarang kosong.${s === 'Selesai' ? ' Nomor dipanggil di layar.' : ''}`); renderList(); renderDetail();
   }
   catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
@@ -123,6 +130,8 @@ async function confirm() {
   const chk = payStatus(d.pay, grandTotal());
   if (chk.err) { toast(chk.err); return; }
   const biaya = d.biaya.filter(b => b.ket.trim() || b.jumlah).map(b => ({ ket: b.ket.trim() || 'Biaya lain', jumlah: +b.jumlah || 0 }));
+  if (!(await konfirmasi('Terima pembayaran ' + w.nopol + '?', `Total <b>${rp(grandTotal())}</b>${d.pay?.cash ? ' · cash ' + rp(d.pay.cash) : ''}${d.pay?.transfer ? ' · transfer ' + rp(d.pay.transfer) : ''}${chk.kembali ? ' · kembali <b>' + rp(chk.kembali) + '</b>' : ''}.<br>Nota dibuat, stok part dipotong, dan motor ditandai Lunas. Nota tidak bisa diubah setelah ini.`, { ya: 'Ya, terima & cetak nota' }))) return;
+  if (st.saving) return;
   st.saving = true;
   try {
     const t = await runTransaction(db, async tx => {
@@ -147,8 +156,12 @@ async function confirm() {
       const pay = payStatus(d.pay, total); if (pay.err) throw new Error(pay.err);
       const { no, counter } = nextNumber(cs, 'SV', cab);
       const log = logStatus(ws.data().log, 'Lunas'), waktu = durasi({ log });
+      // Riwayat penundaan (alasan) & lama kerja per mekanik ikut tersimpan di nota, untuk riwayat servis & performa
+      const tunda = log.filter(l => l.s === 'Ditunda').map(l => ({ t: l.t, a: l.a || '', m: l.m || '' }));
+      const perMek = kerjaPerMekanik({ ...w, log });
       const trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', hp: w.hp || '', nopol: w.nopol, tipe: w.tipe || '', km: w.km || '', waktu, mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
-        jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', keluhan: w.keluhan || '', registrasiOleh: ws.data().dibuatOleh || '', registrasiId: ws.data().dibuatOlehId || '', orderOleh: ws.data().orderOleh || '', orderOlehId: ws.data().orderOlehId || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas(), kasirId: idPetugas() };
+        jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', keluhan: w.keluhan || '', registrasiOleh: ws.data().dibuatOleh || '', registrasiId: ws.data().dibuatOlehId || '', orderOleh: ws.data().orderOleh || '', orderOlehId: ws.data().orderOlehId || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas(), kasirId: idPetugas(),
+        ...(tunda.length ? { tunda } : {}), ...(Object.keys(perMek).length > 1 ? { kerjaMekanik: perMek } : {}) };
       tx.set(counterRef(cab), counter);
       items.forEach((x, i) => { tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }); catatMutasi(tx, dataMutasi(cab, x.kode, x.nama, -x.qty, 'servis', no)); });
       tx.set(doc(db, 'trx', no), { ...trx, bulan: trx.tgl.slice(0, 7), dibuat: serverTimestamp() });

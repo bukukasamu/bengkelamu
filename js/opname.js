@@ -1,6 +1,6 @@
 // Menu Stok Opname: hitung stok fisik per cabang → ajukan → super admin menyetujui (kata sandi + catatan)
 // → stok disesuaikan dengan selisihnya dan tercatat di kartu stok.
-import { $, esc, rp, stamp, toast, errMsg } from './util.js';
+import { $, esc, rp, stamp, toast, errMsg, konfirmasi } from './util.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, kategoriList, namaPetugas, filterBuka, tombolFilter } from './state.js';
 import { db, doc, collection, getDocs, getDoc, query, where, addDoc, updateDoc, deleteDoc } from './firebase.js';
 import { cabAktif, namaCabang, multiCabang } from './cabang.js';
@@ -77,15 +77,14 @@ Object.assign(actions, {
   'op-kembali': () => { OP.aktif = null; draf = null; renderOpname(); },
   'op-ajukan': async () => {
     const r = ringkas(draf); if (!r.n) { toast('Belum ada part yang dihitung'); return; }
+    if (!(await konfirmasi('Ajukan stok opname ke super admin?', `${r.n} part sudah dihitung. Setelah diajukan, hitungan tidak bisa diubah sampai disetujui atau ditolak.`, { ya: 'Ya, ajukan' }))) return;
     clearTimeout(simpanTimer);
     try { await updateDoc(doc(db, 'opname', draf.id), { items: draf.items, status: 'diajukan', tglAjukan: stamp(new Date()) }); toast('Stok opname diajukan ke super admin'); renderOpname(); } catch (e) { toast(errMsg(e)); }
   },
-  'op-hapus': async () => { if (!confirmHapus()) return; try { await deleteDoc(doc(db, 'opname', draf.id)); OP.aktif = null; toast('Draft dihapus'); renderOpname(); } catch (e) { toast(errMsg(e)); } },
+  'op-hapus': async () => { if (!(await konfirmasi('Hapus draft stok opname?', 'Semua hitungan di draft ini hilang.', { ya: 'Ya, hapus', bahaya: true }))) return; try { await deleteDoc(doc(db, 'opname', draf.id)); OP.aktif = null; toast('Draft dihapus'); renderOpname(); } catch (e) { toast(errMsg(e)); } },
   'op-setujui': async () => { if (await terapkanOpname(draf)) renderOpname(); },
   'op-tolak': async () => { const c = await mintaCatatan('Tolak stok opname', 'Petugas bisa memperbaiki lalu mengajukan lagi.'); if (c === null) return; try { await updateDoc(doc(db, 'opname', draf.id), { status: 'ditolak', catatanSuper: c }); toast('Stok opname ditolak'); renderOpname(); } catch (e) { toast(errMsg(e)); } }
 });
-let armHapus = 0;
-const confirmHapus = () => { if (Date.now() - armHapus < 3000) return true; armHapus = Date.now(); toast('Klik Hapus draft sekali lagi untuk menghapus'); return false; };
 inputHandlers.push(e => {
   const t = e.target;
   if (t.classList?.contains('op-fisik') && draf) {

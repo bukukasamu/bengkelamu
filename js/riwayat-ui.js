@@ -15,8 +15,16 @@ export function stepperHTML(a) {
   const last = { Antri: a.tgl }; (a.log || []).forEach(l => { last[l.s] = l.t; });
   const cur = STEPS.findIndex(s => s[0] === a.status);
   return `<ol class="steps">${STEPS.map(([s, label], i) => `<li class="${i < cur || (i === cur && a.status === 'Lunas') ? 'done' : i === cur ? 'now' : ''}"><span class="dot"></span><b>${label}</b><span class="small muted">${esc(tglID(last[s]))}</span></li>`).join('')}</ol>
-    ${a.status === 'Ditunda' ? `<div class="note small"><b>Ditunda sementara</b>${a.alasanTunda ? ': ' + esc(a.alasanTunda) : ''}. Pengerjaan akan dilanjutkan.</div>` : ''}`;
+    ${a.status === 'Ditunda' ? `<div class="tunda-box"><b>⏸ Ditunda sementara</b>${a.alasanTunda ? ': ' + esc(a.alasanTunda) : ''}<div class="small muted">Sejak ${esc(tglID(a.tglTunda || [...(a.log || [])].reverse().find(l => l.s === 'Ditunda')?.t))}. Pengerjaan akan dilanjutkan.</div></div>` : ''}
+    ${riwayatTunda(a.log, a.status === 'Ditunda')}`;
 }
+// Daftar penundaan sebelumnya (yang sudah dilanjutkan) beserta alasannya
+function riwayatTunda(log, kecualiTerakhir) {
+  let l = (log || []).filter(x => x.s === 'Ditunda');
+  if (kecualiTerakhir) l = l.slice(0, -1);
+  return l.length ? `<div class="small muted">Riwayat penundaan: ${l.map(x => `${esc(tglID(x.t))}${x.a ? ' — ' + esc(x.a) : ''}`).join('; ')}</div>` : '';
+}
+export const tundaTeks = t => (t.tunda || []).map(x => tglPendek(x.t) + (x.a ? ': ' + x.a : '')).join('; ');
 
 /* ---- Ringkasan riwayat ---- */
 export function ringkasRiwayat(list) {
@@ -42,6 +50,7 @@ export function kartuRiwayat(t, opts = {}) {
     w.masuk ? ['Masuk', esc(tglID(w.masuk))] : null,
     w.selesai ? ['Selesai', esc(tglID(w.selesai))] : null,
     w.kerja ? ['Lama dikerjakan', fmtDur(w.kerja) + (w.tunda ? ` <span class="muted">(+ ditunda ${fmtDur(w.tunda)})</span>` : '')] : null,
+    (t.tunda || []).length ? ['Pernah ditunda', esc(tundaTeks(t))] : null,
     opts.petugas && t.kasir ? ['Kasir', esc(t.kasir)] : null
   ].filter(Boolean);
   const daftar = (judul, rows) => rows.length ? `<div class="riw-sec"><div class="riw-h">${judul}</div>${rows.map(([l, r]) => `<div class="riw-li"><span>${l}</span><span class="num">${r}</span></div>`).join('')}</div>` : '';
@@ -58,4 +67,41 @@ export function kartuRiwayat(t, opts = {}) {
       ${opts.notaAttr ? `<div class="row" style="justify-content:flex-end"><button class="btn sm" type="button" ${opts.notaAttr}>Lihat nota</button></div>` : ''}
     </div>
   </details>`;
+}
+
+/* ---- Riwayat servis dalam bentuk tabel (menu Riwayat Kendaraan petugas) ----
+   Satu baris per servis, seperti lembar Excel, supaya hemat tempat. Klik baris = rincian. */
+export function tabelRiwayat(list, opts = {}) {
+  const buka = opts.buka || new Set();
+  const jenisPendek = t => t.jenis === 'PART' ? 'Part' : t.jenisServis === 'KSG' ? 'KSG' + (t.ksgKe ? '-' + t.ksgKe : '') : t.jenisServis === 'KSB' ? 'KSB' : 'Reguler';
+  const rinci = t => {
+    const ksg = t.jenisServis === 'KSG';
+    const baris = [
+      ...(t.jasa || []).map(j => ['Jasa', esc(j.nama), ksg ? 'gratis (KSG)' : rp(j.harga)]),
+      ...(t.items || []).map(x => ['Part', `${esc(x.nama)} <span class="muted">× ${x.qty}</span>`, rp(x.qty * x.harga)]),
+      ...(t.biaya || []).map(b => ['Biaya lain', esc(b.ket), rp(b.jumlah)]),
+      ...(t.diskon ? [['Diskon', '', '−' + rp(t.diskon)]] : [])
+    ];
+    const w = t.waktu || {};
+    const ket = [w.masuk ? 'Masuk ' + tglID(w.masuk) : '', w.selesai ? 'selesai ' + tglID(w.selesai) : '', t.kasir ? 'kasir ' + t.kasir : '', t.cash ? 'cash ' + rp(t.cash) : '', t.transfer ? 'transfer ' + rp(t.transfer) : ''].filter(Boolean).join(' · ');
+    const perMek = t.kerjaMekanik ? Object.entries(t.kerjaMekanik).map(([nm, m]) => nm + ' ' + fmtDur(m)).join(', ') : '';
+    return `<table class="rw-tabel"><tbody>${baris.map(([a, b, c]) => `<tr><td class="small muted" style="width:80px">${a}</td><td>${b}</td><td class="r num">${c}</td></tr>`).join('')}<tr><td></td><td><b>Total</b></td><td class="r num"><b>${rp(t.total)}</b></td></tr></tbody></table>
+      <div class="small muted" style="margin-top:4px">${esc(ket)}${perMek ? ' · lama kerja per mekanik: ' + esc(perMek) : ''}</div>
+      ${(t.tunda || []).length ? `<div class="small wo-tunda">Pernah ditunda: ${esc(tundaTeks(t))}</div>` : ''}
+      ${opts.notaAttr ? `<div class="row" style="justify-content:flex-end;margin-top:4px"><button class="btn sm" type="button" ${opts.notaAttr(t, list.indexOf(t))}>Lihat nota</button></div>` : ''}`;
+  };
+  return `<div class="tw"><table class="rw-tabel"><thead><tr><th>#</th><th>Tanggal</th><th>Nota</th><th>Bengkel</th><th>Jenis</th><th class="r">KM</th><th>Mekanik</th><th>Keluhan</th><th>Jasa</th><th>Sparepart</th><th class="r">Lama</th><th class="r">Total</th></tr></thead><tbody>
+    ${list.map((t, i) => {
+      const w = t.waktu || {}, b = buka.has(t.no);
+      return `<tr class="rw-buka" data-act="rw-baris" data-no="${esc(t.no)}" tabindex="0" aria-expanded="${b}" title="Klik untuk rincian">
+        <td class="num">${list.length - i}</td><td style="white-space:nowrap">${esc(tglPendek(t.tgl))}<div class="rw-det">${esc(jamSaja(t.tgl))}</div></td>
+        <td class="mono small">${esc(t.no)}</td><td>${esc(lokasiServis(t))}</td><td>${esc(jenisPendek(t))}${t.noKartu ? `<div class="rw-det">${esc(t.noKartu)}</div>` : ''}</td>
+        <td class="r num">${t.km ? n(t.km) : ''}</td><td>${esc(t.mekanik || '')}${t.kerjaMekanik ? `<div class="rw-det">bersama ${esc(Object.keys(t.kerjaMekanik).filter(x => x !== t.mekanik).join(', '))}</div>` : ''}</td><td>${esc(t.keluhan || '')}</td>
+        <td>${esc((t.jasa || []).map(j => j.nama).join(', '))}</td>
+        <td>${esc((t.items || []).map(x => x.nama + ' ×' + x.qty).join(', '))}</td>
+        <td class="r">${w.kerja ? fmtDur(w.kerja) : ''}${(t.tunda || []).length ? `<div class="wo-tunda" title="${esc(tundaTeks(t))}">⏸ ditunda ${t.tunda.length}×</div>` : ''}</td>
+        <td class="r num"><b>${rp(t.total)}</b></td></tr>
+        ${b ? `<tr class="rw-detail"><td colspan="12">${rinci(t)}</td></tr>` : ''}`;
+    }).join('')}
+  </tbody></table></div>`;
 }

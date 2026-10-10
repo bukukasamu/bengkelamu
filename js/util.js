@@ -28,6 +28,28 @@ export function modal(html, cls = '') {
   const f = $('#modal-root [data-autofocus]') || $('#modal-root button'); f && f.focus();
 }
 export function closeModal() { $('#modal-root').innerHTML = ''; }
+
+// Kotak konfirmasi sebelum tindakan persetujuan/penting, supaya tidak salah tekan.
+// Mengembalikan Promise<true> bila "Ya", false bila "Batal" / klik di luar / Esc.
+// Tampil di atas jendela lain (tidak menutup form yang sedang terbuka). Fokus awal di "Batal",
+// jadi Enter yang tidak sengaja tidak langsung menyetujui.
+export function konfirmasi(judul, isi = '', { ya = 'Ya, lanjutkan', tidak = 'Batal', bahaya = false } = {}) {
+  document.getElementById('kf-root')?.remove();
+  return new Promise(resolve => {
+    const root = document.createElement('div');
+    root.id = 'kf-root';
+    root.innerHTML = `<div class="modal-bg kf-bg" data-kf="0"><div class="modal konfirmasi" role="alertdialog" aria-modal="true" aria-labelledby="kf-judul">
+      <h3 id="kf-judul">${esc(judul)}</h3>${isi ? `<div class="small" style="margin:0">${isi}</div>` : ''}
+      <div class="row" style="justify-content:flex-end"><button class="btn" type="button" id="kf-tidak" data-kf="0">${esc(tidak)}</button><button class="btn ${bahaya ? 'danger' : 'pri'}" type="button" id="kf-ya" data-kf="1">${esc(ya)}</button></div></div></div>`;
+    const sebelum = document.activeElement;
+    const akhiri = v => { document.removeEventListener('keydown', key, true); root.remove(); try { sebelum?.focus?.(); } catch (e) {} resolve(v); };
+    const key = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); akhiri(false); } else if (['F1', 'F2', 'F3', 'F8'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); } };
+    root.addEventListener('click', e => { e.stopPropagation(); const k = e.target.dataset?.kf; if (k != null) akhiri(k === '1'); });
+    document.addEventListener('keydown', key, true);
+    document.body.appendChild(root);
+    root.querySelector('#kf-tidak').focus();
+  });
+}
 export function errMsg(e) {
   const m = { 'permission-denied': 'Akses ditolak. Pastikan akun terdaftar di koleksi staff.', 'unavailable': 'Koneksi ke server terputus. Coba lagi.', 'resource-exhausted': 'Kuota harian Firebase habis. Coba lagi besok atau upgrade paket.' };
   return m[e && e.code] || (e && e.message) || 'Terjadi kesalahan';
