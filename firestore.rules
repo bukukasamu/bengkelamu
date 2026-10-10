@@ -33,9 +33,9 @@ service cloud.firestore {
     function gajiKey() { return me().peran == 'mekanik' ? 'M:' + me().get('mekanikId', '') : me().get('loginId', ''); }
 
     // ---------- Dibaca tanpa login ----------
-    match /publik/login   { allow read: if true; allow write: if hasRole(['admin']); }
+    match /publik/login   { allow read: if true; allow write: if isSuper(); }
     match /publik/brand   { allow read: if true; allow write: if isSuper(); }
-    match /publik/cabang  { allow read: if true; allow write: if hasRole(['admin']); }
+    match /publik/cabang  { allow read: if true; allow write: if isSuper(); }
     // Layar TV: publik/layar (cabang utama), publik/layar-KODE (cabang lain)
     match /publik/{id} {
       allow list: if isSuper();   // backup
@@ -54,9 +54,8 @@ service cloud.firestore {
     // (supaya tidak bisa "meminjam" identitas karyawan lain untuk membuka gaji).
     match /staff/{email} {
       allow read: if signedIn() && (emailKu() == email || hasRole(['admin']));
-      allow create, update: if isSuper() || (hasRole(['admin']) && emailKu() != email
-        && request.resource.data.get('loginId', '') == email.split('@')[0].split('-')[0]);
-      allow delete: if isSuper() || (hasRole(['admin']) && emailKu() != email);
+      // Akun karyawan (tambah, ubah peran/cabang, reset PIN, hapus): khusus super admin
+      allow create, update, delete: if isSuper();
     }
 
     // ---------- Data bersama semua cabang ----------
@@ -68,14 +67,32 @@ service cloud.firestore {
         || (hasRole(['kasir']) && stokCabangSendiri() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stok', 'stokC']));
       allow delete: if hasRole(['admin']);
     }
+    // Data konsumen & kendaraan: boleh ditambah/diubah karyawan, tetapi perubahan data pribadi WAJIB disertai
+    // catatan di ubahKonsumen dalam batch yang sama. Hapus hanya super admin.
     match /kendaraan/{id} {
       allow read: if isStaff();
-      allow create, update: if hasRole(['admin', 'registrasi', 'kasir']);
-      allow delete: if hasRole(['admin']);
+      allow create: if hasRole(['admin', 'registrasi', 'kasir']);
+      allow update: if isSuper() || (hasRole(['admin', 'registrasi', 'kasir']) && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['servisTerakhir', 'kmTerakhir', 'km', 'updated', 'woTerakhir', 'nopol', 'nopolKey', 'hpNorm'])
+          || (request.resource.data.get('logTerakhir', '') != resource.data.get('logTerakhir', '')
+              && existsAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir))
+              && getAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir)).data.kendaraanId == id)));
+      allow delete: if isSuper();
     }
-    match /jasa/{id}      { allow read: if isStaff(); allow write: if hasRole(['admin']); }
-    match /mekanik/{id}   { allow read: if isStaff(); allow write: if hasRole(['admin']); }
-    match /meta/settings  { allow read: if isStaff(); allow write: if hasRole(['admin']); }
+    // Catatan perubahan data konsumen: hanya ditambah (atas nama yang sedang login), dibaca super admin
+    match /ubahKonsumen/{id} {
+      allow read: if isSuper();
+      allow create: if hasRole(['admin', 'registrasi', 'kasir']) && request.resource.data.olehEmail == emailKu()
+        && request.resource.data.kendaraanId is string && request.resource.data.tgl is string;
+      allow update: if false;
+      allow delete: if isSuper();
+    }
+    // Harga jasa, mekanik: khusus super admin
+    match /jasa/{id}      { allow read: if isStaff(); allow write: if isSuper(); }
+    match /mekanik/{id}   { allow read: if isStaff(); allow write: if isSuper(); }
+    // Pengaturan umum (rekening, tarif KSG, dll.): super admin. Admin hanya boleh mengubah daftar tipe motor.
+    match /meta/settings  { allow read: if isStaff(); allow write: if isSuper() || (hasRole(['admin']) && resource != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tipe'])); }
     match /imports/{id}   { allow read, write: if isSuper(); }
     match /masuk/{id}     { allow read, write: if hasRole(['admin', 'sparepart']); }
 

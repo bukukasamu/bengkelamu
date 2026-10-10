@@ -4,7 +4,7 @@
 // - Pustaka dari CDN (Firebase, PDF, Excel, QR, font) bernomor versi tetap, jadi disimpan sekali lalu dipakai ulang.
 // - Data Firestore & login TIDAK lewat sini (ditangani Firebase sendiri).
 // Ganti VERSI setiap ada update besar supaya salinan lama dibersihkan.
-const VERSI = 'amu-4.2.1';
+const VERSI = 'amu-4.4.0';
 const INTI = [
   './',
   'index.html',
@@ -45,10 +45,12 @@ const INTI = [
   'js/insight.js',
   'js/kasir.js',
   'js/keuangan.js',
+  'js/konsumen-pdf.js',
   'js/kontrol.js',
   'js/laporan-pdf.js',
   'js/laporan.js',
   'js/layar.js',
+  'js/log-konsumen.js',
   'js/main.js',
   'js/master.js',
   'js/mekanik.js',

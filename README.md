@@ -1,9 +1,27 @@
-# Aceh Mandiri Utama POS · versi 4.2.1
+# Aceh Mandiri Utama POS · versi 4.4.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 4.4.0 — Master Data dikunci
+
+**Update:** upload semua file (baru: `js/log-konsumen.js`), lalu **publish ulang `firestore.rules`**.
+
+- **Khusus super admin** (dikunci di aplikasi & database): Jasa Servis (harga), Tarif KSG, Mekanik, Rekening, Petugas & PIN, Cabang, Insentif & Potongan, Logo, Hak Akses Menu. Admin hanya melihat tab **Konsumen & Kendaraan**, **Tipe Motor**, dan **Layar TV**. Mekanik & petugas baru (termasuk PIN) dibuat oleh super admin.
+- **Data konsumen & kendaraan** tetap bisa ditambah/diubah Admin & Registrasi (juga lewat formulir Registrasi). Setiap perubahan data pribadi **wajib tercatat**: database menolak perubahan tanpa catatan. Catatan (siapa, kapan, lewat mana, isi lama → baru) disimpan terpisah, tidak bisa diubah/dihapus karyawan, dan hanya terbaca super admin di **Master Data → Riwayat Perubahan Konsumen** (per bulan, bisa ⬇ Excel; klik nopol untuk membuka datanya).
+- **Hapus kendaraan** dan **export Excel/PDF seluruh data konsumen**: khusus super admin.
+
+## Fitur baru 4.3.0 — ubah & export data konsumen
+
+Update: upload semua file (baru: `js/konsumen-pdf.js`). `firestore.rules` sama dengan 4.2.1.
+
+- **Ubah data konsumen/kendaraan** (salah no. HP, alamat, nama, tipe, dll.): menu **Riwayat Kendaraan** → buka kendaraan → **✎ Ubah data**, atau **Master Data → Konsumen & Kendaraan** → klik barisnya. Bisa oleh Admin & Registrasi (sesuai Hak Akses Menu).
+  - Setiap perubahan dicatat: siapa, kapan, dan isi lama → baru (lihat "Riwayat perubahan data" di form).
+  - Servis yang masih berjalan ikut memakai data baru. Bila no. HP diganti, halaman cek servis konsumen pindah ke nomor baru (nomor lama tidak bisa membuka riwayat lagi).
+  - Nota yang sudah lunas tidak diubah (bukti transaksi apa adanya).
+- **Export data konsumen & kendaraan:** Master Data → Konsumen & Kendaraan → **⬇ Excel** (semua kolom: identitas, alamat lengkap, data STNK, rangka/mesin, terdaftar, servis terakhir; NIK hanya untuk Admin) atau **⬇ PDF** (A4 mendatar, berkotak). Mengikuti pencarian & filter wilayah yang sedang dipilih; kosongkan filter untuk semua data.
 
 ## Fitur baru 4.2.1 — hak akses menu per peran
 
