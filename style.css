@@ -517,3 +517,6 @@ tr[aria-current="true"] td{background:var(--accent-soft)}
 .cari-pil-op{padding:7px 10px;cursor:pointer;font-size:.92rem;text-transform:none;letter-spacing:0;font-weight:400}
 .cari-pil-op.on,.cari-pil-op:hover{background:var(--accent-soft);color:var(--accent)}
 .cari-pil-kosong{padding:8px 10px;color:var(--muted);font-size:.88rem}
+
+/* Kotak filter yang bisa dibuka-tutup */
+.filter-box{border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin-top:8px;background:var(--panel-2);gap:8px;flex-wrap:wrap;align-items:center}

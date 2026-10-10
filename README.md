@@ -1,9 +1,18 @@
-# Aceh Mandiri Utama POS · versi 4.4.0
+# Aceh Mandiri Utama POS · versi 4.5.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 4.5.0
+
+Update: upload semua file. `firestore.rules` sama dengan 4.4.0.
+
+- **Konsumen & Kendaraan** pindah ke menu samping (grup Bengkel) untuk Admin & Registrasi; Master Data kini hanya berisi pengaturan. Hak akses lama: peran yang dulu boleh membuka Master Data otomatis boleh membuka menu ini.
+- **Filter bisa disembunyikan:** di Konsumen & Kendaraan (filter wilayah + rekap per wilayah), Stok Part (kategori, stok menipis), dan Stok Opname. Tekan **⚲ Filter** untuk membuka/menutup; angka di tombol = jumlah filter yang aktif.
+- **Nilai stok (rupiah)** di Stok Part: jumlah pcs, nilai harga beli (modal), nilai harga jual, dan proyeksi laba + margin. Mengikuti pencarian/filter bila aktif.
+- **Penjualan sparepart (rupiah)** di Laporan Penjualan untuk periode apa pun (harian/mingguan/bulanan/tahunan/custom): pcs terjual, harga jual, harga beli (modal), laba part, margin — dipisah penjualan langsung kasir vs part yang dipakai di servis. Ikut di Excel ringkasan.
 
 ## Fitur baru 4.4.0 — Master Data dikunci
 
