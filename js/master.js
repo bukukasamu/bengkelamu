@@ -1,7 +1,7 @@
 // Menu Master Data: pemilik & kendaraan, jasa servis, tarif KSG, mekanik (+PIN), rekening, tipe motor, petugas (+PIN).
 import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber, publicUrl } from './util.js';
 import { loaderHTML, getBrand, resizeImage, saveLogo } from './brand.js';
-import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole, namaPetugas } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole, namaPetugas, go, filterBuka, tombolFilter } from './state.js';
 import { ROLES, MENUS } from './config.js';
 import { db, doc, getDoc, collection, getDocs, writeBatch, query, where, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
@@ -15,7 +15,6 @@ import { bedaKonsumen, simpanDenganCatatan, LABEL_KONSUMEN } from './log-konsume
 import { loadLoginList, tambahPetugas, resetPin, ubahPetugas, hapusPetugas, validPin } from './akun.js';
 
 const TABS = [
-  ['kendaraan', 'Konsumen & Kendaraan', ['admin', 'registrasi']],
   // Panel yang menyangkut uang, akun, atau struktur bengkel: khusus super admin (dikunci juga di firestore.rules)
   ['jasa', 'Jasa Servis', ['admin'], 'super'],
   ['ksg', 'Tarif KSG', ['admin'], 'super'],
@@ -58,7 +57,7 @@ async function loadKend() {
   kendLengkap = false;
   try { const s = await getDocs(query(collection(db, 'kendaraan'), orderBy('updated', 'desc'), limit(1000))); kend = s.docs.map(d => ({ id: d.id, ...d.data() })); }
   catch (e) { kend = []; toast(errMsg(e)); }
-  if (st.masterTab === 'kendaraan') renderKend();
+  if (st.view === 'konsumen') renderKend();
   rapikanKend();
 }
 // Data kendaraan lama (sebelum v2.4) belum punya kolom pencarian nopolKey/hpNorm, sehingga tidak bisa dicari
@@ -97,10 +96,10 @@ function renderKend() {
   const rekap = {}; list.forEach(k => { const v = k[lvl[0]] || '(belum diisi)'; rekap[v] = (rekap[v] || 0) + 1; });
   const rk = Object.entries(rekap).sort((a, b) => b[1] - a[1]), mx = rk.length ? rk[0][1] : 1;
   const sel = (id, v, list, ph) => `<select id="${id}" style="width:auto;max-width:100%" aria-label="${ph}"><option value="">${ph}</option>${list.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
-  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, NIK, HP, rangka, mesin, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row">${isRole('admin') ? '<button class="btn" type="button" data-act="ms-pantau" title="Bangun ulang data halaman cek servis konsumen dari servis yang sudah ada">Sinkron cek servis</button>' : ''}${st.petugas?.super ? '<button class="btn" type="button" data-act="ms-kxlsx">⬇ Excel</button><button class="btn" type="button" data-act="ms-kpdf">⬇ PDF</button>' : ''}<button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div></div>
-   <div class="row" style="margin-top:8px"><span class="small muted">Filter wilayah:</span>${sel('fw-kab', fWil.kab, kabs, 'Semua kabupaten/kota')}${sel('fw-kec', fWil.kec, kecs, 'Semua kecamatan')}${sel('fw-kel', fWil.kel, kels, 'Semua kelurahan/gampong')}${fWil.kab || fWil.kec || fWil.kel ? '<button class="btn sm ghost" type="button" data-act="fw-clear">Hapus filter</button>' : ''}</div>
+  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, NIK, HP, rangka, mesin, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row">${tombolFilter('kend', [fWil.kab, fWil.kec, fWil.kel].filter(Boolean).length)}${isRole('admin') ? '<button class="btn" type="button" data-act="ms-pantau" title="Bangun ulang data halaman cek servis konsumen dari servis yang sudah ada">Sinkron cek servis</button>' : ''}${st.petugas?.super ? '<button class="btn" type="button" data-act="ms-kxlsx">⬇ Excel</button><button class="btn" type="button" data-act="ms-kpdf">⬇ PDF</button>' : ''}<button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div></div>
+   ${filterBuka('kend') ? `<div class="filter-box"><div class="row"><span class="small muted">Filter wilayah:</span>${sel('fw-kab', fWil.kab, kabs, 'Semua kabupaten/kota')}${sel('fw-kec', fWil.kec, kecs, 'Semua kecamatan')}${sel('fw-kel', fWil.kel, kels, 'Semua kelurahan/gampong')}${fWil.kab || fWil.kec || fWil.kel ? '<button class="btn sm ghost" type="button" data-act="fw-clear">Hapus filter</button>' : ''}</div>
+   ${rk.length > 1 || (rk.length === 1 && !fWil.kel) ? `<div class="panel" style="box-shadow:none;margin-block:10px"><h3>Konsumen per ${lvl[2].toLowerCase()}</h3>${rk.slice(0, 12).map(([w, c]) => `<button class="bar-row" type="button" data-act="fw-pick" data-l="${lvl[1]}" data-v="${esc(w)}"><span class="row spread small"><span class="bar-lbl">${esc(w)}</span><span class="num">${c} kendaraan</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${c / mx * 100}%"></span></span></button>`).join('')}</div>` : ''}</div>` : ''}
    <div id="ms-kform"></div>
-   ${rk.length > 1 || (rk.length === 1 && !fWil.kel) ? `<div class="panel" style="box-shadow:none;margin-block:10px"><h3>Konsumen per ${lvl[2].toLowerCase()}</h3>${rk.slice(0, 12).map(([w, c]) => `<button class="bar-row" type="button" data-act="fw-pick" data-l="${lvl[1]}" data-v="${esc(w)}"><span class="row spread small"><span class="bar-lbl">${esc(w)}</span><span class="num">${c} kendaraan</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${c / mx * 100}%"></span></span></button>`).join('')}</div>` : ''}
    <div class="tw"><table><thead><tr><th>Nopol</th><th>Konsumen</th><th>No. HP</th><th>Motor</th><th>Wilayah</th><th>Servis terakhir</th></tr></thead><tbody>${list.slice(0, 200).map(k => `<tr class="row-click" tabindex="0" data-act="ms-kedit" data-id="${esc(k.id)}"><td class="mono">${esc(k.nopol)}</td><td>${esc(k.nama || '–')}${k.namaStnk && k.namaStnk !== k.nama ? `<br><span class="small muted">STNK: ${esc(k.namaStnk)}</span>` : ''}</td><td class="mono small">${esc(k.hp || '')} ${waButton(k.hp, 'Halo ' + (k.nama || '') + ', ')}</td><td>${esc(k.tipe || '')}${k.tahun ? ' · ' + esc(k.tahun) : ''}${k.warna ? ' · ' + esc(k.warna) : ''}</td><td class="small">${esc([k.kelurahan, k.kecamatan, k.kabupaten].filter(Boolean).join(', ') || k.alamat || '–')}</td><td class="small">${esc((k.updated || '').slice(0, 10))}${k.woTerakhir ? ' · ' + esc(k.woTerakhir) : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Tidak ada kendaraan yang cocok. Kendaraan otomatis tercatat saat registrasi servis.</td></tr>'}</tbody></table></div>
    <p class="small muted" style="margin:0">${list.length} kendaraan${list.length > 200 ? ' (ditampilkan 200, persempit pencarian)' : ''}.</p>`;
   renderKForm();
@@ -443,10 +442,14 @@ async function renderGaji() {
 }
 
 views.master = renderMaster;
+// Menu tersendiri: Konsumen & Kendaraan (data pelanggan dipakai sehari-hari, bukan pengaturan)
+views.konsumen = () => { $('#view').innerHTML = '<div class="panel"><div id="ms-body"></div></div>'; renderKend(); };
+refreshers.konsumen = () => {};
 refreshers.master = () => {};   // jangan timpa isian yang sedang diketik saat data berubah
 // Admin tidak bisa mengubah akunnya sendiri dari sini (dikunci juga di database); ganti PIN sendiri lewat tombol Ganti PIN
 const akunSendiri = s => { if (st.petugas?.super || s.id !== st.petugas?.loginId) return false; toast('Akun sendiri: ganti PIN lewat tombol Ganti PIN di bawah menu. Ubah nama/peran/hapus oleh super admin.'); return true; };
-fkeys.master = { baru: () => st.masterTab === 'kendaraan' ? 'ms-kadd' : null, simpan: () => st.masterTab === 'kendaraan' && kendEdit ? 'ms-ksave' : st.masterTab === 'tipe' ? 'tp-save' : st.masterTab === 'ksg' ? 'kt-save' : null };
+fkeys.konsumen = { baru: 'ms-kadd', simpan: () => kendEdit ? 'ms-ksave' : null };
+fkeys.master = { baru: () => null, simpan: () => st.masterTab === 'tipe' ? 'tp-save' : st.masterTab === 'ksg' ? 'kt-save' : null };
 Object.assign(actions, {
   'ly-save': async () => { try { await setDoc(doc(db, 'publik', layarDocId()), { info: ($('#ly-info')?.value || '').trim() }, { merge: true }); toast('Teks layar disimpan'); } catch (e) { toast(errMsg(e)); } },
   'ly-sync': async () => { await syncLayar(null, true); toast('Isi layar TV diperbarui'); },
@@ -527,7 +530,7 @@ Object.assign(actions, {
   'lg-save': async () => { try { await saveLogo(logoDraft); logoDraft = null; toast('Logo dipasang'); renderLogo(); } catch (e) { toast(errMsg(e)); } },
   'lg-cancel': () => { logoDraft = null; renderLogo(); },
   'lk-bln': el => { LK.bulan = geserBln(LK.bulan, +el.dataset.n); renderLogKonsumen(); },
-  'lk-buka': el => { st.masterTab = 'kendaraan'; st.ubahKendaraan = el.dataset.id; renderMaster(); },
+  'lk-buka': el => { st.ubahKendaraan = el.dataset.id; go('konsumen'); },
   'lk-xlsx': async () => {
     try { const X = await loadXLSX(), wb = X.utils.book_new(), rows = [];
       (LK.data || []).forEach(r => (r.ubah || []).forEach(u => rows.push({ waktu: r.tgl, nopol: r.nopol, diubah_oleh: r.oleh, peran: r.peran === 'super' ? 'Super admin' : ROLES[r.peran] || r.peran, lewat: r.sumber || '', data: LABEL_KONSUMEN[u.f] || u.f, sebelum: u.dari, sesudah: u.ke })));

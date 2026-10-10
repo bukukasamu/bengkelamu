@@ -3,7 +3,7 @@ import { $, esc, rp, toast, errMsg } from './util.js';
 import { S, st, part, kategoriList, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, go } from './state.js';
 import { db, doc, setDoc, updateDoc, runTransaction, collection, getDocs, query, orderBy, limit, addDoc, where, writeBatch } from './firebase.js';
 import { modal, closeModal, stamp, dkey } from './util.js';
-import { partPicker, pickedKode, namaPetugas, isRole } from './state.js';
+import { partPicker, pickedKode, namaPetugas, isRole, filterBuka, tombolFilter } from './state.js';
 import { CABANG_UTAMA, cabAktif, cabangList, namaCabang, multiCabang, stokOf, stokField } from './cabang.js';
 import { catatMutasi, dataMutasi } from './kontrol.js';
 
@@ -13,7 +13,8 @@ function renderStok() {
   $('#view').innerHTML = `<div class="grid">
    <div class="panel"><div class="row spread"><h3>Stok sparepart${multiCabang() ? ' · ' + esc(namaCabang(cabAktif())) : ''}</h3>
      <div class="row">${st.petugas?.super ? '<button class="btn" type="button" data-act="import-open">Import Excel</button>' : ''}<button class="btn" type="button" data-act="export-xlsx">Export Excel</button><button class="btn" type="button" data-act="go-pembelian">Pembelian stok</button><button class="btn" type="button" data-act="go-opname">Stok opname</button>${multiCabang() ? '<button class="btn" type="button" data-act="tf-open">Transfer stok</button>' : ''}<button class="btn pri" type="button" data-act="part-new">+ Part baru [F1]</button></div></div>
-    <div class="row"><input id="s-q" placeholder="Cari kode, nama, tipe motor" value="${esc(st.stokQ)}" style="flex:1 1 220px" aria-label="Cari part"><select id="s-kat" style="width:auto;max-width:100%" aria-label="Kategori"><option value="">Semua kategori</option>${kategoriList().map(k => `<option ${k === st.stokKat ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><label class="row small" for="s-low" style="gap:6px;cursor:pointer"><input type="checkbox" id="s-low" style="width:auto" ${st.stokLow ? 'checked' : ''}>Hanya stok menipis</label></div>
+    <div class="row"><input id="s-q" placeholder="Cari kode, nama, tipe motor" value="${esc(st.stokQ)}" style="flex:1 1 220px" aria-label="Cari part">${tombolFilter('stok', (st.stokKat ? 1 : 0) + (st.stokLow ? 1 : 0))}</div>
+    ${filterBuka('stok') ? `<div class="filter-box row"><select id="s-kat" style="width:auto;max-width:100%" aria-label="Kategori"><option value="">Semua kategori</option>${kategoriList().map(k => `<option ${k === st.stokKat ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><label class="row small" for="s-low" style="gap:6px;cursor:pointer"><input type="checkbox" id="s-low" style="width:auto" ${st.stokLow ? 'checked' : ''}>Hanya stok menipis</label></div>` : ''}
     <div id="tf-masuk"></div>
     <div id="s-panel"></div>
     <div id="s-tbl"></div>
@@ -33,8 +34,15 @@ function renderSTbl() {
     return words.every(w => s.includes(w));
   });
   const nilai = r.reduce((a, p) => a + p.stok * (p.beli || 0), 0), multi = multiCabang();
+  // Nilai stok dalam rupiah (stok cabang ini; mengikuti pencarian/filter bila aktif)
+  const ada = r.filter(p => p.stok > 0), jual = ada.reduce((a, p) => a + p.stok * (p.jual || 0), 0), pcs = ada.reduce((a, p) => a + p.stok, 0);
+  const laba = jual - nilai, saring = !!(words.length || st.stokKat || st.stokLow);
+  const tiles = `<div class="tiles" style="margin-bottom:8px"><div class="tile"><span class="lbl">Stok${saring ? ' (sesuai filter)' : ''}</span><span class="val">${pcs.toLocaleString('id-ID')} pcs</span><span class="sub">${ada.length.toLocaleString('id-ID')} jenis part</span></div>
+    <div class="tile"><span class="lbl">Nilai harga beli</span><span class="val">${rp(nilai)}</span><span class="sub">modal yang tertanam</span></div>
+    <div class="tile"><span class="lbl">Nilai harga jual</span><span class="val">${rp(jual)}</span><span class="sub">bila semua terjual</span></div>
+    <div class="tile"><span class="lbl">Proyeksi laba</span><span class="val" style="color:${laba < 0 ? 'var(--bad)' : 'var(--good)'}">${rp(laba)}</span><span class="sub">margin ${jual ? Math.round(laba / jual * 100) : 0}%</span></div></div>`;
   const shown = r.slice(0, MAX_ROWS);
-  $('#s-tbl').innerHTML = `<div class="tw"><table><thead><tr><th>Kode</th><th>Nama part</th><th>Kategori</th><th>Rak</th><th class="r">Harga beli</th><th class="r">Harga jual</th><th class="r">Stok</th>${multi ? '<th class="r" title="Jumlah stok di cabang lain">Cabang lain</th>' : ''}</tr></thead><tbody>${shown.map(p => `<tr class="row-click" tabindex="0" data-act="part-edit" data-k="${esc(p.kode)}"><td class="mono">${esc(p.kode)}${p.abc ? ` <span class="small muted">${esc(p.abc)}</span>` : ''}</td><td>${esc(p.nama)}${p.pengganti ? `<br><span class="small muted">Pengganti: <span class="mono">${esc(p.pengganti)}</span></span>` : ''}${p.cocok ? `<br><span class="small muted">${esc(p.cocok)}</span>` : ''}</td><td class="small">${esc(p.kategori)}</td><td class="mono">${esc(p.rak || '')}</td><td class="r num">${rp(p.beli)}</td><td class="r num">${rp(p.jual)}</td><td class="r"><span class="pill ${p.stok <= 0 ? 'p-bad' : p.min > 0 && p.stok <= p.min ? 'p-warn' : 'p-good'}">${p.stok}</span></td>${multi ? `<td class="r num muted">${(p.stokSemua || 0) - p.stok || '–'}</td>` : ''}</tr>`).join('') || '<tr><td colspan="8" class="empty">Tidak ada part yang cocok.</td></tr>'}</tbody></table></div>
+  $('#s-tbl').innerHTML = tiles + `<div class="tw"><table><thead><tr><th>Kode</th><th>Nama part</th><th>Kategori</th><th>Rak</th><th class="r">Harga beli</th><th class="r">Harga jual</th><th class="r">Stok</th>${multi ? '<th class="r" title="Jumlah stok di cabang lain">Cabang lain</th>' : ''}</tr></thead><tbody>${shown.map(p => `<tr class="row-click" tabindex="0" data-act="part-edit" data-k="${esc(p.kode)}"><td class="mono">${esc(p.kode)}${p.abc ? ` <span class="small muted">${esc(p.abc)}</span>` : ''}</td><td>${esc(p.nama)}${p.pengganti ? `<br><span class="small muted">Pengganti: <span class="mono">${esc(p.pengganti)}</span></span>` : ''}${p.cocok ? `<br><span class="small muted">${esc(p.cocok)}</span>` : ''}</td><td class="small">${esc(p.kategori)}</td><td class="mono">${esc(p.rak || '')}</td><td class="r num">${rp(p.beli)}</td><td class="r num">${rp(p.jual)}</td><td class="r"><span class="pill ${p.stok <= 0 ? 'p-bad' : p.min > 0 && p.stok <= p.min ? 'p-warn' : 'p-good'}">${p.stok}</span></td>${multi ? `<td class="r num muted">${(p.stokSemua || 0) - p.stok || '–'}</td>` : ''}</tr>`).join('') || '<tr><td colspan="8" class="empty">Tidak ada part yang cocok.</td></tr>'}</tbody></table></div>
    <p class="small muted" style="margin:0">${r.length.toLocaleString('id-ID')} part${r.length > MAX_ROWS ? ` (ditampilkan ${MAX_ROWS} pertama, persempit pencarian)` : ''} · nilai stok (harga beli) ${rp(nilai)} · klik baris untuk ubah</p>`;
 }
 

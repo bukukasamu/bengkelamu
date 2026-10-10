@@ -1,7 +1,7 @@
 // Menu Stok Opname: hitung stok fisik per cabang → ajukan → super admin menyetujui (kata sandi + catatan)
 // → stok disesuaikan dengan selisihnya dan tercatat di kartu stok.
 import { $, esc, rp, stamp, toast, errMsg } from './util.js';
-import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, kategoriList, namaPetugas } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, kategoriList, namaPetugas, filterBuka, tombolFilter } from './state.js';
 import { db, doc, collection, getDocs, getDoc, query, where, addDoc, updateDoc, deleteDoc } from './firebase.js';
 import { cabAktif, namaCabang, multiCabang } from './cabang.js';
 import { terapkanOpname, mintaCatatan } from './kontrol.js';
@@ -41,7 +41,8 @@ function renderEditor() {
     <div class="row spread"><div><h3 style="margin:0">Stok opname ${esc(op.no || '')}</h3><div class="small muted">${esc(op.tgl)} · ${esc(op.petugas || '')}${multiCabang() ? ' · ' + esc(namaCabang(op.cabang)) : ''}</div></div><span class="row">${pill(op.status)}<button class="btn sm" type="button" data-act="op-kembali">‹ Daftar</button></span></div>
     ${op.catatanSuper ? `<div class="note small">Catatan super admin: ${esc(op.catatanSuper)}</div>` : ''}
     <div class="tiles"><div class="tile"><span class="lbl">Part dihitung</span><span class="val">${r.n}</span></div><div class="tile"><span class="lbl">Berselisih</span><span class="val" style="color:${r.beda ? 'var(--warn)' : 'inherit'}">${r.beda}</span></div><div class="tile"><span class="lbl">Nilai selisih (harga beli)</span><span class="val" style="color:${r.nilai < 0 ? 'var(--bad)' : 'var(--good)'}">${rp(r.nilai)}</span></div></div>
-    <div class="row"><input id="op-q" placeholder="Cari kode, nama, atau rak" value="${esc(OP.q)}" style="flex:1 1 220px" aria-label="Cari"><select id="op-kat" style="width:auto"><option value="">Semua kategori</option>${kategoriList().map(k => `<option ${k === OP.kat ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><label class="chk"><input type="checkbox" id="op-hitung" ${OP.hanyaHitung ? 'checked' : ''}>Hanya yang sudah dihitung</label></div>
+    <div class="row"><input id="op-q" placeholder="Cari kode, nama, atau rak" value="${esc(OP.q)}" style="flex:1 1 220px" aria-label="Cari">${tombolFilter('opname', (OP.kat ? 1 : 0) + (OP.hanyaHitung ? 1 : 0), 'op-filter')}</div>
+    ${filterBuka('opname') ? `<div class="filter-box row"><select id="op-kat" style="width:auto"><option value="">Semua kategori</option>${kategoriList().map(k => `<option ${k === OP.kat ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><label class="chk"><input type="checkbox" id="op-hitung" ${OP.hanyaHitung ? 'checked' : ''}>Hanya yang sudah dihitung</label></div>` : ''}
     <div class="tw"><table><thead><tr><th>Rak</th><th>Kode</th><th>Nama part</th><th class="r">Stok sistem</th><th class="r">Stok fisik</th><th class="r">Selisih</th></tr></thead><tbody>
      ${list.map(p => { const v = op.items?.[p.kode], sistem = v ? +v.sistem : p.stok, d = v && v.fisik !== '' ? +v.fisik - sistem : null; return `<tr><td class="mono small">${esc(p.rak || '')}</td><td class="mono small">${esc(p.kode)}</td><td>${esc(p.nama)}</td><td class="r num">${sistem}</td><td class="r">${bisaUbah ? `<input class="inline-input num op-fisik" data-k="${esc(p.kode)}" type="number" min="0" value="${v ? esc(v.fisik) : ''}" style="width:80px;text-align:right" aria-label="Fisik ${esc(p.nama)}">` : `<span class="num">${v ? v.fisik : ''}</span>`}</td><td class="r num" id="op-d-${esc(p.kode)}" style="color:${d < 0 ? 'var(--bad)' : d > 0 ? 'var(--good)' : 'inherit'}">${d == null ? '' : d > 0 ? '+' + d : d}</td></tr>`; }).join('') || '<tr><td colspan="6" class="empty">Tidak ada part yang cocok.</td></tr>'}
     </tbody></table></div>
@@ -72,6 +73,7 @@ Object.assign(actions, {
     } catch (e) { toast(errMsg(e)); }
   },
   'op-buka': el => { OP.aktif = el.dataset.id; renderOpname(); },
+  'op-filter': () => { st.filterBuka.opname = !st.filterBuka.opname; renderEditor(); },
   'op-kembali': () => { OP.aktif = null; draf = null; renderOpname(); },
   'op-ajukan': async () => {
     const r = ringkas(draf); if (!r.n) { toast('Belum ada part yang dihitung'); return; }

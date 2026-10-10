@@ -111,6 +111,18 @@ async function biaya(from, to) {
   return out;
 }
 const namaBln = ym => new Date(ym + '-01T00:00').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+// Penjualan sparepart dalam rupiah: harga jual, harga beli (modal), laba, margin — untuk periode yang dipilih
+function partNominalHTML(list) {
+  let qty = 0, jual = 0, beli = 0, qtyJ = 0, jualJ = 0, beliJ = 0;
+  list.forEach(t => (t.items || []).forEach(x => { const j = x.qty * x.harga, b = x.qty * (x.beli || 0); qty += x.qty; jual += j; beli += b; if (t.jenis === 'PART') { qtyJ += x.qty; jualJ += j; beliJ += b; } }));
+  if (!qty) return '';
+  const laba = jual - beli, baris = (l, q, j, b) => `<tr><td>${l}</td><td class="r num">${q.toLocaleString('id-ID')}</td><td class="r num">${rp(j)}</td><td class="r num">${rp(b)}</td><td class="r num" style="color:${j - b < 0 ? 'var(--bad)' : 'var(--good)'}">${rp(j - b)}</td><td class="r num">${j ? Math.round((j - b) / j * 100) : 0}%</td></tr>`;
+  return `<div class="panel"><h3>Penjualan sparepart (rupiah)</h3>
+   <div class="tiles"><div class="tile"><span class="lbl">Terjual</span><span class="val">${qty.toLocaleString('id-ID')} pcs</span></div><div class="tile"><span class="lbl">Harga jual</span><span class="val">${rp(jual)}</span></div><div class="tile"><span class="lbl">Harga beli (modal)</span><span class="val">${rp(beli)}</span></div><div class="tile"><span class="lbl">Laba part</span><span class="val" style="color:var(--good)">${rp(laba)}</span><span class="sub">margin ${jual ? Math.round(laba / jual * 100) : 0}%</span></div></div>
+   <div class="tw"><table><thead><tr><th></th><th class="r">Pcs</th><th class="r">Harga jual</th><th class="r">Harga beli</th><th class="r">Laba</th><th class="r">Margin</th></tr></thead><tbody>
+    ${baris('Penjualan langsung (kasir)', qtyJ, jualJ, beliJ)}${baris('Dipakai di servis', qty - qtyJ, jual - jualJ, beli - beliJ)}
+   </tbody></table></div><p class="small muted" style="margin:0">Mengikuti periode di atas (harian, mingguan, bulanan, tahunan, atau custom). Harga beli = harga beli part saat nota dibuat.</p></div>`;
+}
 function labaBersihHTML(all, b) {
   const bersih = all.laba - b.keluar - (b.gaji || 0), kat = Object.entries(b.perKat).sort((x, y) => y[1] - x[1]);
   return `<div class="panel"><div class="row spread"><h3>Laba bersih</h3>${can('kas') ? '<button class="btn sm" type="button" data-act="go-kas">Kas &amp; pengeluaran ›</button>' : ''}</div>
@@ -166,6 +178,7 @@ async function renderLaporan() {
     ${tile('ksg', 'Klaim KSG', rp(all.klaim), all.ksg + ' servis KSG')}
     <div class="tile"><span class="lbl">Laba kotor</span><span class="val" style="color:var(--good)">${rp(all.laba)}</span><span class="sub">diskon ${rp(all.dis)}</span></div>
    </div>
+   ${partNominalHTML(base)}
    ${labaBersihHTML(all, by)}
    ${perCab.length ? `<div class="panel"><h3>Omzet per cabang</h3><div class="tw"><table><thead><tr><th>Cabang</th><th class="r">Nota</th><th class="r">Total</th></tr></thead><tbody>${perCab.map(([id, v]) => `<tr class="row-click" tabindex="0" data-act="lap-f" data-t="cabang" data-v="${esc(id)}"><td>${esc(namaCabang(id))}</td><td class="r num">${v.n}</td><td class="r num">${rp(v.total)}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
    <div class="grid g2">
@@ -197,12 +210,14 @@ async function exportXlsx() {
       sparepart: t.items.reduce((a, x) => a + x.qty * x.harga, 0), jasa: (t.jasa || []).reduce((a, j) => a + j.harga, 0), klaim_ksg: t.jasaKlaim || 0, biaya_lain: (t.biaya || []).reduce((a, b) => a + b.jumlah, 0), diskon: t.diskon || 0, total: t.total, metode: t.metode || 'Cash', cash_bersih: t.cash == null ? t.total : (t.cash || 0) - (t.kembali || 0), transfer: t.transfer || 0, rekening: t.rekening || '' }));
     const r = rekap(list), sm = sums(list), [from, to] = range();
     const by = terakhir?.by || { keluar: 0, gaji: null, list: [] };
+    let pJual = 0, pBeli = 0; list.forEach(t => (t.items || []).forEach(x => { pJual += x.qty * x.harga; pBeli += x.qty * (x.beli || 0); }));
     const ringkas = [
       { keterangan: 'Periode', nilai: judulPeriode(from, to) },
       { keterangan: 'Cabang', nilai: gabungan() ? 'Semua cabang' : namaCabang(cabAktif()) },
       ...(st.lap.filter ? [{ keterangan: 'Filter', nilai: filterLabel(st.lap.filter) }] : []),
       { keterangan: 'Jumlah transaksi', nilai: sm.n }, { keterangan: 'Total omzet', nilai: sm.total }, { keterangan: 'Penjualan sparepart', nilai: sm.part },
       { keterangan: 'Sparepart terjual (pcs)', nilai: sm.qty }, { keterangan: 'Jasa servis', nilai: sm.jasa }, { keterangan: 'Biaya lain', nilai: sm.biaya },
+      { keterangan: 'Part: harga beli (modal)', nilai: pBeli }, { keterangan: 'Part: laba', nilai: pJual - pBeli },
       { keterangan: 'Klaim KSG (main dealer)', nilai: sm.klaim }, { keterangan: 'Diskon', nilai: sm.dis }, { keterangan: 'Laba kotor', nilai: sm.laba },
       { keterangan: 'Uang masuk cash', nilai: sm.cash }, { keterangan: 'Uang masuk transfer', nilai: sm.transfer },
       ...(st.lap.filter ? [] : [{ keterangan: 'Pengeluaran operasional', nilai: by.keluar }, ...(by.gaji != null ? [{ keterangan: 'Gaji & insentif (slip dikunci)', nilai: by.gaji }] : []), { keterangan: by.gaji != null ? 'Laba bersih' : 'Laba bersih sebelum gaji', nilai: sm.laba - by.keluar - (by.gaji || 0) }])

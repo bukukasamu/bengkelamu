@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '4.4.0';
+export const APP_VERSION = '4.5.0';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
@@ -26,6 +26,7 @@ export const MENUS = [
   { id: 'beranda', label: 'Beranda', group: 'Utama', roles: ['admin', 'registrasi', 'sparepart', 'kasir'] },
   { id: 'persetujuan', label: 'Persetujuan', group: 'Utama', roles: ['admin'] },   // admin biasa: hanya aktivasi layar absen
   { id: 'registrasi', label: 'Registrasi Servis', group: 'Bengkel', roles: ['admin', 'registrasi'] },
+  { id: 'konsumen', label: 'Konsumen & Kendaraan', group: 'Bengkel', roles: ['admin', 'registrasi'] },
   { id: 'riwayat', label: 'Riwayat Kendaraan', group: 'Bengkel', roles: ['admin', 'registrasi', 'kasir', 'sparepart'] },
   { id: 'order', label: 'Order Sparepart', group: 'Bengkel', roles: ['admin', 'sparepart'] },
   { id: 'bayar', label: 'Pembayaran & Status Servis', group: 'Bengkel', roles: ['admin', 'kasir'] },
@@ -39,7 +40,7 @@ export const MENUS = [
   { id: 'klaim', label: 'Klaim KSG', group: 'Keuangan', roles: ['admin', 'kasir'] },
   { id: 'insight', label: 'Insight Konsumen', group: 'Keuangan', roles: ['admin'] },
   { id: 'backup', label: 'Backup Data', group: 'Pengaturan', roles: ['admin'], superOnly: true },
-  { id: 'master', label: 'Master Data', group: 'Pengaturan', roles: ['admin', 'registrasi'] },
+  { id: 'master', label: 'Master Data', group: 'Pengaturan', roles: ['admin'] },
   { id: 'absensi', label: 'Absensi Saya', group: 'Akun Saya', superLabel: 'Absensi Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] },
   // Penghasilan pribadi dipisah dari laporan toko; admin melihat rekap semua karyawan
   { id: 'penghasilan', label: 'Penghasilan Saya', group: 'Akun Saya', superLabel: 'Penghasilan Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] }

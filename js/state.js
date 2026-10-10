@@ -26,7 +26,7 @@ export const st = {
   pbDraft: null, pbFilter: 'semua',
   mekSel: null, mekPeriode: 'ini',
   lap: { range: 'hari', from: '', to: '', filter: null, list: null },
-  masterTab: 'kendaraan'
+  masterTab: 'tipe', filterBuka: {}
 };
 export const namaPetugas = () => (st.petugas && (st.petugas.nama || st.petugas.email)) || '';
 // ID tetap petugas (tidak berubah walau nama diganti) untuk menghitung penjualan pribadi / insentif
@@ -38,15 +38,21 @@ export const menuGroup = m => (st.petugas?.super && m.superGroup) || m.group;
 export const can = menuId => {
   const m = MENUS.find(x => x.id === menuId); if (!m || !m.roles.includes(st.role) || (m.superOnly && !st.petugas?.super)) return false;
   if (st.petugas?.super) return true;
-  const a = S.akses?.[st.role]; return !Array.isArray(a) || a.includes(menuId);
+  const a = S.akses?.[st.role]; return !Array.isArray(a) || a.includes(menuId) || (menuId === 'konsumen' && a.includes('master'));
 };
 export const menuAwal = () => can(HOME[st.role]) ? HOME[st.role] : (MENUS.find(m => can(m.id))?.id || HOME[st.role]);
 export const isRole = (...r) => r.includes(st.role);
 
+// Kotak filter yang bisa disembunyikan (tersembunyi bawaan supaya tidak makan tempat)
+export const filterBuka = key => !!st.filterBuka?.[key];
+export const tombolFilter = (key, aktif = 0, act = 'filter-tgl') => `<button class="btn sm${aktif ? ' pri' : ''}" type="button" data-act="${act}" data-k="${key}" aria-expanded="${filterBuka(key)}">⚲ Filter${aktif ? ' (' + aktif + ')' : ''} ${filterBuka(key) ? '▴' : '▾'}</button>`;
+
 /* ---- Registry: tiap modul mendaftarkan tampilan dan aksinya sendiri ---- */
 export const views = {};          // id menu -> render penuh
 export const refreshers = {};     // id menu -> render ringan saat data berubah
-export const actions = {};        // data-act -> fungsi(el)
+export const actions = {         // data-act -> fungsi(el)
+  'filter-tgl': el => { st.filterBuka = st.filterBuka || {}; st.filterBuka[el.dataset.k] = !st.filterBuka[el.dataset.k]; views[st.view]?.(); }
+};
 export const inputHandlers = [];
 export const changeHandlers = [];
 export const fkeys = {};          // id menu -> { baru, simpan }
