@@ -191,6 +191,18 @@ async function save(opts = {}) {
   w.noRangka = (w.noRangka || '').replace(/\s+/g, ''); w.noMesin = (w.noMesin || '').replace(/\s+/g, '');
   if (w.stnkSama !== false) w.namaStnk = w.nama;
   if (w.jenisServis === 'KSG' && !w.ksgKe) { toast('Pilih KSG ke berapa'); $('#r-ksgke')?.focus(); return; }
+  // (dicek sebelum status/log diubah, supaya draft tidak berubah bila simpan dibatalkan)
+  // KM tidak boleh turun dari KM terakhir kendaraan ini (kecuali speedometer diganti — izin admin + catatan)
+  const kmBaru = angkaKm(w.km);
+  if (kmBaru && !w.kmReset) {
+    const akhir = await kmTerakhir(w.nopol, w.no);
+    if (akhir && kmBaru < akhir.km) {
+      if (!isRole('admin')) { toast(`KM ${fmtKm(kmBaru)} lebih kecil dari KM terakhir ${fmtKm(akhir.km)} (${tglPendek(akhir.tgl)}). Periksa lagi; bila speedometer diganti, minta admin.`); delete w._lanjut; $('#r-km')?.focus(); return; }
+      const cat = await mintaCatatan('KM lebih kecil dari KM terakhir', `KM terakhir ${fmtKm(akhir.km)} (${akhir.asal}, ${tglPendek(akhir.tgl)}), diisi ${fmtKm(kmBaru)}. Lanjutkan hanya bila speedometer diganti/direset. Tulis keterangannya.`);
+      if (cat === null) { delete w._lanjut; $('#r-km')?.focus(); return; }
+      w.kmReset = { dari: akhir.km, ke: kmBaru, ket: cat, oleh: namaPetugas(), tgl: stamp(new Date()) };
+    }
+  }
   const mek = mekanikById(w.mekanikId);
   if (w._lanjut && !mek) { toast('Pilih mekanik yang kosong untuk melanjutkan'); delete w._lanjut; return; }
   // Status otomatis: ada mekanik = Dikerjakan, tanpa mekanik = Antri.
@@ -218,17 +230,6 @@ async function save(opts = {}) {
   w.status = status; w.mekanik = mek?.nama || '';
   delete w._manual; delete w._lanjut;
   w.jasa = normJasa(w); w.dataKurang = false;
-  // KM tidak boleh turun dari KM terakhir kendaraan ini (kecuali speedometer diganti — izin admin + catatan)
-  const kmBaru = angkaKm(w.km);
-  if (kmBaru && !w.kmReset) {
-    const akhir = await kmTerakhir(w.nopol, w.no);
-    if (akhir && kmBaru < akhir.km) {
-      if (!isRole('admin')) { toast(`KM ${fmtKm(kmBaru)} lebih kecil dari KM terakhir ${fmtKm(akhir.km)} (${tglPendek(akhir.tgl)}). Periksa lagi; bila speedometer diganti, minta admin.`); $('#r-km')?.focus(); return; }
-      const cat = await mintaCatatan('KM lebih kecil dari KM terakhir', `KM terakhir ${fmtKm(akhir.km)} (${akhir.asal}, ${tglPendek(akhir.tgl)}), diisi ${fmtKm(kmBaru)}. Lanjutkan hanya bila speedometer diganti/direset. Tulis keterangannya.`);
-      if (cat === null) { $('#r-km')?.focus(); return; }
-      w.kmReset = { dari: akhir.km, ke: kmBaru, ket: cat, oleh: namaPetugas(), tgl: stamp(new Date()) };
-    }
-  }
   st.saving = true;
   try {
     const no = await saveWo(w);
@@ -286,7 +287,7 @@ Object.assign(actions, {
   'reg-cepat': () => save({ cepat: true }),
   'reg-cari': cariData,
   'reg-pakai': pakaiData,
-  'reg-lanjut': () => { st.regDraft._lanjut = true; save(); },
+  'reg-lanjut': async () => { const w = st.regDraft; w._lanjut = true; try { await save(); } finally { delete w._lanjut; } },
   'reg-oli-luar': () => catatOliLuar(st.regDraft.nopol, oli => { infoKm.oli = oli; infoKm.key = ''; isiInfoKm(); }),
   // Admin: hapus pendaftaran yang salah/ganda (belum dibayar). Nomor antrian tidak dipakai ulang.
   'reg-hapus': async () => {

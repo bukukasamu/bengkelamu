@@ -39,7 +39,8 @@ export async function kmTerakhir(nopol, kecualiNo = null) {
 }
 
 /* ---------- Oli mesin ---------- */
-const BUKAN_OLI_MESIN = /GARDAN|GEAR|TRANSMI|SHOCK|REM|BRAKE|COOLANT|RADIATOR|FORK|SAMPING|TUTUP|SEAL|PACKING|FILTER/i;
+// Kata utuh (\b) supaya mis. "YAMALUBE PREMIUM" tidak dianggap oli rem
+const BUKAN_OLI_MESIN = /GARDAN|\bGEAR\b|TRANSMI|SHOCK|\bREM\b|BRAKE|COOLANT|RADIATOR|\bFORK\b|\bTUTUP\b|\bSEAL\b|PACKING|FILTER/i;
 const OLI = /\bOLI\b|\bOIL\b|YAMALUBE/i;
 export const isOliPart = x => { const p = S.map?.get?.(x.kode); const nm = (x.nama || p?.nama || '') + ' ' + (p?.kategori || ''); return OLI.test(nm) && !BUKAN_OLI_MESIN.test(x.nama || p?.nama || ''); };
 export const isOliJasa = j => OLI.test(j.nama || '') && !BUKAN_OLI_MESIN.test(j.nama || '');

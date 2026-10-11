@@ -1,5 +1,6 @@
 // Identitas tampilan: logo toko (diatur super admin) dan animasi loading dua roda gigi.
 import { db, doc, getDoc, setDoc } from './firebase.js';
+import { terapkanTema } from './tema.js';
 
 // Path SVG dua roda gigi yang saling mengait (12 gigi dan 8 gigi). Sama persis dengan loader awal di pos.html.
 const G1 = 'M41.98 20.06 L46.44 19.21 L47.49 10.08 L52.51 10.08 L53.56 19.21 L58.02 20.06 L62.31 21.55 L67.79 14.17 L72.14 16.68 L68.48 25.11 L71.92 28.08 L74.89 31.52 L83.32 27.86 L85.83 32.21 L78.45 37.69 L79.94 41.98 L80.79 46.44 L89.92 47.49 L89.92 52.51 L80.79 53.56 L79.94 58.02 L78.45 62.31 L85.83 67.79 L83.32 72.14 L74.89 68.48 L71.92 71.92 L68.48 74.89 L72.14 83.32 L67.79 85.83 L62.31 78.45 L58.02 79.94 L53.56 80.79 L52.51 89.92 L47.49 89.92 L46.44 80.79 L41.98 79.94 L37.69 78.45 L32.21 85.83 L27.86 83.32 L31.52 74.89 L28.08 71.92 L25.11 68.48 L16.68 72.14 L14.17 67.79 L21.55 62.31 L20.06 58.02 L19.21 53.56 L10.08 52.51 L10.08 47.49 L19.21 46.44 L20.06 41.98 L21.55 37.69 L14.17 32.21 L16.68 27.86 L25.11 31.52 L28.08 28.08 L31.52 25.11 L27.86 16.68 L32.21 14.17 L37.69 21.55 Z M61.00 50.00 A11 11 0 1 0 39.00 50.00 A11 11 0 1 0 61.00 50.00 Z';
@@ -12,7 +13,12 @@ let brand = {};
 export const getBrand = () => brand;
 export async function loadBrand() {
   try { const s = await getDoc(doc(db, 'publik', 'brand')); brand = s.exists() ? s.data() : {}; } catch (e) { brand = {}; }
-  applyBrand(); return brand;
+  // Layar TV & layar absen punya tampilan sendiri (tidak ikut tema)
+  applyBrand(); if (brand.tema && !document.body?.classList.contains('tv-body') && !document.body?.classList.contains('ab-body')) terapkanTema(brand.tema); return brand;
+}
+export async function saveTema(id) {
+  await setDoc(doc(db, 'publik', 'brand'), { tema: id }, { merge: true });
+  brand = { ...brand, tema: id }; terapkanTema(id);
 }
 export function applyBrand() {
   document.querySelectorAll('.brand-logo').forEach(img => { if (brand.logo) { img.src = brand.logo; img.hidden = false; } else img.hidden = true; });

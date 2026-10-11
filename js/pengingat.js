@@ -34,12 +34,12 @@ const kategori = k => {
   const p = k.pengingat || {};
   if (p.stop) return 'stop';
   if (p.tundaSampai && p.tundaSampai > hariIni()) return 'tunda';
-  if (p.dihubungi && String(p.dihubungi).slice(0, 10) >= String(k.oli.tglBerikut).slice(0, 10) && hariAntara(p.dihubungi) < 7) return 'dihubungi';
+  if (p.dihubungi && hariAntara(p.dihubungi) < 7) return 'dihubungi';   // sudah dihubungi dalam 7 hari terakhir
   return 'perlu';
 };
 const hariAntara = t => Math.round((new Date(hariIni()) - new Date(String(t).slice(0, 10))) / 86400000);
 
-const pesanWa = k => `Halo ${k.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME}${k.oli?.cabang ? ' ' + namaCabang(k.oli.cabang) : ''}. Motor ${k.nopol}${k.tipe ? ' (' + k.tipe + ')' : ''} sudah waktunya ganti oli: terakhir ganti ${tglPendek(k.oli.tgl)}${k.oli.km ? ' di KM ' + fmtKm(angkaKm(k.oli.km)) : ''}, jadwal berikutnya ${teksJadwal(k.oli)}.
+const pesanWa = k => `Halo ${k.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME}${k.oli?.cabang ? ' ' + namaCabang(k.oli.cabang) : ''}. Motor ${k.nopol}${k.tipe ? ' (' + k.tipe + ')' : ''} ${k.oli.tglBerikut > hariIni() ? 'sebentar lagi jadwal' : 'sudah waktunya'} ganti oli: terakhir ganti ${tglPendek(k.oli.tgl)}${k.oli.km ? ' di KM ' + fmtKm(angkaKm(k.oli.km)) : ''}, jadwal berikutnya ${teksJadwal(k.oli)}.
 Silakan mampir untuk servis, atau balas pesan ini untuk booking.
 Bila sudah ganti oli di tempat lain, mohon balas dengan tanggal & KM saat ini supaya pengingat kami perbarui. Terima kasih 🙏
 Riwayat servis: ${cekLink(k.nopol)}`;

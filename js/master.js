@@ -1,6 +1,7 @@
 // Menu Master Data: pemilik & kendaraan, jasa servis, tarif KSG, mekanik (+PIN), rekening, tipe motor, petugas (+PIN).
 import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber, publicUrl, konfirmasi } from './util.js';
-import { loaderHTML, getBrand, resizeImage, saveLogo } from './brand.js';
+import { loaderHTML, getBrand, resizeImage, saveLogo, saveTema } from './brand.js';
+import { TEMA, terapkanTema, contohTema } from './tema.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole, namaPetugas, go, filterBuka, tombolFilter, KOTAK_BERANDA, KOTAK_BAWAAN } from './state.js';
 import { ROLES, MENUS } from './config.js';
 import { db, doc, getDoc, collection, getDocs, writeBatch, query, where, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
@@ -26,6 +27,7 @@ const TABS = [
   ['cabang', 'Cabang', ['admin'], 'super'],
   ['insentif', 'Insentif & Potongan', ['admin'], 'super'],
   ['logo', 'Logo', ['admin'], 'super'],
+  ['tema', 'Tema Tampilan', ['admin'], 'super'],
   ['akses', 'Hak Akses Menu', ['admin'], 'super'],
   ['logk', 'Riwayat Perubahan Konsumen', ['admin'], 'super']
 ];
@@ -44,7 +46,7 @@ const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p
 function renderMaster() {
   const tabs = tabsFor(); if (!tabs.find(t => t[0] === st.masterTab)) st.masterTab = tabs[0][0];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="ms-tab" data-t="${k}" aria-selected="${k === st.masterTab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
-  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo, akses: renderAkses, logk: renderLogKonsumen })[st.masterTab]();
+  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo, tema: renderTema, akses: renderAkses, logk: renderLogKonsumen })[st.masterTab]();
 }
 
 /* ---------- Konsumen & kendaraan ---------- */
@@ -322,6 +324,19 @@ async function renderLogKonsumen() {
    ${LK.data.length ? `<div class="tw"><table><thead><tr><th>Waktu</th><th>No. polisi</th><th>Diubah oleh</th><th>Lewat</th><th>Perubahan</th></tr></thead><tbody>${LK.data.map(r => `<tr><td class="small">${esc(r.tgl)}</td><td class="mono"><button class="link-btn" type="button" data-act="lk-buka" data-id="${esc(r.kendaraanId)}">${esc(r.nopol)}</button></td><td>${esc(r.oleh || '')}<div class="small muted">${esc(r.peran === 'super' ? 'Super admin' : ROLES[r.peran] || r.peran || '')}</div></td><td class="small">${esc(r.sumber || '')}</td><td class="small">${(r.ubah || []).map(u => `<div>${esc(LABEL_KONSUMEN[u.f] || u.f)}: <s class="muted">${esc(u.dari || '–')}</s> → <b>${esc(u.ke || '–')}</b></div>`).join('')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada perubahan data konsumen di bulan ini.</div>'}`;
 }
 
+/* ---------- Tema tampilan (super admin) ---------- */
+let temaPilih = null;
+function renderTema() {
+  const el = $('#ms-body'); if (!el) return;
+  const tersimpan = getBrand().tema || 'otomatis'; if (!temaPilih) temaPilih = tersimpan;
+  el.innerHTML = `${intro('Pilih warna aplikasi. Klik untuk mencoba (langsung terlihat di layar ini), lalu <b>Simpan</b> supaya berlaku di semua komputer & HP petugas serta halaman cek servis konsumen.')}
+   <div class="tema-grid">${TEMA.map(t => `<button type="button" class="tema-kartu" data-act="tm-coba" data-t="${t.id}" aria-pressed="${t.id === temaPilih}">${contohTema(t)}<span class="tk"><b>${esc(t.nama)}${t.id === tersimpan ? ' ✓' : ''}</b><span>${esc(t.ket)}</span></span></button>`).join('')}</div>
+   <div class="row" style="justify-content:flex-end;margin-top:12px">${temaPilih !== tersimpan ? '<span class="small muted">Sedang dicoba, belum disimpan.</span><button class="btn" type="button" data-act="tm-batal">Batal</button>' : ''}<button class="btn pri" type="button" data-act="tm-simpan" ${temaPilih === tersimpan ? 'disabled' : ''}>Simpan untuk semua perangkat</button></div>`;
+}
+
+// Pindah menu tanpa menyimpan: kembalikan tema yang tersimpan
+document.addEventListener('click', e => { if (temaPilih && e.target.closest?.('.sb-link')) { terapkanTema(getBrand().tema || 'otomatis', false); temaPilih = null; } }, true);
+
 function renderLogo() {
   const cur = logoDraft ?? getBrand().logo;
   $('#ms-body').innerHTML = intro('Logo tampil di sisi kiri halaman login dan di atas menu samping. Gunakan PNG berlatar transparan atau putih; gambar otomatis diperkecil.') + `
@@ -493,7 +508,7 @@ Object.assign(actions, {
       await b.commit(); resetStaffGaji(); toast('Gaji pokok disimpan'); renderInsentif();
     } catch (e) { toast(errMsg(e)); }
   },
-  'ms-tab': el => { phDraft = null; phGaji = null; st.masterTab = el.dataset.t; kendEdit = null; renderMaster(); },
+  'ms-tab': el => { if (temaPilih && temaPilih !== (getBrand().tema || 'otomatis')) terapkanTema(getBrand().tema || 'otomatis', false); temaPilih = null; phDraft = null; phGaji = null; st.masterTab = el.dataset.t; kendEdit = null; renderMaster(); },
   'ms-kadd': () => { kendEdit = { nopol: '' }; renderKForm(); $('#mk-nopol')?.focus(); },
   'ms-kedit': el => { const k = kend.find(x => x.id === el.dataset.id); if (k) { kendEdit = { ...k }; renderKForm(); $('#ms-kform').scrollIntoView({ block: 'nearest' }); } },
   'ms-kclose': () => { kendEdit = null; renderKForm(); },
@@ -532,6 +547,9 @@ Object.assign(actions, {
   'sf-save': async el => { const i = +el.dataset.i, s = logins[i]; if (akunSendiri(s)) return; try { await ubahPetugas(s.id, { nama: $('#sf-n-' + i).value.trim() || s.nama, peran: $('#sf-r-' + i).value, cabang: $('#sf-c-' + i)?.value || s.cabang || CABANG_UTAMA }); toast('Petugas ' + s.nama + ' disimpan'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } },
   'sf-pin': el => { const s = logins[+el.dataset.i]; if (akunSendiri(s)) return; askPin('PIN baru untuk ' + s.nama, async pin => { await resetPin(s.id, pin); toast('PIN ' + s.nama + ' diganti'); logins = null; setTimeout(renderStaff, 50); }); },
   'sf-del': el => { const s = logins[+el.dataset.i]; if (akunSendiri(s)) return; confirmTwice(el, 's' + s.id, async () => { try { await hapusPetugas(s.id); toast(s.nama + ' dihapus, tidak bisa login lagi'); logins = null; renderStaff(); } catch (e) { toast(errMsg(e)); } }); },
+  'tm-coba': el => { temaPilih = el.dataset.t; terapkanTema(temaPilih, false); renderTema(); },
+  'tm-batal': () => { temaPilih = null; terapkanTema(getBrand().tema || 'otomatis', false); renderTema(); },
+  'tm-simpan': async () => { try { await saveTema(temaPilih); toast('Tema "' + (TEMA.find(t => t.id === temaPilih)?.nama || temaPilih) + '" dipakai di semua perangkat'); temaPilih = null; renderTema(); } catch (e) { toast(errMsg(e)); } },
   'lg-save': async () => { try { await saveLogo(logoDraft); logoDraft = null; toast('Logo dipasang'); renderLogo(); } catch (e) { toast(errMsg(e)); } },
   'lg-cancel': () => { logoDraft = null; renderLogo(); },
   'lk-bln': el => { LK.bulan = geserBln(LK.bulan, +el.dataset.n); renderLogKonsumen(); },
