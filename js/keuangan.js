@@ -13,7 +13,7 @@ import { mintaPassword, isSuper } from './otorisasi.js';
 import { loaderHTML } from './brand.js';
 import { loadXLSX } from './import-excel.js';
 
-export const KATEGORI = ['Listrik & air', 'Sewa tempat', 'Internet & pulsa', 'Konsumsi', 'Transportasi & BBM', 'Perlengkapan bengkel', 'Perbaikan & alat', 'Kebersihan & keamanan', 'Iuran & pajak', 'Promosi', 'Bonus / uang makan (di luar slip)', 'Lain-lain'];
+export const KATEGORI = ['Listrik & air', 'Sewa tempat', 'Internet & pulsa', 'Konsumsi', 'Transportasi & BBM', 'Perlengkapan bengkel', 'Perbaikan & alat', 'Kebersihan & keamanan', 'Iuran & pajak', 'Promosi', 'Bonus / uang makan (di luar slip)', 'THR & bonus karyawan', 'Lain-lain'];
 const KU = st.keu = st.keu || { tab: 'kas', tgl: dkey(new Date()), bulan: dkey(new Date()).slice(0, 7) };
 const KL = st.klaim = st.klaim || { bulan: dkey(new Date()).slice(0, 7), pilih: {} };
 const namaBulan = ym => new Date(ym + '-01T00:00').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });

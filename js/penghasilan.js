@@ -97,15 +97,15 @@ async function trxBulan(ym) {
 // Gaji pokok & komisi tersimpan privat di gaji/{kunci}: hanya karyawan ybs. dan super admin yang bisa membaca
 let semuaGaji = null;
 export const resetStaffGaji = () => { semuaGaji = null; };
-async function daftarKaryawan() {
+export async function daftarKaryawan() {
   const [login, gs] = await Promise.all([loadLoginList(), semuaGaji ? null : getDocs(collection(db, 'gaji'))]);
   if (gs) { semuaGaji = {}; gs.docs.forEach(d => { semuaGaji[d.id] = d.data(); }); }
   const mek = S.mekanikSemua.length ? S.mekanikSemua : S.mekanik;
-  const org = login.filter(p => p.peran !== 'mekanik').map(p => ({ peran: p.peran, id: p.id, nama: p.nama, cabang: p.cabang, gaji: semuaGaji[p.id]?.gaji || 0 }));
-  mek.filter(m => m.aktif !== false).forEach(m => org.push({ peran: 'mekanik', id: m.loginId || '', mekanikId: m.id, nama: m.nama, cabang: m.cabang, gaji: semuaGaji['M:' + m.id]?.gaji || 0, komisi: semuaGaji['M:' + m.id]?.komisi || 0 }));
+  const org = login.filter(p => p.peran !== 'mekanik').map(p => ({ peran: p.peran, id: p.id, nama: p.nama, cabang: p.cabang, gaji: semuaGaji[p.id]?.gaji || 0, mulaiKerja: semuaGaji[p.id]?.mulaiKerja || '' }));
+  mek.filter(m => m.aktif !== false).forEach(m => org.push({ peran: 'mekanik', id: m.loginId || '', mekanikId: m.id, nama: m.nama, cabang: m.cabang, gaji: semuaGaji['M:' + m.id]?.gaji || 0, komisi: semuaGaji['M:' + m.id]?.komisi || 0, mulaiKerja: semuaGaji['M:' + m.id]?.mulaiKerja || '' }));
   return org.sort((a, b) => a.nama.localeCompare(b.nama));
 }
-async function saya() {
+export async function saya() {
   const p = st.petugas || {};
   const o = st.role === 'mekanik'
     ? { peran: 'mekanik', id: p.loginId, mekanikId: p.mekanikId, nama: ((S.mekanikSemua.length ? S.mekanikSemua : S.mekanik).find(x => x.id === p.mekanikId) || {}).nama || p.nama, cabang: p.cabang }
@@ -195,9 +195,11 @@ function rincianHTML(h, judul, ym = PH.bulan, idx = -1) {
 }
 
 let rekap = null, milik = null;
+const tabMode = () => `<div class="seg" role="group" aria-label="Jenis">${[['gaji', 'Gaji bulanan'], ['bonus', 'THR & Bonus']].map(([k, l]) => `<button type="button" data-act="ph-mode" data-m="${k}" aria-pressed="${(PH.mode || 'gaji') === k}">${l}</button>`).join('')}</div>`;
 async function renderPenghasilan() {
+  if (PH.mode === 'bonus') { const m = await import('./thr.js'); return m.renderBonus(tabMode()); }
   const ym = PH.bulan, admin = !!st.petugas?.super;
-  $('#view').innerHTML = `<div class="grid">
+  $('#view').innerHTML = `<div class="grid">${tabMode()}
     <div class="row spread"><div class="seg" role="group" aria-label="Bulan">${[[bulanIni(), 'Bulan ini'], [geserBulan(bulanIni(), -1), 'Bulan lalu']].map(([k, l]) => `<button type="button" data-act="ph-bulan" data-b="${k}" aria-pressed="${k === ym}">${l}</button>`).join('')}</div>
      <div class="row"><label class="f" for="ph-bln" style="flex-direction:row;align-items:center;gap:6px">Bulan<input id="ph-bln" type="month" value="${ym}" style="width:auto"></label>${admin ? '<span id="ph-kunci-btn"></span><button class="btn" type="button" data-act="ph-xlsx">⬇ Excel</button>' : ''}</div></div>
     <p class="small muted" style="margin:0">${esc(namaBulan(ym))} · dihitung dari penjualan pribadi. ${admin ? 'Klik nama karyawan untuk melihat rinciannya.' : ''}</p>
@@ -301,6 +303,7 @@ async function unduhSlip(el) {
 views.penghasilan = renderPenghasilan;
 refreshers.penghasilan = () => {};
 Object.assign(actions, {
+  'ph-mode': el => { PH.mode = el.dataset.m; renderPenghasilan(); },
   'ph-bulan': el => { PH.bulan = el.dataset.b; PH.pilih = null; renderPenghasilan(); },
   'ph-pilih': el => { PH.pilih = PH.pilih === +el.dataset.i ? null : +el.dataset.i; renderPenghasilan(); },
   'ph-xlsx': exportXlsx,

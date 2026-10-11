@@ -10,7 +10,7 @@ const P = {
     ['Tombol cepat keyboard', '<kbd>F1</kbd> data baru · <kbd>F2</kbd> simpan · <kbd>F3</kbd> langsung ke kotak pencarian · <kbd>F8</kbd> cetak nota terakhir · <kbd>Esc</kbd> menutup jendela. Tombol yang sama juga ada di bawah judul halaman.'],
     ['Kotak konfirmasi', 'Setiap tindakan penting (setujui, selesai, tunda, bayar, transfer, tutup kas, hapus) menampilkan kotak konfirmasi. Baca isinya dulu. Tombol yang aktif pertama kali adalah <b>Batal</b>, jadi tekan Enter tanpa sengaja tidak menyetujui apa pun.'],
     ['Absensi', 'Datang & pulang: menu <b>Absensi Saya</b> → <b>Scan QR</b> di layar absen bengkel → selfie. QR berganti setiap beberapa detik, jadi harus di bengkel. Satu akun hanya bisa absen dari HP yang terdaftar (minta super admin reset bila ganti HP).'],
-    ['Penghasilan Saya', 'Melihat gaji pokok, insentif, target, potongan, dan slip gaji bulanan milik Anda sendiri. Karyawan lain tidak bisa melihatnya.'],
+    ['Penghasilan Saya', 'Melihat gaji pokok, insentif, target, potongan, slip gaji bulanan, serta THR &amp; bonus (tab THR &amp; Bonus, slip bisa diunduh PDF) milik Anda sendiri. Karyawan lain tidak bisa melihatnya.'],
     ['Cek servis konsumen', 'Konsumen bisa memantau servis & riwayat motornya di <b>www.amuservice.id</b> dengan nomor polisi + nomor HP yang terdaftar. Link-nya ikut terkirim di WA nota dan pengingat.']
   ] },
   registrasi: { judul: 'Registrasi Servis', ringkas: 'Menerima motor, memberi nomor antrian, mengatur mekanik, dan mengingatkan konsumen.', bagian: [
@@ -48,7 +48,7 @@ const P = {
     ['2. Butuh sparepart', 'Sampaikan kebutuhan part ke bagian sparepart; mereka mengisi <b>Order Sparepart</b> untuk motor Anda.'],
     ['3. Selesai atau ditunda', 'Lapor ke <b>kasir</b>: motor <b>selesai</b>, atau harus <b>ditunda</b> (sebutkan alasannya: tunggu part, perlu izin konsumen, dll.). Setelah itu Anda kosong dan bisa menerima motor berikutnya. Motor yang ditunda bisa dilanjutkan oleh Anda atau mekanik lain; waktu kerja masing-masing tercatat.'],
     ['4. Performa', '<b>Performa Mekanik</b>: jumlah motor selesai, nilai jasa, rata-rata lama mengerjakan (waktu ditunda tidak dihitung), per tipe motor. Nilai jasa dihitung untuk mekanik yang menyelesaikan (tercantum di nota).'],
-    ['5. Penghasilan & absensi', '<b>Penghasilan Saya</b> untuk gaji, komisi/insentif, dan slip. <b>Absensi Saya</b> untuk scan QR datang & pulang.']
+    ['5. Penghasilan & absensi', '<b>Penghasilan Saya</b> untuk gaji, komisi/insentif, slip, serta THR &amp; bonus (tab <b>THR &amp; Bonus</b>). <b>Absensi Saya</b> untuk scan QR datang & pulang.']
   ] },
   admin: { judul: 'Admin / Kepala Cabang', ringkas: 'Semua pekerjaan operasional + beberapa izin khusus.', bagian: [
     ['1. Beranda', 'Ringkasan hari ini: omzet, part terjual, motor masuk & status mekanik, stok menipis. Admin bisa membuka semua menu operasional (registrasi, order, kasir, stok, laporan).'],
@@ -63,7 +63,8 @@ const P = {
     ['3. Master Data', 'Jasa & harga, Tarif KSG, Mekanik, Petugas & PIN, Rekening, Cabang (isi <b>No. telp/WA</b> cabang supaya konsumen bisa booking dari halaman cek servis), Insentif & Potongan, Logo, <b>Hak Akses Menu</b> (menu & kotak Beranda per peran), Riwayat Perubahan Konsumen.'],
     ['4. Pengingat ganti oli', '<b>Pengingat Servis</b> → atur interval (bawaan 2.000 km / 60 hari). Setelah update pertama kali tekan <b>Bangun jadwal dari nota lama</b> sekali.'],
     ['5. Karyawan', '<b>Absensi Karyawan</b> (rekap, ubah manual dengan catatan, reset HP), <b>Penghasilan Karyawan</b> (rekap, slip, kunci bulan).'],
-    ['6. Data', '<b>Backup Data</b> seminggu sekali (file JSON, bisa dipulihkan). Hapus semua data hanya dengan peringatan, ketik kalimat konfirmasi, dan kata sandi.']
+    ['6. THR & bonus', '<b>Penghasilan Karyawan → THR &amp; Bonus</b> → <b>+ THR / Bonus baru</b>. Jumlah = <b>gaji pokok × persen</b> (atur untuk semua, lalu ubah per orang bila perlu) + tambahan Rp. Untuk THR isi tanggal hari raya & tanggal mulai kerja: masa kerja di bawah 12 bulan dihitung proporsional, dan kolom <b>Min. aturan</b> memberi tanda bila di bawah batas minimal. <b>Kunci &amp; terbitkan</b> → slip muncul di Penghasilan Saya tiap karyawan, total tercatat sebagai pengeluaran.'],
+    ['7. Data', '<b>Backup Data</b> seminggu sekali (file JSON, bisa dipulihkan). Hapus semua data hanya dengan peringatan, ketik kalimat konfirmasi, dan kata sandi.']
   ] }
 };
 
