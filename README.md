@@ -1,9 +1,21 @@
-# Aceh Mandiri Utama POS · versi 4.6.1
+# Aceh Mandiri Utama POS · versi 4.7.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 4.7.0 — KM, pengingat ganti oli, panduan
+
+**Update:** upload semua file (baru: `js/km-oli.js`, `js/pengingat.js`, `js/panduan.js`), lalu **publish ulang `firestore.rules`** (data kendaraan boleh menyimpan jadwal oli, status pengingat, dan reset speedometer). Setelah itu super admin membuka **Pengingat Servis → Bangun jadwal dari nota lama** sekali saja.
+
+- **KM tidak boleh turun.** Di Registrasi tampil *KM terakhir* motor (dari nota, servis lain, data kendaraan, ganti oli di luar). KM yang lebih kecil ditolak. Speedometer diganti/direset: hanya admin yang bisa menyimpan, wajib menulis keterangan; KM sebelum reset tidak dipakai lagi.
+- **Pengingat ganti oli.** Saat servis berisi oli mesin dibayar, jadwal berikutnya dihitung otomatis: setiap 2.000 km atau 60 hari (diatur super admin), mana yang lebih dulu — tanggal dari KM diperkirakan dari rata-rata pemakaian motor itu.
+  - Menu baru **Pengingat Servis** (Admin, Registrasi, Kasir): daftar motor yang lewat / jatuh tempo ≤ 14 hari → **WA ingatkan** (pesan otomatis + link riwayat), **Ganti di luar** (tanggal & KM; jadwal dihitung ulang), **Tunda 14 hari**, **Stop** (motor dijual/pindah). Tercatat berapa kali & siapa yang menghubungi.
+  - Registrasi menampilkan jadwal oli motor yang sedang didaftarkan + tombol "Sudah ganti oli di luar?".
+  - Halaman cek servis konsumen menampilkan **jadwal ganti oli berikutnya** + tombol WA **Booking ganti oli** dan **Saya sudah ganti oli di tempat lain** (isi No. telp/WA cabang di Master Data → Cabang).
+- **Panduan Penggunaan** (menu Bantuan): alur kerja per peran — Umum, Registrasi, Sparepart, Kasir, Mekanik, Admin, Super Admin. Petugas melihat panduan perannya; bisa dicetak.
+- Menu baru otomatis tampil untuk peran bawaannya walaupun Hak Akses Menu pernah diatur; super admin tetap bisa menyembunyikannya.
 
 ## Perbaikan 4.6.1
 

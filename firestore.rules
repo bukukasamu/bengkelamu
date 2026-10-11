@@ -67,13 +67,13 @@ service cloud.firestore {
         || (hasRole(['kasir']) && stokCabangSendiri() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stok', 'stokC']));
       allow delete: if hasRole(['admin']);
     }
-    // Data konsumen & kendaraan: boleh ditambah/diubah karyawan, tetapi perubahan data pribadi WAJIB disertai
+    // Data konsumen & kendaraan: boleh ditambah/diubah karyawan (KM, jadwal oli & status pengingat bebas dicatat), tetapi perubahan data pribadi WAJIB disertai
     // catatan di ubahKonsumen dalam batch yang sama. Hapus hanya super admin.
     match /kendaraan/{id} {
       allow read: if isStaff();
       allow create: if hasRole(['admin', 'registrasi', 'kasir']);
       allow update: if isSuper() || (hasRole(['admin', 'registrasi', 'kasir']) && (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['servisTerakhir', 'kmTerakhir', 'km', 'updated', 'woTerakhir', 'nopol', 'nopolKey', 'hpNorm'])
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['servisTerakhir', 'kmTerakhir', 'km', 'updated', 'woTerakhir', 'nopol', 'nopolKey', 'hpNorm', 'kmReset', 'oli', 'pengingat'])
           || (request.resource.data.get('logTerakhir', '') != resource.data.get('logTerakhir', '')
               && existsAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir))
               && getAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir)).data.kendaraanId == id)));

@@ -541,3 +541,14 @@ tr[aria-current="true"] td{background:var(--accent-soft)}
 .rw-tabel tr.rw-buka:hover td{background:var(--accent-soft)}
 .rw-tabel tr.rw-detail td{background:var(--panel)!important;padding:8px 10px}
 .kf-bg{z-index:80}
+.oli-card{border:1px solid var(--line);border-left:4px solid var(--good);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--panel-2)}
+.oli-card.p-warn{border-left-color:var(--warn)}.oli-card.p-bad{border-left-color:var(--bad)}
+.oli-card.p-warn,.oli-card.p-bad,.oli-card.p-good{color:inherit}
+.oli-card.p-good{background:var(--panel-2)}.oli-card.p-warn{background:var(--warn-bg)}.oli-card.p-bad{background:var(--bad-bg)}
+.panduan h2{margin:4px 0 0}
+.pd-list{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:10px}
+.pd-list li{padding-left:4px;line-height:1.5}
+.pd-list li>b{display:block;font-family:var(--f-display);font-size:1.05rem;letter-spacing:.01em}
+.panduan kbd{font-family:var(--f-mono);font-size:.8em;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel-2)}
+@media print{.sidebar,.topbar,.toolbar,.sb-backdrop,.no-print,.toast{display:none!important}.shell,.content{display:block!important}body{background:#fff}.panel{box-shadow:none;border:0}}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;color:inherit}a.btn.pri{color:var(--panel)}
