@@ -1,9 +1,17 @@
-# Aceh Mandiri Utama POS · versi 4.7.0
+# Aceh Mandiri Utama POS · versi 4.8.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 4.8.0 — THR & Bonus
+
+Update: upload semua file (baru: `js/thr.js`). `firestore.rules` sama dengan 4.7.0.
+
+- **Penghasilan Karyawan → tab THR & Bonus** (super admin): buat THR atau bonus, jumlah = **gaji pokok × persen** (persen untuk semua + bisa diubah per orang) + tambahan Rp, centang siapa yang ikut.
+- THR: isi tanggal hari raya & **tanggal mulai kerja** tiap karyawan (tersimpan di data gaji privat untuk tahun berikutnya). Masa kerja < 12 bulan bisa dihitung proporsional (n/12), < 1 bulan = 0. Kolom **Min. aturan** menandai yang di bawah batas minimal (1× gaji pokok, proporsional), dan ada peringatan bila tanggal bayar lewat H-7.
+- **Kunci & terbitkan** (kata sandi): slip per karyawan (PDF "SLIP THR" / "SLIP BONUS") muncul di **Penghasilan Saya → THR & Bonus** milik masing-masing; total per cabang dicatat sebagai pengeluaran kategori *THR & bonus karyawan* (transfer/tunai/tidak dicatat). Bisa dibatalkan (slip ditarik, pengeluaran dihapus). Ekspor Excel.
 
 ## Fitur baru 4.7.0 — KM, pengingat ganti oli, panduan
 
