@@ -37,8 +37,11 @@ export const menuGroup = m => (st.petugas?.super && m.superGroup) || m.group;
 // Hak akses menu per peran bisa dibatasi super admin (pengaturan/akses); tanpa pengaturan = semua menu bawaan peran
 export const can = menuId => {
   const m = MENUS.find(x => x.id === menuId); if (!m || !m.roles.includes(st.role) || (m.superOnly && !st.petugas?.super)) return false;
-  if (st.petugas?.super) return true;
-  const a = S.akses?.[st.role]; return !Array.isArray(a) || a.includes(menuId) || (menuId === 'konsumen' && a.includes('master'));
+  if (st.petugas?.super || m.selalu) return true;
+  const a = S.akses?.[st.role]; if (!Array.isArray(a) || a.includes(menuId) || (menuId === 'konsumen' && a.includes('master'))) return true;
+  // Menu yang ditambahkan sesudah hak akses terakhir disimpan: ikut bawaan peran sampai super admin mengaturnya
+  const dikenal = S.akses._menu || MENUS.filter(x => !x.baru).map(x => x.id);
+  return !dikenal.includes(menuId);
 };
 export const menuAwal = () => can(HOME[st.role]) ? HOME[st.role] : (MENUS.find(m => can(m.id))?.id || HOME[st.role]);
 export const isRole = (...r) => r.includes(st.role);

@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '4.6.1';
+export const APP_VERSION = '4.7.0';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
@@ -28,6 +28,7 @@ export const MENUS = [
   { id: 'registrasi', label: 'Registrasi Servis', group: 'Bengkel', roles: ['admin', 'registrasi'] },
   { id: 'konsumen', label: 'Konsumen & Kendaraan', group: 'Bengkel', roles: ['admin', 'registrasi'] },
   { id: 'riwayat', label: 'Riwayat Kendaraan', group: 'Bengkel', roles: ['admin', 'registrasi', 'kasir', 'sparepart'] },
+  { id: 'pengingat', label: 'Pengingat Servis', group: 'Bengkel', roles: ['admin', 'registrasi', 'kasir'], baru: '4.7.0' },
   { id: 'order', label: 'Order Sparepart', group: 'Bengkel', roles: ['admin', 'sparepart'] },
   { id: 'bayar', label: 'Pembayaran & Status Servis', group: 'Bengkel', roles: ['admin', 'kasir'] },
   { id: 'mekanik', label: 'Performa Mekanik', group: 'Bengkel', roles: ['admin', 'mekanik'] },
@@ -43,7 +44,9 @@ export const MENUS = [
   { id: 'master', label: 'Master Data', group: 'Pengaturan', roles: ['admin'] },
   { id: 'absensi', label: 'Absensi Saya', group: 'Akun Saya', superLabel: 'Absensi Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] },
   // Penghasilan pribadi dipisah dari laporan toko; admin melihat rekap semua karyawan
-  { id: 'penghasilan', label: 'Penghasilan Saya', group: 'Akun Saya', superLabel: 'Penghasilan Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] }
+  { id: 'penghasilan', label: 'Penghasilan Saya', group: 'Akun Saya', superLabel: 'Penghasilan Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] },
+  // Panduan selalu bisa dibuka semua peran (tidak diatur di Hak Akses Menu)
+  { id: 'panduan', label: 'Panduan Penggunaan', group: 'Bantuan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'], selalu: true }
 ];
 // Halaman pertama setelah login
 export const HOME = { admin: 'beranda', registrasi: 'registrasi', sparepart: 'order', kasir: 'bayar', mekanik: 'mekanik' };

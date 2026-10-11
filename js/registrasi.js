@@ -1,7 +1,7 @@
 // Menu Registrasi Servis: data konsumen & kendaraan, keluhan, jenis servis (Reguler/KSB/KSG), jasa, mekanik.
 import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber, konfirmasi } from './util.js';
 import { APP_NAME } from './config.js';
-import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole, namaPetugas } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, limit, documentId } from './firebase.js';
 import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, fmtAntri, kurangBadge, tundaInfo, mekanikNama, syncLayar } from './wo-common.js';
@@ -10,6 +10,8 @@ import { bedaKonsumen, simpanDenganCatatan } from './log-konsumen.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
 
 import { cariKendaraan, nopolKey } from './cari-kendaraan.js';
+import { kmTerakhir, angkaKm, fmtKm, tglPendek, statusOli, teksJadwal, catatOliLuar } from './km-oli.js';
+import { mintaCatatan } from './kontrol.js';
 export { nopolKey };
 // Data konsumen sesuai KTP + data kendaraan sesuai STNK (disimpan bersama per kendaraan di koleksi kendaraan)
 export const KONSUMEN_FIELDS = ['nik', 'nama', 'tempatLahir', 'tglLahir', 'jk', 'pekerjaan', 'hp', 'rtrw', ...WIL_FIELDS];
@@ -88,8 +90,9 @@ function renderRegistrasi() {
      ${inp('warna', 'Warna')}
      ${inp('noRangka', 'No. rangka', 'class="mono"')}
      ${inp('noMesin', 'No. mesin', 'class="mono"')}
-     ${inp('km', 'Kilometer saat ini', 'data-num class="num" placeholder="mis. 12.500"')}
+     <label class="f" for="r-km"><span class="f-wa">Kilometer saat ini<span class="small muted" id="r-km-info"></span></span><input id="r-km" data-rf="km" value="${esc(w.km)}" data-num class="num" placeholder="mis. 12.500" ${dis}></label>
     </div>
+    <div id="r-oli"></div>
     <h3>3. Servis</h3>
     <div class="form">
      <label class="f" for="r-jenis">Jenis servis<select id="r-jenis" data-rf="jenisServis" ${dis}>${Object.entries(JENIS_SERVIS).map(([k, l]) => `<option value="${k}" ${k === w.jenisServis ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
@@ -112,6 +115,31 @@ function renderRegistrasi() {
    </div></div>`;
   renderList();
   fillWilayah('rw', { get: () => st.regDraft });
+  isiInfoKm();
+}
+
+// KM terakhir & jadwal ganti oli kendaraan ini (ditampilkan di formulir, dipakai juga untuk cek KM saat simpan)
+let infoKm = { key: '', no: null, akhir: null, oli: null };
+async function isiInfoKm() {
+  const w = st.regDraft, key = nopolKey(w?.nopol);
+  if (!key) { infoKm = { key: '', akhir: null, oli: null }; tampilInfoKm(); return; }
+  if (infoKm.key !== key || infoKm.no !== w.no) {
+    const akhir = await kmTerakhir(w.nopol, w.no);
+    let oli = null; try { const s = await getDoc(doc(db, 'kendaraan', key)); oli = s.exists() ? s.data().oli || null : null; } catch (e) {}
+    if (nopolKey(st.regDraft?.nopol) !== key) return;
+    infoKm = { key, no: w.no, akhir, oli };
+  }
+  tampilInfoKm();
+}
+function tampilInfoKm() {
+  const el = $('#r-km-info'), w = st.regDraft; if (!el || !w) return;
+  const a = infoKm.akhir, km = angkaKm(w.km), kurang = a && km && km < a.km && !w.kmReset;
+  el.className = 'small ' + (kurang ? 'diff-bad' : 'muted');
+  el.textContent = a ? (kurang ? `min. ${fmtKm(a.km)}!` : `terakhir ${fmtKm(a.km)} · ${tglPendek(a.tgl)}`) : '';
+  el.title = a ? `KM terakhir ${fmtKm(a.km)} (${a.asal}, ${a.tgl}). KM baru tidak boleh lebih kecil.` : '';
+  const box = $('#r-oli'); if (!box) return;
+  const o = infoKm.oli, s = statusOli(o, km);
+  box.innerHTML = o && w.status !== 'Lunas' ? `<div class="note small row spread" style="gap:6px"><span>🛢 Ganti oli terakhir <b>${esc(tglPendek(o.tgl))}</b>${o.km ? ' di KM ' + fmtKm(angkaKm(o.km)) : ''}${o.sumber === 'luar' ? ' (di luar)' : ''} · jadwal berikut <b>${esc(teksJadwal(o))}</b> ${s ? `<span class="pill ${s.kelas}">${esc(s.teks)}</span>` : ''}</span><button class="btn sm ghost" type="button" data-act="reg-oli-luar" title="Konsumen bilang sudah ganti oli di bengkel lain">Sudah ganti oli di luar?</button></div>` : '';
 }
 
 async function lookupKendaraan(nopol) {
@@ -190,6 +218,17 @@ async function save(opts = {}) {
   w.status = status; w.mekanik = mek?.nama || '';
   delete w._manual; delete w._lanjut;
   w.jasa = normJasa(w); w.dataKurang = false;
+  // KM tidak boleh turun dari KM terakhir kendaraan ini (kecuali speedometer diganti — izin admin + catatan)
+  const kmBaru = angkaKm(w.km);
+  if (kmBaru && !w.kmReset) {
+    const akhir = await kmTerakhir(w.nopol, w.no);
+    if (akhir && kmBaru < akhir.km) {
+      if (!isRole('admin')) { toast(`KM ${fmtKm(kmBaru)} lebih kecil dari KM terakhir ${fmtKm(akhir.km)} (${tglPendek(akhir.tgl)}). Periksa lagi; bila speedometer diganti, minta admin.`); $('#r-km')?.focus(); return; }
+      const cat = await mintaCatatan('KM lebih kecil dari KM terakhir', `KM terakhir ${fmtKm(akhir.km)} (${akhir.asal}, ${tglPendek(akhir.tgl)}), diisi ${fmtKm(kmBaru)}. Lanjutkan hanya bila speedometer diganti/direset. Tulis keterangannya.`);
+      if (cat === null) { $('#r-km')?.focus(); return; }
+      w.kmReset = { dari: akhir.km, ke: kmBaru, ket: cat, oleh: namaPetugas(), tgl: stamp(new Date()) };
+    }
+  }
   st.saving = true;
   try {
     const no = await saveWo(w);
@@ -202,7 +241,7 @@ async function save(opts = {}) {
     const kend = Object.fromEntries(kolom.map(f => [f, f === 'stnkSama' ? w[f] !== false : (w[f] || '')]));
     const kId = nopolKey(w.nopol), kRef = doc(db, 'kendaraan', kId), kSnap = await getDoc(kRef).catch(() => null);
     const kLama = kSnap?.exists() ? kSnap.data() : (kSnap ? null : undefined);
-    const umum = { nopolKey: kId, km: w.km || '', updated: stamp(new Date()), woTerakhir: no };
+    const umum = { nopolKey: kId, ...(w.km ? { km: w.km } : {}), updated: stamp(new Date()), woTerakhir: no, ...(w.kmReset ? { kmReset: w.kmReset } : {}) };
     // WO sudah tersimpan. Gagal memperbarui data kendaraan tidak membatalkan servis, cukup diberi tahu.
     try {
     if (kLama === null) await setDoc(kRef, { ...Object.fromEntries(KEND_FIELDS.map(f => [f, f === 'stnkSama' ? w[f] !== false : (w[f] || '')])), ...umum, hpNorm: waNumber(w.hp), dibuat: stamp(new Date()) }, { merge: true });
@@ -248,6 +287,7 @@ Object.assign(actions, {
   'reg-cari': cariData,
   'reg-pakai': pakaiData,
   'reg-lanjut': () => { st.regDraft._lanjut = true; save(); },
+  'reg-oli-luar': () => catatOliLuar(st.regDraft.nopol, oli => { infoKm.oli = oli; infoKm.key = ''; isiInfoKm(); }),
   // Admin: hapus pendaftaran yang salah/ganda (belum dibayar). Nomor antrian tidak dipakai ulang.
   'reg-hapus': async () => {
     const w = findWo(st.regDraft?.no); if (!w || w.status === 'Lunas') return;
@@ -264,6 +304,7 @@ Object.assign(actions, {
 });
 inputHandlers.push(e => {
   const t = e.target; if (t.dataset.rf && st.regDraft) st.regDraft[t.dataset.rf] = t.value;
+  if (t.id === 'r-km') tampilInfoKm();
   if ((t.id === 'r-hp' || t.id === 'r-nama') && $('#r-wa')) $('#r-wa').innerHTML = waButton(st.regDraft.hp, waMsg(st.regDraft));
   if (t.id === 'r-nama' && st.regDraft.stnkSama !== false && $('#r-namaStnk')) $('#r-namaStnk').value = t.value;
   if (t.id === 'r-nik') t.value = t.value.replace(/\D/g, '').slice(0, 16), st.regDraft.nik = t.value;
@@ -280,5 +321,5 @@ changeHandlers.push(e => {
   }
   if (t.id === 'r-status') { w.status = t.value; w._manual = true; }
   if (t.id === 'r-stnkSama') { w.stnkSama = t.checked; if (!t.checked && !w.namaStnk) w.namaStnk = w.nama; const n = $('#r-namaStnk'); n.disabled = t.checked; n.value = t.checked ? w.nama : w.namaStnk; if (!t.checked) n.focus(); }
-  if (t.id === 'r-nopol' && !w.no) { t.value = t.value.trim().toUpperCase(); w.nopol = t.value; const g = woAktifNopol(w.nopol); if (g) peringatanGanda(g); else lookupKendaraan(w.nopol); }
+  if (t.id === 'r-nopol' && !w.no) { t.value = t.value.trim().toUpperCase(); w.nopol = t.value; const g = woAktifNopol(w.nopol); if (g) peringatanGanda(g); else { lookupKendaraan(w.nopol); isiInfoKm(); } }
 });

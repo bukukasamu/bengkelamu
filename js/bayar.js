@@ -12,6 +12,7 @@ import { showNota, cekLink } from './nota.js';
 import { cabangOf, stokOf, stokField } from './cabang.js';
 import { nopolKey } from './cari-kendaraan.js';
 import { catatMutasi, dataMutasi } from './kontrol.js';
+import { oliDariNota } from './km-oli.js';
 
 const ORDER = { Dikerjakan: 0, Selesai: 1, Ditunda: 2, Antri: 3 };
 
@@ -142,6 +143,7 @@ async function confirm() {
       const parts = ws.data().parts || [];
       const refs = parts.map(x => doc(db, 'parts', x.kode));
       const ps = await Promise.all(refs.map(r => tx.get(r)));
+      const kRef = nopolKey(w.nopol) ? doc(db, 'kendaraan', nopolKey(w.nopol)) : null, ks = kRef ? await tx.get(kRef) : null;
       const items = parts.map((x, i) => {
         if (!ps[i].exists()) throw new Error('Part ' + x.kode + ' tidak ada di master');
         const p = ps[i].data();
@@ -162,12 +164,15 @@ async function confirm() {
       const trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'SERVIS', pelanggan: w.nama || 'Umum', hp: w.hp || '', nopol: w.nopol, tipe: w.tipe || '', km: w.km || '', waktu, mekanik: mekanikNama(w), mekanikId: w.mekanikId || '', wo: w.no,
         jenisServis: w.jenisServis || 'Reguler', ksgKe: w.ksgKe || '', noKartu: w.noKartu || '', keluhan: w.keluhan || '', registrasiOleh: ws.data().dibuatOleh || '', registrasiId: ws.data().dibuatOlehId || '', orderOleh: ws.data().orderOleh || '', orderOlehId: ws.data().orderOlehId || '', items, jasa, jasaKlaim, biaya, diskon, total, ...payRecord(d.pay, total), kasir: namaPetugas(), kasirId: idPetugas(),
         ...(tunda.length ? { tunda } : {}), ...(Object.keys(perMek).length > 1 ? { kerjaMekanik: perMek } : {}) };
+      // Ganti oli mesin di nota ini → jadwal ganti oli berikutnya (pengingat servis)
+      const oli = oliDariNota(trx, ks?.exists() ? ks.data() : null);
+      if (oli) trx.oli = { tglBerikut: oli.tglBerikut, kmBerikut: oli.kmBerikut };
       tx.set(counterRef(cab), counter);
       items.forEach((x, i) => { tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }); catatMutasi(tx, dataMutasi(cab, x.kode, x.nama, -x.qty, 'servis', no)); });
       tx.set(doc(db, 'trx', no), { ...trx, bulan: trx.tgl.slice(0, 7), dibuat: serverTimestamp() });
       tx.update(woRef, { status: 'Lunas', aktif: false, nota: no, biaya, log });
       // Tanggal servis terakhir di data kendaraan (untuk pengingat servis tanpa membaca semua nota)
-      if (nopolKey(w.nopol)) tx.set(doc(db, 'kendaraan', nopolKey(w.nopol)), { nopol: w.nopol, nopolKey: nopolKey(w.nopol), servisTerakhir: trx.tgl, kmTerakhir: w.km || '' }, { merge: true });
+      if (kRef) tx.set(kRef, { nopol: w.nopol, nopolKey: nopolKey(w.nopol), servisTerakhir: trx.tgl, ...(w.km ? { kmTerakhir: w.km } : {}), ...(oli ? { oli, pengingat: null } : {}) }, { merge: true });
       return trx;
     });
     syncPantau({ ...w, status: 'Lunas', log: [...(w.log || []), { s: 'Lunas', t: t.tgl }] }, t);

@@ -1,12 +1,14 @@
 // Halaman cek servis untuk konsumen (index.html = halaman utama www.amuservice.id): tanpa login, cukup no. polisi + no. HP.
 // Data diambil dari dokumen pantau/{SHA-256(NOPOL|62HP)} yang diperbarui otomatis oleh bengkel.
 import { db, doc, getDoc, onSnapshot } from './firebase.js';
-import { $, esc, rp, waNumber, modal, closeModal } from './util.js';
+import { $, esc, rp, waNumber, waLink, modal, closeModal } from './util.js';
 import { loadBrand, gearsSVG, loaderHTML } from './brand.js';
 import { pantauKey, durasi, fmtDur } from './wo-common.js';
 import { APP_NAME } from './config.js';
 import { pasangTombol } from './pwa.js';
-import { loadCabang, namaCabang, multiCabang } from './cabang.js';
+import { loadCabang, namaCabang, multiCabang, cabangById, cabangList } from './cabang.js';
+import { statusOli, teksJadwal, tglPendek, fmtKm, angkaKm } from './km-oli.js';
+
 import { stepperHTML, kartuRiwayat, ringkasRiwayat, tglID as tgl } from './riwayat-ui.js';
 import { notaHTML } from './nota.js';
 
@@ -44,11 +46,24 @@ function render() {
         ${durasi(a)?.kerja ? `<span class="muted">Sudah dikerjakan</span><span>${fmtDur(durasi(a).kerja)}</span>` : ''}
       </div>
       <p class="small muted" style="margin:0">Estimasi dapat berubah bila ada tambahan sparepart atau jasa.</p>` : '<div class="note small">Tidak ada servis yang sedang berjalan untuk kendaraan ini.</div>'}
+    ${oliHTML(d)}
     <h3>Riwayat servis</h3>
     ${(d.riwayat || []).length ? ringkasRiwayat(d.riwayat) + `<div class="riw-list">${d.riwayat.map((t, i) => kartuRiwayat(t, { buka: terbuka.has(t.no) || (!terbuka.size && i === 0 && !a), notaAttr: `data-pdf="${i}"` })).join('')}</div>` : '<div class="small muted">Belum ada riwayat servis.</div>'}
     <p class="small muted" style="margin:0">Diperbarui ${esc(tgl(d.updated))}.</p>
   </div>`;
   $('#cek-form').hidden = true; document.body.classList.add('cek-in');
+}
+
+// Pengingat ganti oli untuk konsumen + tombol WA ke bengkel (booking / lapor sudah ganti oli di tempat lain)
+function oliHTML(d) {
+  const o = d.oli; if (!o?.tglBerikut) return '';
+  const s = statusOli(o), cab = cabangById(o.cabang) || cabangList()[0], telp = cab?.telp || '';
+  const booking = waLink(telp, `Halo ${APP_NAME}, saya ingin booking ganti oli untuk motor ${d.nopol}${d.tipe ? ' (' + d.tipe + ')' : ''}.`);
+  const luar = waLink(telp, `Halo ${APP_NAME}, motor ${d.nopol} sudah ganti oli di tempat lain pada tanggal ... di KM ... Mohon jadwal pengingatnya diperbarui. Terima kasih.`);
+  return `<div class="oli-card ${s?.kelas || ''}"><div class="row spread"><b>🛢 Jadwal ganti oli berikutnya</b>${s ? `<span class="pill ${s.kelas}">${esc(s.teks)}</span>` : ''}</div>
+    <div><b>${esc(teksJadwal(o))}</b>, mana yang lebih dulu.</div>
+    <div class="small muted">Terakhir ganti oli ${esc(tglPendek(o.tgl))}${o.km ? ' di KM ' + fmtKm(angkaKm(o.km)) : ''}${o.sumber === 'luar' ? ' (di bengkel lain)' : ''}.</div>
+    ${booking ? `<div class="row" style="gap:6px"><a class="btn sm pri" href="${booking}" target="_blank" rel="noopener">Booking ganti oli</a><a class="btn sm" href="${luar}" target="_blank" rel="noopener">Saya sudah ganti oli di tempat lain</a></div>` : ''}</div>`;
 }
 
 // Buka data kendaraan & pantau perubahannya secara langsung (status servis ter-update sendiri)

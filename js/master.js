@@ -292,8 +292,8 @@ let logoDraft = null;
 /* ---------- Hak akses menu per peran (super admin) ---------- */
 const PERAN_AKSES = ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'];
 function renderAkses() {
-  const akses = S.akses || {}, menu = MENUS.filter(m => !m.superOnly && m.roles.some(r => PERAN_AKSES.includes(r)));
-  const boleh = (r, id) => !Array.isArray(akses[r]) || akses[r].includes(id);
+  const akses = S.akses || {}, menu = MENUS.filter(m => !m.superOnly && !m.selalu && m.roles.some(r => PERAN_AKSES.includes(r)));
+  const boleh = (r, id) => !Array.isArray(akses[r]) || akses[r].includes(id) || !(akses._menu || MENUS.filter(x => !x.baru).map(x => x.id)).includes(id);
   $('#ms-body').innerHTML = intro('Centang menu yang boleh dibuka setiap peran. Menu yang tidak dicentang hilang dari aplikasi karyawan dengan peran itu (berlaku langsung). Super admin selalu bisa membuka semua menu. Kotak abu-abu = menu itu memang bukan untuk peran tersebut.') + `
    <div class="tw"><table><thead><tr><th>Menu</th>${PERAN_AKSES.map(r => `<th class="r">${esc(ROLES[r])}<div class="row" style="justify-content:flex-end;gap:4px;margin-top:4px"><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="1" title="Centang semua">✓</button><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="0" title="Kosongkan">✕</button></div></th>`).join('')}</tr></thead><tbody>
     ${menu.map(m => `<tr><td>${esc(m.label)}<div class="small muted">${esc(m.group)}</div></td>${PERAN_AKSES.map(r => `<td class="r">${m.roles.includes(r) ? `<input type="checkbox" class="ak-cek" data-r="${r}" data-m="${m.id}" ${boleh(r, m.id) ? 'checked' : ''} aria-label="${esc(m.label)} untuk ${esc(ROLES[r])}" style="width:auto">` : '<span class="muted">–</span>'}</td>`).join('')}</tr>`).join('')}
@@ -544,6 +544,7 @@ Object.assign(actions, {
   'ak-semua': el => document.querySelectorAll(`.ak-cek[data-r="${el.dataset.r}"]`).forEach(c => { c.checked = el.dataset.v === '1'; }),
   'ak-simpan': async () => {
     const akses = {}; PERAN_AKSES.forEach(r => { akses[r] = [...document.querySelectorAll(`.ak-cek[data-r="${r}"]:checked`)].map(c => c.dataset.m); });
+    akses._menu = MENUS.map(m => m.id);   // menu yang sudah dikenal saat disimpan (menu baru sesudahnya ikut bawaan)
     akses._beranda = {}; ['admin', 'kasir', 'sparepart', 'registrasi'].forEach(r => { akses._beranda[r] = [...document.querySelectorAll(`.ak-kotak[data-r="${r}"]:checked`)].map(c => c.dataset.k); });
     const kosong = PERAN_AKSES.filter(r => !akses[r].length && MENUS.some(m => m.roles.includes(r)));
     if (!(await mintaPassword('Simpan hak akses menu', kosong.length ? `Peran ${kosong.map(r => ROLES[r]).join(', ')} tidak punya menu sama sekali.` : 'Menu karyawan berubah langsung.'))) return;
