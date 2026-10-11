@@ -1,9 +1,27 @@
-# Aceh Mandiri Utama POS · versi 4.8.0
+# Aceh Mandiri Utama POS · versi 4.10.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 4.10.0 — pilihan tema
+
+Update: upload semua file (baru: `js/tema.js`). `firestore.rules` sama.
+
+**Master Data → Tema Tampilan** (super admin): Otomatis (biru segar + ikut mode gelap perangkat), Biru Segar, Biru Klasik, Hijau Tosca, Ungu, Merah Marun, Gelap, dan **Kaca (glass)** — panel transparan buram di atas latar gradasi. Klik kartu untuk mencoba, lalu **Simpan untuk semua perangkat**: berlaku di aplikasi petugas, halaman login, dan cek servis konsumen (layar TV & layar absen tetap tampilannya sendiri). Tema Kaca memakai efek blur yang lebih berat di PC/HP lama.
+
+## Tampilan 4.9.0 — lebih terang & segar
+
+Update: upload semua file (terutama `style.css`). Warna tetap navy-biru, tetapi latar lebih cerah, biru lebih hidup, sudut lebih membulat, bayangan halus, kotak isian ber-cahaya biru saat diketik, kartu motor terpilih diberi garis biru. Mode gelap tidak berubah.
+
+## Perbaikan 4.8.1 (cek bug)
+
+Update: upload semua file. `firestore.rules` sama dengan 4.7.0.
+
+- Registrasi: bila simpan / "Lanjutkan dikerjakan" ditolak karena KM lebih kecil, catatan waktu servis sempat tercatat dua kali saat disimpan ulang. Sekarang KM dicek sebelum status diubah, dan tanda "lanjutkan" selalu dihapus bila simpan gagal.
+- Pengingat oli: oli bernama "… PREMIUM" salah dianggap oli rem sehingga tidak masuk jadwal; pengecekan kata dibuat per kata utuh.
+- Pengingat Servis: motor yang sudah dihubungi sebelum jatuh tempo tetap muncul di "Perlu diingatkan" (bisa di-WA dua kali); sekarang masuk "Sudah dihubungi" selama 7 hari. Pesan WA menyesuaikan: "sebentar lagi jadwal" / "sudah waktunya".
 
 ## Fitur baru 4.8.0 — THR & Bonus
 

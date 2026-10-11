@@ -3,7 +3,7 @@
   "dir": "ltr",
   "scope": "./",
   "background_color": "#06112a",
-  "theme_color": "#0e2b63",
+  "theme_color": "#103a8c",
   "icons": [
     {
       "src": "icons/icon-192.png",
