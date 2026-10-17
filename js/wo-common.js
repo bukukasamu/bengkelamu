@@ -71,6 +71,7 @@ export function woHeader(w) {
   return `<div class="note"><div class="row spread"><span class="row" style="gap:8px">${antriBadge(w)}<b class="mono">${esc(w.nopol)}</b>${can('riwayat') ? `<button class="btn sm ghost" type="button" data-act="rw-buka" data-np="${esc(w.nopol)}">Riwayat motor</button>` : ''}</span><span class="row">${jenisBadge(w)}${statusPill(w.status)}</span></div>
     <div>${esc(w.tipe)}${w.km ? ' · ' + esc(w.km) + ' km' : ''} · ${esc(w.nama || 'Umum')}${w.hp ? ' · ' + esc(w.hp) + ' ' + waButton(w.hp, `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol} (${w.no}). `) : ''}</div>
     <div class="small muted">Mekanik: ${esc(mekanikNama(w) || 'belum ditentukan')}${w.noKartu ? ' · No. kartu ' + esc(w.noKartu) : ''}</div>
+    ${w.pengantar ? `<div class="small">🚶 Diantar oleh <b>${esc(w.pengantar.nama || '')}</b> ${esc(w.pengantar.hp || '')} ${waButton(w.pengantar.hp, `Halo ${w.pengantar.nama || ''}, kami dari ${APP_NAME} mengenai motor ${w.nopol} (${w.no}). `)}</div>` : ''}
     ${w.keluhan ? `<div class="small" style="margin-top:4px"><b>Keluhan:</b> ${esc(w.keluhan)}</div>` : ''}
     ${w.status === 'Ditunda' ? `<div class="tunda-box" style="margin-top:6px">${tundaInfo(w)}</div>` : ''}
     ${w.catatanPart ? `<div class="small"><b>Permintaan mekanik:</b> ${esc(w.catatanPart)}</div>` : ''}</div>`;
@@ -181,6 +182,19 @@ export async function syncPantau(w, trx) {
 }
 // Halaman cek servis konsumen memakai kunci nopol + no. HP. Bila no. HP konsumen diganti, datanya dipindah ke
 // kunci baru dan kunci lama dihapus (nomor lama tidak bisa lagi membuka riwayat motor itu).
+// Pindahkan data cek servis ke kunci baru: ganti plat (nopol berubah) dan/atau ganti pemilik (no. HP berubah).
+// sembunyikan = riwayat servis pemilik lama tetap tampil tanpa nama & no. HP pemilik lama (motor dijual).
+export async function pindahPantauKunci(nopolLama, hpLama, nopolBaru, hpBaru, baru = {}, { sembunyikan = false } = {}) {
+  try {
+    const kLama = await pantauKey(nopolLama, hpLama), kBaru = await pantauKey(nopolBaru, hpBaru);
+    if (!kLama || kLama === kBaru) return;
+    const s = await getDoc(doc(db, 'pantau', kLama)); if (!s.exists()) return;
+    const d = s.data();
+    const riwayat = sembunyikan ? (d.riwayat || []).map(r => ({ ...r, pelanggan: 'Pemilik sebelumnya', hp: '' })) : (d.riwayat || []);
+    if (kBaru) await setDoc(doc(db, 'pantau', kBaru), { ...d, riwayat, nopol: nopolBaru, nama: baru.nama || d.nama, tipe: baru.tipe || d.tipe, updated: stamp(new Date()) });
+    await deleteDoc(doc(db, 'pantau', kLama));
+  } catch (e) { console.warn('Pindah cek servis', e); }
+}
 export async function pindahPantau(nopol, hpLama, hpBaru, baru = {}, woAktif = null) {
   try {
     const kLama = await pantauKey(nopol, hpLama), kBaru = await pantauKey(nopol, hpBaru);

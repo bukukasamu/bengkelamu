@@ -2,6 +2,9 @@
 import { $, esc, rp, stamp, toast, errMsg, waButton, waNumber, publicUrl, konfirmasi } from './util.js';
 import { loaderHTML, getBrand, resizeImage, saveLogo, saveTema } from './brand.js';
 import { TEMA, terapkanTema, contohTema } from './tema.js';
+import { renderKonsumenTab, konsumenState } from './konsumen.js';
+import { ambilKonsumen, ubahKonsumen, KTP } from './konsumen-data.js';
+import { cariKendaraan } from './cari-kendaraan.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole, namaPetugas, go, filterBuka, tombolFilter, KOTAK_BERANDA, KOTAK_BAWAAN } from './state.js';
 import { ROLES, MENUS } from './config.js';
 import { db, doc, getDoc, collection, getDocs, writeBatch, query, where, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
@@ -57,7 +60,8 @@ const KSAVE = [...KF.map(f => f[0]), ...WIL_FIELDS];
 let fWil = { kab: '', kec: '', kel: '' };
 async function loadKend() {
   kendLengkap = false;
-  try { const s = await getDocs(query(collection(db, 'kendaraan'), orderBy('updated', 'desc'), limit(1000))); kend = s.docs.map(d => ({ id: d.id, ...d.data() })); }
+  // Hanya 100 data terbaru supaya ringan; pencarian (≥ 3 huruf) langsung ke database, rekap lengkap lewat "Muat semua"
+  try { const s = await getDocs(query(collection(db, 'kendaraan'), orderBy('updated', 'desc'), limit(100))); kend = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(k => !k.pindahKe); }
   catch (e) { kend = []; toast(errMsg(e)); }
   if (st.view === 'konsumen') renderKend();
   rapikanKend();
@@ -103,7 +107,7 @@ function renderKend() {
    ${rk.length > 1 || (rk.length === 1 && !fWil.kel) ? `<div class="panel" style="box-shadow:none;margin-block:10px"><h3>Konsumen per ${lvl[2].toLowerCase()}</h3>${rk.slice(0, 12).map(([w, c]) => `<button class="bar-row" type="button" data-act="fw-pick" data-l="${lvl[1]}" data-v="${esc(w)}"><span class="row spread small"><span class="bar-lbl">${esc(w)}</span><span class="num">${c} kendaraan</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${c / mx * 100}%"></span></span></button>`).join('')}</div>` : ''}</div>` : ''}
    <div id="ms-kform"></div>
    <div class="tw"><table><thead><tr><th>Nopol</th><th>Konsumen</th><th>No. HP</th><th>Motor</th><th>Wilayah</th><th>Servis terakhir</th></tr></thead><tbody>${list.slice(0, 200).map(k => `<tr class="row-click" tabindex="0" data-act="ms-kedit" data-id="${esc(k.id)}"><td class="mono">${esc(k.nopol)}</td><td>${esc(k.nama || '–')}${k.namaStnk && k.namaStnk !== k.nama ? `<br><span class="small muted">STNK: ${esc(k.namaStnk)}</span>` : ''}</td><td class="mono small">${esc(k.hp || '')} ${waButton(k.hp, 'Halo ' + (k.nama || '') + ', ')}</td><td>${esc(k.tipe || '')}${k.tahun ? ' · ' + esc(k.tahun) : ''}${k.warna ? ' · ' + esc(k.warna) : ''}</td><td class="small">${esc([k.kelurahan, k.kecamatan, k.kabupaten].filter(Boolean).join(', ') || k.alamat || '–')}</td><td class="small">${esc((k.updated || '').slice(0, 10))}${k.woTerakhir ? ' · ' + esc(k.woTerakhir) : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Tidak ada kendaraan yang cocok. Kendaraan otomatis tercatat saat registrasi servis.</td></tr>'}</tbody></table></div>
-   <p class="small muted" style="margin:0">${list.length} kendaraan${list.length > 200 ? ' (ditampilkan 200, persempit pencarian)' : ''}.</p>`;
+   <p class="small muted" style="margin:0">${list.length} kendaraan${list.length > 200 ? ' (ditampilkan 200, persempit pencarian)' : ''}${kendLengkap ? ' · seluruh data dimuat' : ' · dari 100 data terakhir diubah; pencarian ≥ 3 huruf mencari ke seluruh database'}.${!kendLengkap && isRole('admin') ? ' <button class="link-btn" type="button" data-act="ms-ksemua">Muat semua (rekap wilayah lengkap)</button>' : ''}</p>`;
   renderKForm();
 }
 function renderKForm() {
@@ -142,6 +146,8 @@ async function saveKend() {
     }
     const { isi, ubah } = bedaKonsumen(lama, data, KSAVE);
     if (!ubah.length) { toast('Tidak ada perubahan'); return; }
+    // Motor yang sudah punya pemilik di database konsumen: data KTP diubah di konsumennya (ikut ke semua motornya)
+    if (lama.konsumenId && ubah.some(u => KTP.includes(u.f))) { const kons = await ambilKonsumen(lama.konsumenId).catch(() => null); if (kons) await ubahKonsumen(kons, { ...kons, ...Object.fromEntries(KTP.map(f => [f, data[f] ?? kons[f]])) }, 'Data kendaraan ' + k.nopol, { kecuali: id }); }
     const log = [...(lama.riwayatUbah || []), { tgl: stamp(new Date()), oleh: namaPetugas(), ubah }].slice(-30);
     await simpanDenganCatatan(id, k.nopol, isi, ubah, { nopolKey: id, ...('hp' in isi ? { hpNorm: waNumber(data.hp) } : {}), updated: stamp(new Date()), riwayatUbah: log }, 'Master Data');
     let info = '';
@@ -165,13 +171,13 @@ async function terapkanPerubahan(nopol, lama, baru) {
 // Export memakai filter pencarian & wilayah yang sedang aktif. Bila daftar baru memuat 1.000 data terbaru,
 // seluruh data kendaraan dibaca dulu supaya export lengkap.
 async function dataExport() {
-  if (kend && kend.length >= 1000 && !kendLengkap) {
+  if (kend && !kendLengkap) {
     toast('Memuat seluruh data kendaraan…');
-    const s = await getDocs(collection(db, 'kendaraan')); kend = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || ''))); kendLengkap = true;
+    const s = await getDocs(collection(db, 'kendaraan')); kend = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(k => !k.pindahKe).sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || ''))); kendLengkap = true;
   }
   return kendFiltered();
 }
-let kendLengkap = false;
+let kendLengkap = false, cariKendT = null;
 const judulFilter = () => [fWil.kel, fWil.kec, fWil.kab].filter(Boolean).join(', ') + (kendQ ? (fWil.kab ? ' | ' : '') + 'pencarian "' + kendQ + '"' : '');
 async function exportKend() {
   try {
@@ -463,12 +469,17 @@ async function renderGaji() {
 
 views.master = renderMaster;
 // Menu tersendiri: Konsumen & Kendaraan (data pelanggan dipakai sehari-hari, bukan pengaturan)
-views.konsumen = () => { $('#view').innerHTML = '<div class="panel"><div id="ms-body"></div></div>'; renderKend(); };
+// Konsumen & Kendaraan: tab Konsumen (database pelanggan) dan tab Kendaraan (data per motor)
+views.konsumen = () => {
+  const tab = st.konsTab || 'konsumen';
+  $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${[['konsumen', 'Konsumen'], ['kendaraan', 'Kendaraan']].map(([k, l]) => `<button type="button" role="tab" data-act="ks-tab" data-t="${k}" aria-selected="${k === tab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
+  if (tab === 'kendaraan') renderKend(); else renderKonsumenTab();
+};
 refreshers.konsumen = () => {};
 refreshers.master = () => {};   // jangan timpa isian yang sedang diketik saat data berubah
 // Admin tidak bisa mengubah akunnya sendiri dari sini (dikunci juga di database); ganti PIN sendiri lewat tombol Ganti PIN
 const akunSendiri = s => { if (st.petugas?.super || s.id !== st.petugas?.loginId) return false; toast('Akun sendiri: ganti PIN lewat tombol Ganti PIN di bawah menu. Ubah nama/peran/hapus oleh super admin.'); return true; };
-fkeys.konsumen = { baru: 'ms-kadd', simpan: () => kendEdit ? 'ms-ksave' : null };
+fkeys.konsumen = { baru: () => (st.konsTab || 'konsumen') === 'konsumen' ? 'kn-baru' : 'ms-kadd', simpan: () => (st.konsTab || 'konsumen') === 'konsumen' ? (konsumenState.draft ? 'kn-simpan' : null) : kendEdit ? 'ms-ksave' : null };
 fkeys.master = { baru: () => null, simpan: () => st.masterTab === 'tipe' ? 'tp-save' : st.masterTab === 'ksg' ? 'kt-save' : null };
 Object.assign(actions, {
   'ly-save': async () => { try { await setDoc(doc(db, 'publik', layarDocId()), { info: ($('#ly-info')?.value || '').trim() }, { merge: true }); toast('Teks layar disimpan'); } catch (e) { toast(errMsg(e)); } },
@@ -508,8 +519,11 @@ Object.assign(actions, {
       await b.commit(); resetStaffGaji(); toast('Gaji pokok disimpan'); renderInsentif();
     } catch (e) { toast(errMsg(e)); }
   },
+  'ks-tab': el => { st.konsTab = el.dataset.t; kendEdit = null; views.konsumen(); },
   'ms-tab': el => { if (temaPilih && temaPilih !== (getBrand().tema || 'otomatis')) terapkanTema(getBrand().tema || 'otomatis', false); temaPilih = null; phDraft = null; phGaji = null; st.masterTab = el.dataset.t; kendEdit = null; renderMaster(); },
-  'ms-kadd': () => { kendEdit = { nopol: '' }; renderKForm(); $('#mk-nopol')?.focus(); },
+  // Motor baru ditambahkan lewat data konsumennya (atau otomatis saat registrasi servis)
+  'ms-ksemua': async el => { el.disabled = true; el.textContent = 'Memuat seluruh data…'; try { await dataExport(); renderKend(); } catch (e) { toast(errMsg(e)); } },
+  'ms-kadd': () => { st.konsTab = 'konsumen'; views.konsumen(); actions['kn-baru'](); toast('Motor baru ditambahkan lewat data konsumen: isi/buka konsumennya, lalu + Tambah motor'); },
   'ms-kedit': el => { const k = kend.find(x => x.id === el.dataset.id); if (k) { kendEdit = { ...k }; renderKForm(); $('#ms-kform').scrollIntoView({ block: 'nearest' }); } },
   'ms-kclose': () => { kendEdit = null; renderKForm(); },
   'ms-ksave': saveKend,
@@ -585,7 +599,14 @@ Object.assign(actions, {
 });
 inputHandlers.push(e => {
   const t = e.target;
-  if (t.id === 'ms-kq') { kendQ = t.value; const pos = t.selectionStart; renderKend(); const n = $('#ms-kq'); n.focus(); n.setSelectionRange(pos, pos); }
+  if (t.id === 'ms-kq') {
+    kendQ = t.value; const pos = t.selectionStart; renderKend(); const n = $('#ms-kq'); n.focus(); n.setSelectionRange(pos, pos);
+    clearTimeout(cariKendT); cariKendT = setTimeout(async () => {
+      const r = await cariKendaraan(kendQ).catch(() => null); if (!r || !kend) return;
+      let tambah = 0; r.forEach(x => { const id = x.nopolKey || nopolKey(x.nopol); if (!kend.find(k => k.id === id) && !x.no) { kend.push({ ...x, id }); tambah++; } });
+      if (tambah && st.view === 'konsumen') { const n2 = $('#ms-kq'), p2 = n2?.selectionStart; renderKend(); const n3 = $('#ms-kq'); n3?.focus(); try { n3?.setSelectionRange(p2, p2); } catch (e2) {} }
+    }, 400);
+  }
   if (t.dataset.kf && kendEdit) kendEdit[t.dataset.kf] = t.value;
   if (['sf-pin', 'mm-p-new', 'pin-new'].includes(t.id)) t.value = t.value.replace(/\D/g, '').slice(0, 6);
 });

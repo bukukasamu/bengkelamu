@@ -9,7 +9,8 @@ import { stamp } from './util.js';
 export const LABEL_KONSUMEN = {
   nik: 'NIK', nama: 'Nama', tempatLahir: 'Tempat lahir', tglLahir: 'Tanggal lahir', jk: 'Jenis kelamin', pekerjaan: 'Pekerjaan', hp: 'No. HP', rtrw: 'RT/RW',
   provinsi: 'Provinsi', kabupaten: 'Kabupaten/kota', kecamatan: 'Kecamatan', kelurahan: 'Kelurahan', alamat: 'Alamat', kabKode: 'Kode wilayah',
-  nopol: 'No. polisi', namaStnk: 'Nama di STNK', stnkSama: 'Nama STNK sama dengan KTP', tipe: 'Tipe motor', tahun: 'Tahun', warna: 'Warna', noRangka: 'No. rangka', noMesin: 'No. mesin', km: 'KM'
+  nopol: 'No. polisi', namaStnk: 'Nama di STNK', stnkSama: 'Nama STNK sama dengan KTP', tipe: 'Tipe motor', tahun: 'Tahun', warna: 'Warna', noRangka: 'No. rangka', noMesin: 'No. mesin', km: 'KM',
+  konsumenId: 'Pemilik (kode konsumen)', pindahKe: 'Ganti plat ke', digabungKe: 'Digabung ke konsumen'
 };
 const norm = v => v === undefined || v === null ? '' : typeof v === 'boolean' ? v : String(v).trim();
 

@@ -38,7 +38,7 @@ async function cari() {
   const el = $('#rw-hasil'); if (el) el.innerHTML = '<div class="small muted">Mencari…</div>';
   const r = await cariKendaraan(st.rwQ);
   if (!r) { if (el) el.innerHTML = ''; toast('Ketik minimal 3 huruf/angka'); return; }
-  hasil = r; renderHasil();
+  hasil = r.filter(k => !k.pindahKe); renderHasil();
   if (r.length === 1) muat(r[0].nopol);
 }
 
@@ -48,10 +48,12 @@ async function muat(nopol) {
   detail = { key, nopol, loading: true }; terbuka = new Set();
   renderDetail(); $('#rw-detail')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   try {
-    const ks = await getDoc(doc(db, 'kendaraan', key)), kend = ks.exists() ? ks.data() : null;
+    let ks = await getDoc(doc(db, 'kendaraan', key)), kend = ks.exists() ? ks.data() : null;
+    // Plat sudah berganti: buka data nopol yang baru
+    if (kend?.pindahKe) { const ks2 = await getDoc(doc(db, 'kendaraan', kend.pindahKe)); if (ks2.exists()) { kend = ks2.data(); nopol = kend.nopol; } }
     let trx;
     if (st.role === 'admin') {
-      const varian = [...new Set([nopol, kend?.nopol, key, String(nopol).toUpperCase().replace(/\s+/g, ' ')].filter(Boolean))].slice(0, 10);
+      const varian = [...new Set([nopol, kend?.nopol, key, String(nopol).toUpperCase().replace(/\s+/g, ' '), ...(kend?.nopolLama || []), ...(kend?.nopolLama || []).map(nopolKey)].filter(Boolean))].slice(0, 10);
       const ts = await getDocs(query(collection(db, 'trx'), where('nopol', 'in', varian)));
       trx = ts.docs.map(d => d.data()).filter(sah);
     } else {
@@ -63,7 +65,7 @@ async function muat(nopol) {
       trx = [...dariPantau, ...lokal];
     }
     if (ke !== cariKe) return;
-    detail = { key, nopol: kend?.nopol || nopol, kend, trx: trx.sort((a, b) => b.tgl.localeCompare(a.tgl)), loading: false };
+    detail = { key: kend?.nopolKey || key, nopol: kend?.nopol || nopol, kend, trx: trx.sort((a, b) => b.tgl.localeCompare(a.tgl)), loading: false };
   } catch (e) { if (ke === cariKe) detail = { key, nopol, error: errMsg(e) }; }
   renderDetail();
 }
@@ -85,7 +87,7 @@ function renderDetail() {
      <div class="row">${can('konsumen') ? `<button class="btn" type="button" data-act="rw-ubah" data-id="${esc(nopolKey(detail.nopol))}">✎ Ubah data</button>` : ''}${k.hp ? waButton(k.hp, waMsg, 'Kirim link cek servis') : ''}</div></div>
     <div class="grid g2">
      <div><h3>Konsumen <span class="h-sub">sesuai KTP</span></h3><div class="totals small">${baris('Nama', esc(k.nama || '–'))}${baris('NIK', esc(k.nik || ''))}${baris('No. HP', k.hp ? esc(k.hp) + ' ' + waButton(k.hp, `Halo ${k.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${detail.nopol}. `) : '')}${baris('Alamat', esc(alamat))}</div></div>
-     <div><h3>Kendaraan <span class="h-sub">sesuai STNK</span></h3><div class="totals small">${baris('Nama di STNK', esc(k.namaStnk || k.nama || ''))}${baris('No. rangka', `<span class="mono">${esc(k.noRangka || '')}</span>`)}${baris('No. mesin', `<span class="mono">${esc(k.noMesin || '')}</span>`)}${baris('KM terakhir', k.km ? esc(Number(k.km).toLocaleString('id-ID')) + ' km' : '')}</div></div>
+     <div><h3>Kendaraan <span class="h-sub">sesuai STNK</span></h3><div class="totals small">${baris('Nopol lama', esc((k.nopolLama || []).join(', ')))}${baris('Pemilik sebelumnya', esc((k.riwayatPemilik || []).map(x => (x.nama || '?') + ' s/d ' + String(x.sampai).slice(0, 10)).join('; ')))}${baris('Nama di STNK', esc(k.namaStnk || k.nama || ''))}${baris('No. rangka', `<span class="mono">${esc(k.noRangka || '')}</span>`)}${baris('No. mesin', `<span class="mono">${esc(k.noMesin || '')}</span>`)}${baris('KM terakhir', k.km ? esc(Number(k.km).toLocaleString('id-ID')) + ' km' : '')}</div></div>
     </div>
    </div>
    ${aktif ? `<div class="panel"><div class="row spread"><h3>Servis saat ini</h3><span class="row">${aktif.antrian ? `<span class="antri-no">${fmtAntri(aktif.antrian)}</span>` : ''}${jenisBadge(aktif)}${statusPill(aktif.status)}</span></div>

@@ -25,6 +25,7 @@ import './backup.js';
 import './hapus-semua.js';
 import { adaAbsenTertunda, cekAbsenTertunda } from './absensi.js';
 import { pantauPersetujuan, segarkanBadge } from './persetujuan.js';
+import { pantauMinta } from './cek-stok.js';
 import { setPhLoadedFrom } from './penghasilan.js';
 import { sah } from './data-trx.js';
 import './order.js';
@@ -227,6 +228,7 @@ function subscribe() {
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
   }
   pantauPersetujuan(unsubs);
+  pantauMinta(unsubs);
   unsubs.push(watchCabang(() => { if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA; renderCabangBox(); if (st.loaded) { terapkanCabang(); refresh(); } }));
 }
 
@@ -236,7 +238,8 @@ function subscribe() {
 const raw = { parts: [], trx: [], wo: [], mekanik: [], pembelian: [] };
 function terapkanCabang() {
   const cab = cabAktif(), ini = d => diCabang(d, cab);
-  setParts(raw.parts.map(p => ({ ...p, stok: stokOf(p, cab), stokSemua: stokTotal(p) })));
+  // stokCab = stok per cabang (untuk Cek Stok & rincian cabang lain)
+  setParts(raw.parts.map(p => ({ ...p, stok: stokOf(p, cab), stokSemua: stokTotal(p), stokCab: { ...(p.stokC || {}), [CABANG_UTAMA]: +p.stok || 0 } })));
   const sahTrx = raw.trx.filter(sah);
   S.trxBatal = raw.trx.filter(t => !sah(t) && ini(t));
   S.trxSemua = sahTrx; S.trx = sahTrx.filter(ini);

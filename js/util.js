@@ -50,6 +50,25 @@ export function konfirmasi(judul, isi = '', { ya = 'Ya, lanjutkan', tidak = 'Bat
     root.querySelector('#kf-tidak').focus();
   });
 }
+// Kotak pilihan (lebih dari dua tombol). opsi = [{ v, label, kelas }]. Mengembalikan v yang dipilih, atau null (Batal/Esc).
+export function pilihan(judul, isi, opsi, batal = 'Batal') {
+  return konfirmasiDasar(judul, isi, [{ v: null, label: batal, kelas: '' }, ...opsi]);
+}
+function konfirmasiDasar(judul, isi, tombol) {
+  document.getElementById('kf-root')?.remove();
+  return new Promise(resolve => {
+    const root = document.createElement('div'); root.id = 'kf-root';
+    root.innerHTML = `<div class="modal-bg kf-bg" data-kfx="-1"><div class="modal konfirmasi" role="alertdialog" aria-modal="true" aria-labelledby="kf-judul"><h3 id="kf-judul">${esc(judul)}</h3>${isi ? `<div class="small" style="margin:0">${isi}</div>` : ''}
+      <div class="row" style="justify-content:flex-end">${tombol.map((t, i) => `<button class="btn ${t.kelas || ''}" type="button" data-kfx="${i}" ${i === 0 ? 'id="kf-tidak"' : ''}>${esc(t.label)}</button>`).join('')}</div></div></div>`;
+    const sebelum = document.activeElement;
+    const akhiri = v => { document.removeEventListener('keydown', key, true); root.remove(); try { sebelum?.focus?.(); } catch (e) {} resolve(v); };
+    const key = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); akhiri(null); } else if (['F1', 'F2', 'F3', 'F8'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); } };
+    root.addEventListener('click', e => { e.stopPropagation(); const i = e.target.closest?.('[data-kfx]')?.dataset.kfx; if (i == null || (e.target.closest('.modal') && i === '-1')) return; akhiri(+i < 0 ? null : tombol[+i].v); });
+    document.addEventListener('keydown', key, true);
+    document.body.appendChild(root); root.querySelector('#kf-tidak').focus();
+  });
+}
+
 export function errMsg(e) {
   const m = { 'permission-denied': 'Akses ditolak. Pastikan akun terdaftar di koleksi staff.', 'unavailable': 'Koneksi ke server terputus. Coba lagi.', 'resource-exhausted': 'Kuota harian Firebase habis. Coba lagi besok atau upgrade paket.' };
   return m[e && e.code] || (e && e.message) || 'Terjadi kesalahan';

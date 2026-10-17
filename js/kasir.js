@@ -8,6 +8,7 @@ import { catatMutasi, dataMutasi } from './kontrol.js';
 import { showNota } from './nota.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { dipesan } from './wo-common.js';
+import { tawarkanCabangLain } from './cek-stok.js';
 
 // Stok yang bisa dijual di konter = stok fisik dikurangi part yang sudah diorder untuk servis yang belum dibayar
 const tersedia = p => p.stok - dipesan(p.kode);
@@ -65,7 +66,7 @@ function renderKTot() {
 
 function addToCart(k) {
   const p = part(k), it = st.cart.items.find(x => x.kode === k), q = (it ? it.qty : 0) + 1;
-  if (q > tersedia(p)) { toast(dipesan(k) ? `Stok ${p.nama} ${p.stok}, ${dipesan(k)} sudah dipesan servis. Sisa bisa dijual: ${Math.max(0, tersedia(p))}` : 'Stok ' + p.nama + ' tinggal ' + p.stok); return; }
+  if (q > tersedia(p)) { tawarkanCabangLain(p, dipesan(k) ? `Stok ${p.nama} ${p.stok}, ${dipesan(k)} sudah dipesan servis. Sisa bisa dijual: ${Math.max(0, tersedia(p))}` : 'Stok ' + p.nama + ' tinggal ' + p.stok); return; }
   it ? it.qty++ : st.cart.items.push({ kode: k, qty: 1 }); renderCart();
 }
 

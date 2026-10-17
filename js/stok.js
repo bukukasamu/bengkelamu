@@ -6,6 +6,7 @@ import { modal, closeModal, stamp, dkey } from './util.js';
 import { partPicker, pickedKode, namaPetugas, isRole, filterBuka, tombolFilter } from './state.js';
 import { CABANG_UTAMA, cabAktif, cabangList, namaCabang, multiCabang, stokOf, stokField } from './cabang.js';
 import { catatMutasi, dataMutasi } from './kontrol.js';
+import { dipesan } from './wo-common.js';
 
 const MAX_ROWS = 200; // tabel dibatasi supaya tetap ringan dengan ribuan part
 
@@ -42,7 +43,7 @@ function renderSTbl() {
     <div class="tile"><span class="lbl">Nilai harga jual</span><span class="val">${rp(jual)}</span><span class="sub">bila semua terjual</span></div>
     <div class="tile"><span class="lbl">Proyeksi laba</span><span class="val" style="color:${laba < 0 ? 'var(--bad)' : 'var(--good)'}">${rp(laba)}</span><span class="sub">margin ${jual ? Math.round(laba / jual * 100) : 0}%</span></div></div>`;
   const shown = r.slice(0, MAX_ROWS);
-  $('#s-tbl').innerHTML = tiles + `<div class="tw"><table><thead><tr><th>Kode</th><th>Nama part</th><th>Kategori</th><th>Rak</th><th class="r">Harga beli</th><th class="r">Harga jual</th><th class="r">Stok</th>${multi ? '<th class="r" title="Jumlah stok di cabang lain">Cabang lain</th>' : ''}</tr></thead><tbody>${shown.map(p => `<tr class="row-click" tabindex="0" data-act="part-edit" data-k="${esc(p.kode)}"><td class="mono">${esc(p.kode)}${p.abc ? ` <span class="small muted">${esc(p.abc)}</span>` : ''}</td><td>${esc(p.nama)}${p.pengganti ? `<br><span class="small muted">Pengganti: <span class="mono">${esc(p.pengganti)}</span></span>` : ''}${p.cocok ? `<br><span class="small muted">${esc(p.cocok)}</span>` : ''}</td><td class="small">${esc(p.kategori)}</td><td class="mono">${esc(p.rak || '')}</td><td class="r num">${rp(p.beli)}</td><td class="r num">${rp(p.jual)}</td><td class="r"><span class="pill ${p.stok <= 0 ? 'p-bad' : p.min > 0 && p.stok <= p.min ? 'p-warn' : 'p-good'}">${p.stok}</span></td>${multi ? `<td class="r num muted">${(p.stokSemua || 0) - p.stok || '–'}</td>` : ''}</tr>`).join('') || '<tr><td colspan="8" class="empty">Tidak ada part yang cocok.</td></tr>'}</tbody></table></div>
+  $('#s-tbl').innerHTML = tiles + `<div class="tw"><table><thead><tr><th>Kode</th><th>Nama part</th><th>Kategori</th><th>Rak</th><th class="r">Harga beli</th><th class="r">Harga jual</th><th class="r">Stok</th><th class="r" title="Stok dikurangi part yang sudah dipesan servis yang belum dibayar">Ready</th>${multi ? '<th class="r" title="Klik untuk rincian per cabang">Cabang lain</th>' : ''}</tr></thead><tbody>${shown.map(p => `<tr class="row-click" tabindex="0" data-act="part-edit" data-k="${esc(p.kode)}"><td class="mono">${esc(p.kode)}${p.abc ? ` <span class="small muted">${esc(p.abc)}</span>` : ''}</td><td>${esc(p.nama)}${p.pengganti ? `<br><span class="small muted">Pengganti: <span class="mono">${esc(p.pengganti)}</span></span>` : ''}${p.cocok ? `<br><span class="small muted">${esc(p.cocok)}</span>` : ''}</td><td class="small">${esc(p.kategori)}</td><td class="mono">${esc(p.rak || '')}</td><td class="r num">${rp(p.beli)}</td><td class="r num">${rp(p.jual)}</td><td class="r"><span class="pill ${p.stok <= 0 ? 'p-bad' : p.min > 0 && p.stok <= p.min ? 'p-warn' : 'p-good'}">${p.stok}</span></td><td class="r num">${(() => { const d = dipesan(p.kode), r = p.stok - d; return d ? `<b>${r}</b><div class="rw-det">${d} dipesan</div>` : r; })()}</td>${multi ? `<td class="r num">${(p.stokSemua || 0) - p.stok ? `<button class="link-btn" type="button" data-act="stok-rinci" data-k="${esc(p.kode)}" title="Rincian per cabang">${(p.stokSemua || 0) - p.stok}</button>` : '<span class="muted">–</span>'}</td>` : ''}</tr>`).join('') || '<tr><td colspan="9" class="empty">Tidak ada part yang cocok.</td></tr>'}</tbody></table></div>
    <p class="small muted" style="margin:0">${r.length.toLocaleString('id-ID')} part${r.length > MAX_ROWS ? ` (ditampilkan ${MAX_ROWS} pertama, persempit pencarian)` : ''} · nilai stok (harga beli) ${rp(nilai)} · klik baris untuk ubah</p>`;
 }
 
@@ -127,16 +128,20 @@ async function tfRun() {
   if (st.saving) return;
   st.saving = true;
   try {
-    const no = await runTransaction(db, async tx => {
-      const refs = tfBaris.map(x => doc(db, 'parts', x.kode)), snaps = await Promise.all(refs.map(r => tx.get(r)));
-      snaps.forEach((s, i) => { if (!s.exists()) throw new Error('Part ' + tfBaris[i].kode + ' tidak ditemukan'); const ada = stokOf(s.data(), dari); if (ada < tfBaris[i].qty) throw new Error(`Stok ${s.data().nama} di ${namaCabang(dari)} tinggal ${ada}`); });
-      const ref = doc(collection(db, 'transfer')), id = 'TF-' + dkey(new Date()).slice(2).replace(/-/g, '') + '-' + ref.id.slice(-4).toUpperCase();
-      snaps.forEach((s, i) => { tx.update(refs[i], { [stokField(dari)]: stokOf(s.data(), dari) - tfBaris[i].qty }); catatMutasi(tx, dataMutasi(dari, tfBaris[i].kode, tfBaris[i].nama, -tfBaris[i].qty, 'transfer-keluar', id, 'ke ' + namaCabang(ke))); });
-      tx.set(ref, { no: id, tgl: stamp(new Date()), dari, ke, items: tfBaris, catatan, status: 'dikirim', pengirim: namaPetugas() });
-      return id;
-    });
+    const no = await kirimTransfer(tfBaris, dari, ke, catatan);
     toast(`Transfer ${no} dikirim ke ${namaCabang(ke)}. Stok bertambah setelah diterima di sana.`); closeModal(); tfBaris = [];
   } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
+}
+// Kirim stok antar cabang (dipakai Transfer manual & permintaan barang dari cabang lain). Mengembalikan nomor transfer.
+export async function kirimTransfer(items, dari, ke, catatan = '', extra = {}) {
+  return runTransaction(db, async tx => {
+    const refs = items.map(x => doc(db, 'parts', x.kode)), snaps = await Promise.all(refs.map(r => tx.get(r)));
+    snaps.forEach((s, i) => { if (!s.exists()) throw new Error('Part ' + items[i].kode + ' tidak ditemukan'); const ada = stokOf(s.data(), dari); if (ada < items[i].qty) throw new Error(`Stok ${s.data().nama} di ${namaCabang(dari)} tinggal ${ada}`); });
+    const ref = doc(collection(db, 'transfer')), id = 'TF-' + dkey(new Date()).slice(2).replace(/-/g, '') + '-' + ref.id.slice(-4).toUpperCase();
+    snaps.forEach((s, i) => { tx.update(refs[i], { [stokField(dari)]: stokOf(s.data(), dari) - items[i].qty }); catatMutasi(tx, dataMutasi(dari, items[i].kode, items[i].nama, -items[i].qty, 'transfer-keluar', id, 'ke ' + namaCabang(ke))); });
+    tx.set(ref, { no: id, tgl: stamp(new Date()), dari, ke, items: items.map(x => ({ kode: x.kode, nama: x.nama, qty: x.qty })), catatan, status: 'dikirim', pengirim: namaPetugas(), ...extra });
+    return id;
+  });
 }
 // Transfer yang menunggu diterima di cabang ini
 let tfMasuk = [];
