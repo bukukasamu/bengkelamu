@@ -640,3 +640,12 @@ input:disabled,select:disabled,textarea:disabled{background:var(--panel-2)}
 .tema-kartu .tk b{display:block}
 .tema-kartu .tk span{font-size:.8rem;color:var(--muted)}
 .btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+/* Judul kolom yang bisa diklik untuk mengurutkan (Stok Part) */
+.th-urut{padding:0}
+.th-urut button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:4px;width:100%;padding:8px 10px;cursor:pointer;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit}
+.th-urut.r button{justify-content:flex-end}
+.th-urut button:hover{color:var(--accent)}
+.th-urut button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.th-urut.aktif{color:var(--accent)}
+.th-panah{font-size:.7rem;opacity:.45}
+.th-urut.aktif .th-panah{opacity:1}
