@@ -116,12 +116,17 @@ let nMasuk = 0;
 function segarkanBadgeMinta() {
   ['cekstok', 'stok'].forEach(v => { const el = document.querySelector(`.sb-link[data-view="${v}"]`); if (!el) return; el.querySelector('.sb-badge')?.remove(); if (nMasuk) el.insertAdjacentHTML('beforeend', ` <span class="sb-badge">${nMasuk}</span>`); });
 }
+let unsubMinta = null;
+// Admin pindah cabang: permintaan masuk yang dipantau ikut cabang yang baru
+document.addEventListener('change', e => { if (e.target.id === 'cabang-pilih' && unsubMinta) setTimeout(() => { unsubMinta?.(); nMasuk = 0; segarkanBadgeMinta(); pantauMinta(null); }, 50); });
 export function pantauMinta(unsubs) {
   if (!bolehKirim() || !multiCabang()) return;
-  unsubs.push(onSnapshot(query(collection(db, 'mintaStok'), where('ke', '==', cabAktif()), where('status', '==', 'diminta')), s => {
+  unsubMinta?.();
+  unsubMinta = (onSnapshot(query(collection(db, 'mintaStok'), where('ke', '==', cabAktif()), where('status', '==', 'diminta')), s => {
     const baru = s.docs.length; if (baru > nMasuk && nMasuk >= 0 && st.loaded) toast(`Ada ${baru} permintaan barang dari cabang lain (menu Cek Stok)`);
     nMasuk = baru; segarkanBadgeMinta(); if (st.view === 'cekstok') muatMinta();
   }, () => {}));
+  if (unsubs) unsubs.push(() => { unsubMinta?.(); unsubMinta = null; nMasuk = 0; });
 }
 
 /* ---------- Halaman Cek Stok ---------- */

@@ -46,8 +46,8 @@ async function muat(paksa) {
     const batas = stamp(new Date(Date.now() - IS.jeda * 30 * 864e5));
     const [kend, baru, ingat] = await Promise.all([
       ambilKendaraan(keys),
-      getDocs(query(collection(db, 'kendaraan'), where('dibuat', '>=', dari), where('dibuat', '<=', sampai))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
-      getDocs(query(collection(db, 'kendaraan'), where('servisTerakhir', '<=', batas), orderBy('servisTerakhir', 'desc'), limit(300))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
+      getDocs(query(collection(db, 'kendaraan'), where('dibuat', '>=', dari), where('dibuat', '<=', sampai))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })).filter(k => !k.pindahKe && !k.pindahDari)),
+      getDocs(query(collection(db, 'kendaraan'), where('servisTerakhir', '<=', batas), orderBy('servisTerakhir', 'desc'), limit(300))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })).filter(k => !k.pindahKe))
     ]);
     data = { trx, kend, baru, ingat, bln, waktu: new Date(), jeda: IS.jeda };
     return data;
@@ -171,7 +171,7 @@ Object.assign(actions, {
   'is-per': el => { IS.periode = +el.dataset.n; muatUlang(); },
   'is-semua': async el => {
     el.disabled = true; el.textContent = 'Memuat seluruh database…';
-    try { const s = await getDocs(collection(db, 'kendaraan')); kendSemua = s.docs.map(d => ({ id: d.id, ...d.data() })); renderInsight(); }
+    try { const s = await getDocs(collection(db, 'kendaraan')); kendSemua = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(k => !k.pindahKe); renderInsight(); }
     catch (e) { toast(errMsg(e)); el.disabled = false; }
   },
   'is-xlsx': exportXlsx,

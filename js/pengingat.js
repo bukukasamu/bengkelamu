@@ -24,7 +24,7 @@ async function muat() {
     // Jadwal ≤ 14 hari ke depan (termasuk yang sudah lewat). Kunci cabang: karyawan hanya kendaraan yang servis oli di cabangnya.
     const s = await getDocs(query(collection(db, 'kendaraan'), where('oli.tglBerikut', '<=', tambahHari(PG.jangka))));
     PG.data = s.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(k => isRole('admin') || (k.oli?.cabang || CABANG_UTAMA) === st.cabang)
+      .filter(k => !k.pindahKe && (isRole('admin') || (k.oli?.cabang || CABANG_UTAMA) === st.cabang))
       .sort((a, b) => a.oli.tglBerikut.localeCompare(b.oli.tglBerikut));
   } catch (e) { PG.data = []; toast('Gagal memuat pengingat: ' + errMsg(e)); }
   PG.muat = false; render();

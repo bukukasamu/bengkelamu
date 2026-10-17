@@ -187,7 +187,11 @@ export async function syncPantau(w, trx) {
 export async function pindahPantauKunci(nopolLama, hpLama, nopolBaru, hpBaru, baru = {}, { sembunyikan = false } = {}) {
   try {
     const kLama = await pantauKey(nopolLama, hpLama), kBaru = await pantauKey(nopolBaru, hpBaru);
-    if (!kLama || kLama === kBaru) return;
+    if (!kLama) return;
+    if (kLama === kBaru) {   // no. HP & nopol sama (mis. HP dipakai bersama): cukup sembunyikan data pemilik lama
+      if (sembunyikan) { const s0 = await getDoc(doc(db, 'pantau', kLama)); if (s0.exists()) await setDoc(doc(db, 'pantau', kLama), { riwayat: (s0.data().riwayat || []).map(r => ({ ...r, pelanggan: 'Pemilik sebelumnya', hp: '' })), nama: baru.nama || s0.data().nama }, { merge: true }); }
+      return;
+    }
     const s = await getDoc(doc(db, 'pantau', kLama)); if (!s.exists()) return;
     const d = s.data();
     const riwayat = sembunyikan ? (d.riwayat || []).map(r => ({ ...r, pelanggan: 'Pemilik sebelumnya', hp: '' })) : (d.riwayat || []);

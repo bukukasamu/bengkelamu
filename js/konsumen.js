@@ -9,6 +9,7 @@ import { nopolKey } from './cari-kendaraan.js';
 import { mintaCatatan } from './kontrol.js';
 import { mintaPassword } from './otorisasi.js';
 import { loaderHTML } from './brand.js';
+import './konsumen-daftar.js';
 import { KTP, ambilKtp, ambilKonsumen, konsumenGanda, cariKonsumen, konsumenTerbaru, motorKonsumen, buatKonsumen, ubahKonsumen, tambahMotorKe, pindahkanMotor, gabungkanKonsumen, hapusDataPribadi, bentukDatabaseKonsumen } from './konsumen-data.js';
 
 const KN = { list: null, q: '', cek: false, draft: null, motor: [], tambah: null, tCari: null };
@@ -28,7 +29,7 @@ async function muatList() {
 export function renderKonsumenTab() {
   const el = $('#ms-body'); if (!el) return;
   el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="kn-q" placeholder="Cari nama, no. HP, atau NIK (min. 3 huruf/angka)" value="${esc(KN.q)}" style="flex:1 1 260px" autocomplete="off" aria-label="Cari konsumen">
-     <div class="row">${isRole('admin') ? `<button class="btn${KN.cek ? ' pri' : ''}" type="button" data-act="kn-cek" title="Data yang perlu diperiksa (kemungkinan ganda)">⚑ Perlu dicek</button>` : ''}${bolehUbah() ? '<button class="btn pri" type="button" data-act="kn-baru">+ Konsumen baru [F1]</button>' : ''}</div></div>
+     <div class="row">${isRole('admin') ? '<button class="btn" type="button" data-act="kn-daftar" title="Daftar semua / yang servis / yang didaftarkan, per cabang — Excel, PDF, print">🖨 Daftar &amp; Cetak</button>' : ''}${isRole('admin') ? `<button class="btn${KN.cek ? ' pri' : ''}" type="button" data-act="kn-cek" title="Data yang perlu diperiksa (kemungkinan ganda)">⚑ Perlu dicek</button>` : ''}${bolehUbah() ? '<button class="btn pri" type="button" data-act="kn-baru">+ Konsumen baru [F1]</button>' : ''}</div></div>
    ${st.petugas?.super && !S.settings.konsumenSiap ? `<div class="note small" style="margin-top:10px"><b>Bentuk database konsumen (sekali saja).</b> Data konsumen lama masih menempel di data kendaraan. Tekan tombol ini untuk mengelompokkan kendaraan per no. HP menjadi data konsumen (satu orang bisa punya beberapa motor). Yang meragukan ditandai <b>Perlu dicek</b>.<div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="kn-bentuk">Bentuk database konsumen</button></div></div>` : ''}
    <div id="kn-form"></div>
    <div id="kn-list"></div>`;
@@ -191,7 +192,7 @@ async function pindah(el) {
 Object.assign(actions, {
   'kn-baru': () => { KN.draft = kosong(); KN.asli = null; KN.motor = []; KN.tambah = null; gambarForm(); $('#kn-nik')?.focus(); },
   'kn-buka': el => buka(el.dataset.id),
-  'kn-tutup': () => { KN.draft = null; KN.asli = null; gambarForm(); },
+  'kn-tutup': () => { KN.draft = null; KN.asli = null; const el = $('#kn-form'); if (el) el.innerHTML = ''; },
   'kn-simpan': simpan,
   'kn-cek': () => { KN.cek = !KN.cek; KN.q = ''; const q = $('#kn-q'); if (q) q.value = ''; renderKonsumenTab(); muatList(); },
   'kn-sudahcek': async () => { try { await updateDoc(doc(db, 'konsumen', KN.asli.id), { perluCek: false, alasanCek: '', updated: stamp(new Date()) }); toast('Ditandai sudah dicek'); await buka(KN.asli.id); muatList(); } catch (e) { toast(errMsg(e)); } },

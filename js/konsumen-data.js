@@ -11,6 +11,7 @@ import { WIL_FIELDS } from './wilayah.js';
 import { bedaKonsumen, simpanDenganCatatan } from './log-konsumen.js';
 import { pindahPantauKunci, AKTIF } from './wo-common.js';
 import { nopolKey } from './cari-kendaraan.js';
+import { cabAktif } from './cabang.js';
 
 export const KTP = ['nik', 'nama', 'tempatLahir', 'tglLahir', 'jk', 'pekerjaan', 'hp', 'rtrw', ...WIL_FIELDS];
 export const ambilKtp = o => Object.fromEntries(KTP.map(f => [f, String(o?.[f] ?? '').trim()]));
@@ -56,7 +57,7 @@ export async function motorKonsumen(k) {
 export async function buatKonsumen(data, sumber = '', extra = {}) {
   const ref = doc(collection(db, 'konsumen')), tgl = stamp(new Date());
   const ktp = ambilKtp(data);
-  await setDoc(ref, { ...ktp, hpNorm: waNumber(ktp.hp), motor: [], dibuat: tgl, updated: tgl, dibuatOleh: namaPetugas(), sumber, ...extra });
+  await setDoc(ref, { ...ktp, hpNorm: waNumber(ktp.hp), motor: [], dibuat: tgl, updated: tgl, dibuatOleh: namaPetugas(), cabang: cabAktif(), sumber, ...extra });
   return ref.id;
 }
 const logRef = () => doc(collection(db, 'ubahKonsumen'));
@@ -190,5 +191,23 @@ export async function bentukDatabaseKonsumen(onProgress) {
   if (ops) await b.commit();
   await setDoc(doc(db, 'meta', 'settings'), { konsumenSiap: tgl }, { merge: true });
   S.settings.konsumenSiap = tgl;
+  await lengkapiCabangPendaftar().catch(e => console.warn('Cabang pendaftar', e));
   return { konsumen: orang.length, cek: orang.filter(o => o.cek).length, motor: semua.length };
+}
+
+// Cabang pendaftar untuk konsumen lama = cabang tempat servis pertamanya (dari nota servis). Sekali, super admin.
+export async function lengkapiCabangPendaftar() {
+  const [ts, ks] = await Promise.all([getDocs(query(collection(db, 'trx'), where('jenis', '==', 'SERVIS'))), getDocs(collection(db, 'konsumen'))]);
+  const awal = new Map();
+  ts.docs.forEach(d => { const t = d.data(), key = nopolKey(t.nopol); if (!key || (t.batal && t.batal.status === 'disetujui')) return; const a = awal.get(key); if (!a || t.tgl < a.tgl) awal.set(key, { tgl: t.tgl, cabang: t.cabang || 'UTM' }); });
+  let b = writeBatch(db), ops = 0, n = 0;
+  for (const d of ks.docs) {
+    const k = d.data(); if (k.cabang || k.digabungKe) continue;
+    const c = (k.motor || []).map(m => awal.get(m)).filter(Boolean).sort((x, y) => x.tgl.localeCompare(y.tgl))[0];
+    if (!c) continue;
+    b.set(d.ref, { cabang: c.cabang }, { merge: true }); n++;
+    if (++ops >= 400) { await b.commit(); b = writeBatch(db); ops = 0; }
+  }
+  if (ops) await b.commit();
+  return n;
 }

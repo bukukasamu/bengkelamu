@@ -8,10 +8,10 @@ const tglID = t => t ? new Date(String(t).slice(0, 10) + 'T00:00').toLocaleDateS
 export async function konsumenPdfBlob(list, opt = {}) {
   const lib = await preloadPdf(), logo = await logoPng();
   const pdf = new lib.jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
-  pdf.setProperties({ title: 'Data konsumen & kendaraan', author: APP_NAME });
+  pdf.setProperties({ title: opt.judul || 'Data konsumen & kendaraan', author: APP_NAME });
   const teks = (s, x, y, o = {}) => { pdf.setFont('helvetica', o.bold ? 'bold' : 'normal'); pdf.setFontSize(o.size || 8); pdf.setTextColor(o.gray ?? 25); pdf.text(String(s), x, y, o.align ? { align: o.align } : undefined); };
   // Kolom: [judul, lebar mm, isi(k) -> baris teks]
-  const KOL = [
+  const KOL = opt.kolom || [
     ['No', 9, (k, i) => [String(i + 1)]],
     ['No. polisi', 24, k => [k.nopol || '']],
     ['Konsumen', 46, k => [k.nama || '–', k.hp ? 'HP ' + k.hp : '', k.namaStnk && k.namaStnk !== k.nama ? 'STNK: ' + k.namaStnk : ''].filter(Boolean)],
@@ -28,8 +28,8 @@ export async function konsumenPdfBlob(list, opt = {}) {
       if (logo) { const { w, h } = muat(logo, 24, 14); pdf.addImage(logo.url, 'PNG', M, y, w, h); x0 = M + w + 4; }
       teks(APP_NAME.toUpperCase(), x0, y + 5, { bold: true, size: 12 });
       teks(APP_SUB, x0, y + 9.5, { size: 8, gray: 90 });
-      teks('DATA KONSUMEN & KENDARAAN', W - M, y + 5, { bold: true, size: 11, align: 'right' });
-      teks(`${list.length.toLocaleString('id-ID')} kendaraan${opt.filter ? ' | ' + opt.filter : ''}`, W - M, y + 9.5, { size: 8, gray: 70, align: 'right' });
+      teks((opt.judul || 'Data konsumen & kendaraan').toUpperCase(), W - M, y + 5, { bold: true, size: 11, align: 'right' });
+      teks(`${list.length.toLocaleString('id-ID')} ${opt.satuan || 'kendaraan'}${opt.filter ? ' | ' + opt.filter : ''}`, W - M, y + 9.5, { size: 8, gray: 70, align: 'right' });
       y += 15; pdf.setDrawColor(60); pdf.setLineWidth(0.4); pdf.line(M, y, W - M, y); y += 4;
     }
     // judul kolom
@@ -50,7 +50,7 @@ export async function konsumenPdfBlob(list, opt = {}) {
     let x = M;
     sel.forEach((baris, c) => {
       const w = KOL[c][1]; pdf.setDrawColor(170); pdf.setLineWidth(0.15); pdf.rect(x, y, w, tinggi);
-      baris.forEach((t, b) => teks(t, x + 1.5, y + 3.8 + b * 3.4, { size: 7.5, bold: c === 1 && b === 0, gray: b > 0 && c !== 4 ? 80 : 25 }));
+      baris.forEach((t, b) => teks(t, x + 1.5, y + 3.8 + b * 3.4, { size: 7.5, bold: c === (opt.kolomTebal ?? 1) && b === 0, gray: b > 0 && c !== (opt.kolomAlamat ?? 4) ? 80 : 25 }));
       x += w;
     });
     y += tinggi;

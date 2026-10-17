@@ -378,6 +378,22 @@ async function tentukanPemilik(w) {
       w._hpBersama = true;
     }
   }
+  // 3b. Konsumen sudah dipilih tetapi no. HP / NIK diganti: pastikan tidak bentrok dengan konsumen lain
+  if (w.konsumenId) {
+    const kini = await ambilKonsumen(w.konsumenId).catch(() => null);
+    const hpBaru = kini && waNumber(w.hp) && waNumber(w.hp) !== waNumber(kini.hp), nikBaru = kini && w.nik && w.nik !== (kini.nik || '');
+    if (hpBaru || nikBaru) {
+      const g = await konsumenGanda({ hp: hpBaru ? w.hp : '', nik: nikBaru ? w.nik : '' }, w.konsumenId).catch(() => ({ byHp: [], byNik: [] }));
+      if (g.byNik.length) { const x = g.byNik[0]; await pilihan('NIK milik konsumen lain', `NIK ${esc(w.nik)} terdaftar atas nama <b>${esc(x.nama)}</b>. Periksa KTP; satu NIK = satu orang.`, [], 'Kembali'); return false; }
+      if (g.byHp.length && !w._hpBersama) {
+        const x = g.byHp[0];
+        const v = await pilihan('No. HP baru dipakai konsumen lain', `No. HP ${esc(w.hp)} milik <b>${esc(x.nama)}</b>. Data <b>${esc(kini.nama)}</b> akan memakai nomor yang sama.`, [{ v: 'bersama', label: 'Tetap simpan (nomor bersama)' }, { v: 'pakai', label: 'Ternyata orangnya ' + x.nama, kelas: 'pri' }]);
+        if (!v) return false;
+        if (v === 'pakai') { isiDariKonsumen(w, x); renderRegistrasi(); toast('Data ' + x.nama + ' dipakai. Periksa lalu simpan lagi.'); return false; }
+        w._hpBersama = true;
+      }
+    }
+  }
   // 4. Motor sudah punya pemilik lain → ganti pemilik (dijual) atau hanya mengantar
   const pemilikId = kLama?.konsumenId || '';
   const lainOrang = kLama && (pemilikId ? w.konsumenId !== pemilikId : (kLama.hpNorm && waNumber(w.hp) && kLama.hpNorm !== waNumber(w.hp) && String(kLama.nama || '').trim() !== String(w.nama || '').trim()));

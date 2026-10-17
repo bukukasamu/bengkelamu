@@ -58,6 +58,7 @@ const P = {
   ] },
   admin: { judul: 'Admin / Kepala Cabang', ringkas: 'Semua pekerjaan operasional + beberapa izin khusus.', bagian: [
     ['1. Beranda', 'Ringkasan hari ini: omzet, part terjual, motor masuk & status mekanik, stok menipis. Admin bisa membuka semua menu operasional (registrasi, order, kasir, stok, laporan).'],
+    ['Daftar & cetak konsumen', 'Konsumen & Kendaraan → Konsumen → <b>🖨 Daftar &amp; Cetak</b>: pilih <b>yang servis</b> / <b>yang didaftarkan</b> pada periode (hari ini, bulan ini, bulan lalu, pilih tanggal) atau <b>semua</b>, cabang, kecamatan, punya/belum punya motor, bentuk per konsumen atau per motor → <b>Tampilkan</b> → Excel, PDF, atau Print. Admin hanya cabang yang sedang dibuka; super admin semua cabang & kolom NIK.'],
     ['Konsumen ganda & salah sambung', '<b>Gabungkan dengan…</b> (di data konsumen) bila satu orang tercatat dua kali — pilih isian yang benar per kolom, semua motor pindah. <b>Pindahkan</b> (di daftar motor konsumen) bila motor tersambung ke orang yang salah (koreksi, wajib alasan). Daftar <b>⚑ Perlu dicek</b> berisi data yang kemungkinan ganda.'],
     ['2. Izin khusus admin', '<b>KM lebih kecil</b> dari KM terakhir (speedometer diganti): simpan dari Registrasi dan tulis keterangannya. <b>Batalkan pendaftaran</b> ganda/salah daftar yang belum dibayar (tombol di Registrasi). Mengubah status servis manual.'],
     ['3. Persetujuan layar absen', 'Perangkat layar absen cabang baru meminta aktivasi → <b>Persetujuan</b> → cocokkan <b>kode di layar</b> → Setujui.'],
