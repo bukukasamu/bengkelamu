@@ -649,3 +649,20 @@ input:disabled,select:disabled,textarea:disabled{background:var(--panel-2)}
 .th-urut.aktif{color:var(--accent)}
 .th-panah{font-size:.7rem;opacity:.45}
 .th-urut.aktif .th-panah{opacity:1}
+/* Nomor urut otomatis pada tabel daftar (kelas "bernomor") */
+table.bernomor{counter-reset:baris}
+table.bernomor>thead>tr::before{content:'No';display:table-cell;text-transform:uppercase;text-align:right;font-family:var(--f-display);font-weight:600;font-size:.82rem;letter-spacing:.05em;color:var(--muted);background:var(--panel-2);padding:8px 6px 8px 10px;border-bottom:1px solid var(--line);vertical-align:middle;width:1%;white-space:nowrap}
+table.rw-tabel.bernomor>thead>tr::before{position:sticky;top:0;z-index:1}
+table.bernomor>tbody>tr{counter-increment:baris}
+table.bernomor>tbody>tr::before{content:counter(baris);display:table-cell;text-align:right;color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums;padding:9px 6px 8px 10px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+table.bernomor>tbody>tr:last-child::before{border-bottom:0}
+table.bernomor>tbody>tr:has(>td[colspan]){counter-increment:none}
+table.bernomor>tbody>tr:has(>td[colspan])::before{content:''}
+table.bernomor>tfoot>tr::before{content:'';display:table-cell}
+.row-click:hover::before,tr[aria-current="true"]::before{background:var(--accent-soft)}
+/* Nomor urut pada daftar kartu motor / pembelian */
+.wolist{counter-reset:kartu}
+.wolist>.wo{counter-increment:kartu;position:relative;padding-left:34px}
+.wolist>.wo::before{content:counter(kartu);position:absolute;left:0;top:0;bottom:0;width:26px;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-variant-numeric:tabular-nums;color:var(--muted);border-right:1px solid var(--line);background:var(--panel-2);border-radius:inherit;border-top-right-radius:0;border-bottom-right-radius:0}
+.wolist>.wo[aria-current="true"]::before{color:var(--accent);font-weight:700}
+@media print{.wolist>.wo::before{background:none}}

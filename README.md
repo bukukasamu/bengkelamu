@@ -1,9 +1,14 @@
-# Aceh Mandiri Utama POS · versi 5.1.2
+# Aceh Mandiri Utama POS · versi 5.2.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.2.0 — dialog Kembali/Keluar & nomor urut
+- Tombol **Kembali** (browser/HP) memunculkan kotak dialog: Kembali ke menu sebelumnya / Keluar dari aplikasi / Batal. Bila jendela (form) terbuka: "Tutup jendela ini?". Sidebar HP yang terbuka cukup ditutup.
+- Menutup tab / memuat ulang saat sudah masuk → peringatan browser. Tombol **Keluar** akun → konfirmasi.
+- Nomor urut otomatis (kolom No) di daftar: Stok Part, Cek Stok, Konsumen & motornya, Kendaraan, motor di bengkel (Registrasi, Order, Pembayaran) & daftar Pembelian, Beranda, Laporan (nota, per cabang/mekanik/kasir), Kas & pengeluaran, Klaim KSG, Insight, Pengingat, Persetujuan, Opname, Kartu stok, Transfer, Absensi, Penghasilan, THR, Performa Mekanik, isi keranjang/part.
 
 ## 5.1.2 — Stok Part lebih mudah dilihat
 - Judul kolom tabel Stok Part (Kode, Nama, Kategori, Rak, Harga beli, Harga jual, Stok, Ready, Cabang lain) bisa diklik untuk mengurutkan; klik pertama kolom angka = terbesar dulu, klik lagi = terkecil dulu. Urutan diingat di perangkat.
