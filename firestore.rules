@@ -79,6 +79,18 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir)).data.kendaraanId == id)));
       allow delete: if isSuper();
     }
+    // Database konsumen (data KTP, satu orang bisa punya banyak motor). Perubahan data pribadi wajib disertai catatan
+    // di ubahKonsumen (konsumenId sama) dalam batch yang sama. Daftar motor & waktu ubah bebas. Hapus: super admin.
+    match /konsumen/{id} {
+      allow read: if isStaff();
+      allow create: if hasRole(['admin', 'registrasi']);
+      allow update: if isSuper() || (hasRole(['admin', 'registrasi']) && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['motor', 'updated', 'perluCek', 'alasanCek'])
+          || (request.resource.data.get('logTerakhir', '') != resource.data.get('logTerakhir', '')
+              && existsAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir))
+              && getAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir)).data.get('konsumenId', '') == id)));
+      allow delete: if isSuper();
+    }
     // Catatan perubahan data konsumen: hanya ditambah (atas nama yang sedang login), dibaca super admin
     match /ubahKonsumen/{id} {
       allow read: if isSuper();
@@ -134,6 +146,14 @@ service cloud.firestore {
       allow read: if isStaff() && (semuaCabang() || resource.data.dari == myCab() || resource.data.ke == myCab());
       allow create: if hasRole(['admin', 'sparepart']) && bolehCabang(request.resource.data.dari);
       allow update: if hasRole(['admin', 'sparepart']) && (semuaCabang() || resource.data.ke == myCab());
+      allow delete: if isSuper();
+    }
+    // Permintaan barang antar cabang: dibuat cabang peminta (dari), dikirim/ditolak cabang pemilik barang (ke)
+    match /mintaStok/{id} {
+      allow read: if isStaff() && (semuaCabang() || resource.data.dari == myCab() || resource.data.ke == myCab());
+      allow create: if hasRole(['admin', 'sparepart', 'kasir']) && bolehCabang(request.resource.data.dari) && request.resource.data.status == 'diminta';
+      allow update: if hasRole(['admin', 'sparepart', 'kasir']) && (semuaCabang() || resource.data.ke == myCab() || resource.data.dari == myCab())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'transferNo', 'pengirim', 'tglKirim', 'alasanTolak', 'ditolakOleh', 'tglTolak', 'tglBatal']);
       allow delete: if isSuper();
     }
     // Stok opname: dihitung & diajukan petugas, disetujui super admin

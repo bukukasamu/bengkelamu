@@ -1,9 +1,28 @@
-# Aceh Mandiri Utama POS · versi 4.10.0
+# Aceh Mandiri Utama POS · versi 5.0.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 5.0.0 — database konsumen & cek stok antar cabang
+
+**Update:** upload semua file (baru: `js/konsumen.js`, `js/konsumen-data.js`, `js/cek-stok.js`), lalu **publish ulang `firestore.rules`** (koleksi baru `konsumen` dan `mintaStok`). Setelah itu super admin membuka **Konsumen & Kendaraan → Konsumen → Bentuk database konsumen** (sekali saja).
+
+**Database konsumen**
+- Konsumen terpisah dari kendaraan, lalu disambungkan: satu konsumen bisa punya banyak motor. Penanda konsumen = **no. HP** (dan NIK bila diisi); nama untuk mencari. Data KTP konsumen tetap disalin ke data motornya, dan setiap perubahan (tercatat siapa/kapan/lama→baru) ikut diterapkan ke semua motornya.
+- **Konsumen & Kendaraan** kini dua tab: **Konsumen** (50 terakhir; pencarian nama/HP/NIK langsung ke database; + Konsumen baru tanpa motor; + Tambah motor; ⚑ Perlu dicek) dan **Kendaraan** (100 terakhir; pencarian ke database; "Muat semua" untuk rekap wilayah lengkap). Menu tetap ringan berapa pun jumlah konsumen.
+- **Registrasi:** <kbd>F3</kbd> menemukan konsumen (termasuk yang belum punya motor) → **Pakai konsumen** → isi motor saja. Info pemilik tercatat tampil di bawah nopol.
+  - No. HP sudah terdaftar → *Pakai data* atau *Orang lain, nomor sama*; NIK sama → orang yang sama.
+  - Motor milik orang lain → **Ganti pemilik** (wajib alasan; riwayat servis ikut motor; cek servis pindah ke HP pemilik baru dengan nama/HP pemilik lama disembunyikan; riwayat kepemilikan tercatat) atau **Hanya mengantar** (pemilik tetap; pengantar dicatat & bisa di-WA).
+  - **Ganti plat:** nopol baru tetapi no. rangka/mesin sudah tercatat → riwayat servis, KM, jadwal oli bersambung ke nopol baru (nopol lama tercatat).
+  - **No. rangka/mesin berbeda** dengan data nopol itu → peringatan cek STNK.
+- **Admin:** *Gabungkan dengan…* (konsumen ganda: pilih isian per kolom, semua motor pindah) dan *Pindahkan* motor (koreksi salah sambung, wajib alasan).
+- **Super admin:** *Hapus data pribadi* (data KTP dikosongkan di konsumen & motornya, cek servis ditutup; riwayat servis & nota tetap). *Bentuk database konsumen*: kendaraan lama dikelompokkan per no. HP; no. HP dipakai beberapa nama / NIK kembar ditandai **Perlu dicek**.
+
+**Stok**
+- Menu baru **Cek Stok** (Registrasi, Kasir, Sparepart, Admin): stok cabang ini, sudah dipesan servis, **ready**, dan stok tiap cabang. Stok Part mendapat kolom **Ready**; kolom Cabang lain bisa diklik untuk rincian.
+- **Minta kirim antar cabang:** saat stok kurang (Cek Stok, Order Sparepart, Penjualan Sparepart) → pilih cabang yang punya → permintaan. Cabang tujuan (Sparepart/Admin) mendapat angka di menu → **Kirim** (memakai transfer stok, kartu stok tercatat) atau **Tolak** dengan alasan. Cabang peminta menerima di Stok Part.
 
 ## Fitur baru 4.10.0 — pilihan tema
 
