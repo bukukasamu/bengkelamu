@@ -1,9 +1,15 @@
-# Aceh Mandiri Utama POS · versi 5.1.0
+# Aceh Mandiri Utama POS · versi 5.1.1
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.1.1 — export Excel stok per cabang
+- **Stok Part → Export Excel** sekarang berisi: sheet **Semua cabang** (satu baris per part per cabang, kolom Cabang, Stok, Dipesan servis, Ready, nilai stok) dengan tombol filter di judul kolom — pilih satu cabang atau semua; sheet **Total per cabang** (kolom stok tiap cabang + total + baris TOTAL); dan **satu sheet per cabang**.
+- Pesanan servis cabang lain hanya terisi untuk admin.
+- Import Excel memakai sheet bernama cabang yang sedang dibuka; sheet gabungan semua cabang ditolak supaya stok tidak tertimpa.
+- Excel Daftar konsumen juga diberi tombol filter (mis. kolom cabang_daftar, kecamatan).
 
 ## Fitur baru 5.1.0 — daftar & cetak konsumen, perbaikan
 
