@@ -1,9 +1,17 @@
-# Aceh Mandiri Utama POS · versi 5.0.0
+# Aceh Mandiri Utama POS · versi 5.1.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## Fitur baru 5.1.0 — daftar & cetak konsumen, perbaikan
+
+Update: upload semua file (baru: `js/konsumen-daftar.js`), lalu **publish ulang `firestore.rules`** (cabang pendaftar konsumen; data konsumen tidak bisa dibaca akun mekanik).
+
+- **Konsumen → 🖨 Daftar & Cetak** (Admin & Super Admin): yang **servis** pada periode / yang **didaftarkan** pada periode / **semua**; saring cabang (tempat servis atau cabang pendaftar), kecamatan, punya/belum punya motor; bentuk per konsumen (motor digabung) atau per motor; tampil di layar + **Excel / PDF / Print**. Admin hanya cabang yang sedang dibuka; NIK hanya super admin. Data dibaca saat menekan Tampilkan.
+- **Cabang pendaftar** dicatat untuk setiap konsumen baru. Konsumen lama diisi dari cabang servis pertamanya (otomatis saat Bentuk database, atau tombol di Daftar & Cetak).
+- Perbaikan: **Backup Data** kini ikut menyimpan konsumen & permintaan barang · Pengingat Servis & Insight tidak lagi menampilkan nopol lama setelah ganti plat (dobel) · ganti pemilik dengan no. HP yang sama tetap menyembunyikan data pemilik lama di cek servis · Registrasi memeriksa bila no. HP/NIK konsumen yang dipilih diganti ke milik konsumen lain · angka permintaan barang ikut berpindah saat admin pindah cabang.
 
 ## Fitur baru 5.0.0 — database konsumen & cek stok antar cabang
 

@@ -82,10 +82,10 @@ service cloud.firestore {
     // Database konsumen (data KTP, satu orang bisa punya banyak motor). Perubahan data pribadi wajib disertai catatan
     // di ubahKonsumen (konsumenId sama) dalam batch yang sama. Daftar motor & waktu ubah bebas. Hapus: super admin.
     match /konsumen/{id} {
-      allow read: if isStaff();
+      allow read: if hasRole(['admin', 'registrasi', 'kasir', 'sparepart']);
       allow create: if hasRole(['admin', 'registrasi']);
       allow update: if isSuper() || (hasRole(['admin', 'registrasi']) && (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['motor', 'updated', 'perluCek', 'alasanCek'])
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['motor', 'updated', 'perluCek', 'alasanCek', 'cabang'])
           || (request.resource.data.get('logTerakhir', '') != resource.data.get('logTerakhir', '')
               && existsAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir))
               && getAfter(/databases/$(database)/documents/ubahKonsumen/$(request.resource.data.logTerakhir)).data.get('konsumenId', '') == id)));
