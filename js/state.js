@@ -22,7 +22,7 @@ export const st = {
   view: 'beranda', loaded: false, petugas: null, role: null, saving: false, lastNota: null,
   cart: emptyCart(),
   regDraft: null, orderNo: null, orderDraft: null, bayarNo: null, bayarDraft: null,
-  stokQ: '', stokKat: '', stokLow: false, partEdit: null,
+  stokQ: '', stokKat: '', stokLow: false, stokAda: '', stokUrut: { k: 'kode', arah: 1 }, stokN: 200, partEdit: null,
   pbDraft: null, pbFilter: 'semua',
   mekSel: null, mekPeriode: 'ini',
   lap: { range: 'hari', from: '', to: '', filter: null, list: null },
@@ -53,7 +53,7 @@ export const bolehKotak = id => !!st.petugas?.super || (S.akses?._beranda?.[st.r
 
 // Kotak filter yang bisa disembunyikan (tersembunyi bawaan supaya tidak makan tempat)
 export const filterBuka = key => !!st.filterBuka?.[key];
-export const tombolFilter = (key, aktif = 0, act = 'filter-tgl') => `<button class="btn sm${aktif ? ' pri' : ''}" type="button" data-act="${act}" data-k="${key}" aria-expanded="${filterBuka(key)}">⚲ Filter${aktif ? ' (' + aktif + ')' : ''} ${filterBuka(key) ? '▴' : '▾'}</button>`;
+export const tombolFilter = (key, aktif = 0, act = 'filter-tgl') => `<button class="btn sm${aktif ? ' pri' : ''}" type="button" data-act="${act}" data-k="${key}" aria-expanded="${filterBuka(key)}"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-1px"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z" fill="currentColor"/></svg> Filter${aktif ? ' (' + aktif + ')' : ''} <span class="small">${filterBuka(key) ? '▲' : '▼'}</span></button>`;
 
 /* ---- Registry: tiap modul mendaftarkan tampilan dan aksinya sendiri ---- */
 export const views = {};          // id menu -> render penuh

@@ -6,16 +6,31 @@ import { modal, closeModal, stamp, dkey } from './util.js';
 import { partPicker, pickedKode, namaPetugas, isRole, filterBuka, tombolFilter } from './state.js';
 import { CABANG_UTAMA, cabAktif, cabangList, namaCabang, multiCabang, stokOf, stokField } from './cabang.js';
 import { catatMutasi, dataMutasi } from './kontrol.js';
-import { dipesan } from './wo-common.js';
+import { AKTIF } from './wo-common.js';
 
-const MAX_ROWS = 200; // tabel dibatasi supaya tetap ringan dengan ribuan part
+const MAX_ROWS = 200; // tabel ditampilkan per 200 baris supaya tetap ringan dengan ribuan part (tombol "Tampilkan lagi")
+
+// Judul kolom bisa diklik untuk mengurutkan. Klik pertama kolom angka = terbesar dulu, klik lagi = kebalikannya.
+const KOLOM = [
+  ['kode', 'Kode'], ['nama', 'Nama part'], ['kategori', 'Kategori'], ['rak', 'Rak'],
+  ['beli', 'Harga beli', 1], ['jual', 'Harga jual', 1], ['stok', 'Stok', 1], ['ready', 'Ready', 1], ['lain', 'Cabang lain', 1]
+];
+try { const u = JSON.parse(localStorage.getItem('amu-stok-urut') || 'null'); if (u && KOLOM.some(k => k[0] === u.k) && (u.arah === 1 || u.arah === -1)) st.stokUrut = u; } catch (e) { /* abaikan */ }
+function judulKolom(multi) {
+  const u = st.stokUrut;
+  return KOLOM.filter(k => k[0] !== 'lain' || multi).map(([k, l, angka]) => {
+    const aktif = u.k === k, panah = aktif ? (u.arah > 0 ? '▲' : '▼') : '';
+    const title = k === 'ready' ? 'Stok dikurangi part yang sudah dipesan servis yang belum dibayar. ' : k === 'lain' ? 'Jumlah stok di cabang lain. ' : '';
+    return `<th class="${angka ? 'r ' : ''}th-urut${aktif ? ' aktif' : ''}" aria-sort="${aktif ? (u.arah > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-act="stok-urut" data-k="${k}" title="${title}Klik untuk mengurutkan">${l}<span class="th-panah">${panah || '↕'}</span></button></th>`;
+  }).join('');
+}
 
 function renderStok() {
   $('#view').innerHTML = `<div class="grid">
    <div class="panel"><div class="row spread"><h3>Stok sparepart${multiCabang() ? ' · ' + esc(namaCabang(cabAktif())) : ''}</h3>
      <div class="row">${st.petugas?.super ? '<button class="btn" type="button" data-act="import-open">Import Excel</button>' : ''}<button class="btn" type="button" data-act="export-xlsx">Export Excel</button><button class="btn" type="button" data-act="go-pembelian">Pembelian stok</button><button class="btn" type="button" data-act="go-opname">Stok opname</button>${multiCabang() ? '<button class="btn" type="button" data-act="tf-open">Transfer stok</button>' : ''}<button class="btn pri" type="button" data-act="part-new">+ Part baru [F1]</button></div></div>
-    <div class="row"><input id="s-q" placeholder="Cari kode, nama, tipe motor" value="${esc(st.stokQ)}" style="flex:1 1 220px" aria-label="Cari part">${tombolFilter('stok', (st.stokKat ? 1 : 0) + (st.stokLow ? 1 : 0))}</div>
-    ${filterBuka('stok') ? `<div class="filter-box row"><select id="s-kat" style="width:auto;max-width:100%" aria-label="Kategori"><option value="">Semua kategori</option>${kategoriList().map(k => `<option ${k === st.stokKat ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><label class="row small" for="s-low" style="gap:6px;cursor:pointer"><input type="checkbox" id="s-low" style="width:auto" ${st.stokLow ? 'checked' : ''}>Hanya stok menipis</label></div>` : ''}
+    <div class="row"><input id="s-q" placeholder="Cari kode, nama, tipe motor" value="${esc(st.stokQ)}" style="flex:1 1 220px" aria-label="Cari part">${tombolFilter('stok', (st.stokKat ? 1 : 0) + (st.stokLow ? 1 : 0) + (st.stokAda ? 1 : 0))}</div>
+    ${filterBuka('stok') ? `<div class="filter-box row"><select id="s-kat" style="width:auto;max-width:100%" aria-label="Kategori"><option value="">Semua kategori</option>${kategoriList().map(k => `<option ${k === st.stokKat ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><label class="row small" for="s-low" style="gap:6px;cursor:pointer"><input type="checkbox" id="s-low" style="width:auto" ${st.stokLow ? 'checked' : ''}>Hanya stok menipis</label><select id="s-ada" style="width:auto" aria-label="Stok"><option value="">Semua stok</option><option value="ada" ${st.stokAda === 'ada' ? 'selected' : ''}>Ada stok</option><option value="kosong" ${st.stokAda === 'kosong' ? 'selected' : ''}>Stok kosong</option><option value="lain" ${st.stokAda === 'lain' ? 'selected' : ''}>Kosong di sini, ada di cabang lain</option></select></div>` : ''}
     <div id="tf-masuk"></div>
     <div id="s-panel"></div>
     <div id="s-tbl"></div>
@@ -30,6 +45,9 @@ function renderSTbl() {
   const r = S.parts.filter(p => {
     if (st.stokKat && p.kategori !== st.stokKat) return false;
     if (st.stokLow && !(p.min > 0 && p.stok <= p.min)) return false;
+    if (st.stokAda === 'ada' && !(p.stok > 0)) return false;
+    if (st.stokAda === 'kosong' && p.stok > 0) return false;
+    if (st.stokAda === 'lain' && !(p.stok <= 0 && (p.stokSemua || 0) - p.stok > 0)) return false;
     if (!words.length) return true;
     const s = (p.kode + ' ' + p.nama + ' ' + (p.cocok || '') + ' ' + (p.pengganti || '')).toLowerCase();
     return words.every(w => s.includes(w));
@@ -37,14 +55,21 @@ function renderSTbl() {
   const nilai = r.reduce((a, p) => a + p.stok * (p.beli || 0), 0), multi = multiCabang();
   // Nilai stok dalam rupiah (stok cabang ini; mengikuti pencarian/filter bila aktif)
   const ada = r.filter(p => p.stok > 0), jual = ada.reduce((a, p) => a + p.stok * (p.jual || 0), 0), pcs = ada.reduce((a, p) => a + p.stok, 0);
-  const laba = jual - nilai, saring = !!(words.length || st.stokKat || st.stokLow);
+  const laba = jual - nilai, saring = !!(words.length || st.stokKat || st.stokLow || st.stokAda);
   const tiles = `<div class="tiles" style="margin-bottom:8px"><div class="tile"><span class="lbl">Stok${saring ? ' (sesuai filter)' : ''}</span><span class="val">${pcs.toLocaleString('id-ID')} pcs</span><span class="sub">${ada.length.toLocaleString('id-ID')} jenis part</span></div>
     <div class="tile"><span class="lbl">Nilai harga beli</span><span class="val">${rp(nilai)}</span><span class="sub">modal yang tertanam</span></div>
     <div class="tile"><span class="lbl">Nilai harga jual</span><span class="val">${rp(jual)}</span><span class="sub">bila semua terjual</span></div>
     <div class="tile"><span class="lbl">Proyeksi laba</span><span class="val" style="color:${laba < 0 ? 'var(--bad)' : 'var(--good)'}">${rp(laba)}</span><span class="sub">margin ${jual ? Math.round(laba / jual * 100) : 0}%</span></div></div>`;
-  const shown = r.slice(0, MAX_ROWS);
-  $('#s-tbl').innerHTML = tiles + `<div class="tw"><table><thead><tr><th>Kode</th><th>Nama part</th><th>Kategori</th><th>Rak</th><th class="r">Harga beli</th><th class="r">Harga jual</th><th class="r">Stok</th><th class="r" title="Stok dikurangi part yang sudah dipesan servis yang belum dibayar">Ready</th>${multi ? '<th class="r" title="Klik untuk rincian per cabang">Cabang lain</th>' : ''}</tr></thead><tbody>${shown.map(p => `<tr class="row-click" tabindex="0" data-act="part-edit" data-k="${esc(p.kode)}"><td class="mono">${esc(p.kode)}${p.abc ? ` <span class="small muted">${esc(p.abc)}</span>` : ''}</td><td>${esc(p.nama)}${p.pengganti ? `<br><span class="small muted">Pengganti: <span class="mono">${esc(p.pengganti)}</span></span>` : ''}${p.cocok ? `<br><span class="small muted">${esc(p.cocok)}</span>` : ''}</td><td class="small">${esc(p.kategori)}</td><td class="mono">${esc(p.rak || '')}</td><td class="r num">${rp(p.beli)}</td><td class="r num">${rp(p.jual)}</td><td class="r"><span class="pill ${p.stok <= 0 ? 'p-bad' : p.min > 0 && p.stok <= p.min ? 'p-warn' : 'p-good'}">${p.stok}</span></td><td class="r num">${(() => { const d = dipesan(p.kode), r = p.stok - d; return d ? `<b>${r}</b><div class="rw-det">${d} dipesan</div>` : r; })()}</td>${multi ? `<td class="r num">${(p.stokSemua || 0) - p.stok ? `<button class="link-btn" type="button" data-act="stok-rinci" data-k="${esc(p.kode)}" title="Rincian per cabang">${(p.stokSemua || 0) - p.stok}</button>` : '<span class="muted">–</span>'}</td>` : ''}</tr>`).join('') || '<tr><td colspan="9" class="empty">Tidak ada part yang cocok.</td></tr>'}</tbody></table></div>
-   <p class="small muted" style="margin:0">${r.length.toLocaleString('id-ID')} part${r.length > MAX_ROWS ? ` (ditampilkan ${MAX_ROWS} pertama, persempit pencarian)` : ''} · nilai stok (harga beli) ${rp(nilai)} · klik baris untuk ubah</p>`;
+  // Urutkan
+  const pesan = {};
+  S.wo.filter(w => AKTIF.includes(w.status)).forEach(w => (w.parts || []).forEach(x => { pesan[x.kode] = (pesan[x.kode] || 0) + (+x.qty || 0); }));
+  const nilaiKolom = { kode: p => p.kode, nama: p => p.nama || '', kategori: p => p.kategori || '', rak: p => p.rak || '', beli: p => +p.beli || 0, jual: p => +p.jual || 0, stok: p => +p.stok || 0, ready: p => (+p.stok || 0) - (pesan[p.kode] || 0), lain: p => (p.stokSemua || 0) - (p.stok || 0) };
+  const { k: uk, arah } = st.stokUrut, f = nilaiKolom[uk] || nilaiKolom.kode;
+  r.sort((a, b) => { const x = f(a), y = f(b); const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'id', { numeric: true }); return (c || String(a.kode).localeCompare(String(b.kode))) * arah; });
+  const shown = r.slice(0, st.stokN);
+  $('#s-tbl').innerHTML = tiles + `<div class="tw"><table class="tbl-urut"><thead><tr>${judulKolom(multi)}</tr></thead><tbody>${shown.map(p => `<tr class="row-click" tabindex="0" data-act="part-edit" data-k="${esc(p.kode)}"><td class="mono">${esc(p.kode)}${p.abc ? ` <span class="small muted">${esc(p.abc)}</span>` : ''}</td><td>${esc(p.nama)}${p.pengganti ? `<br><span class="small muted">Pengganti: <span class="mono">${esc(p.pengganti)}</span></span>` : ''}${p.cocok ? `<br><span class="small muted">${esc(p.cocok)}</span>` : ''}</td><td class="small">${esc(p.kategori)}</td><td class="mono">${esc(p.rak || '')}</td><td class="r num">${rp(p.beli)}</td><td class="r num">${rp(p.jual)}</td><td class="r"><span class="pill ${p.stok <= 0 ? 'p-bad' : p.min > 0 && p.stok <= p.min ? 'p-warn' : 'p-good'}">${p.stok}</span></td><td class="r num">${(() => { const d = pesan[p.kode] || 0, r = p.stok - d; return d ? `<b>${r}</b><div class="rw-det">${d} dipesan</div>` : r; })()}</td>${multi ? `<td class="r num">${(p.stokSemua || 0) - p.stok ? `<button class="link-btn" type="button" data-act="stok-rinci" data-k="${esc(p.kode)}" title="Rincian per cabang">${(p.stokSemua || 0) - p.stok}</button>` : '<span class="muted">–</span>'}</td>` : ''}</tr>`).join('') || '<tr><td colspan="9" class="empty">Tidak ada part yang cocok.</td></tr>'}</tbody></table></div>
+   <div class="row spread"><p class="small muted" style="margin:0">${r.length > shown.length ? `Ditampilkan ${shown.length.toLocaleString('id-ID')} dari ` : ''}${r.length.toLocaleString('id-ID')} part · klik judul kolom untuk mengurutkan · klik baris untuk ubah</p>
+   ${r.length > shown.length ? `<span class="row"><button class="btn sm" type="button" data-act="stok-lagi">Tampilkan ${Math.min(MAX_ROWS, r.length - shown.length).toLocaleString('id-ID')} lagi</button><button class="btn sm ghost" type="button" data-act="stok-semua">Tampilkan semua</button></span>` : ''}</div>`;
 }
 
 function renderSPanel() {
@@ -174,6 +199,12 @@ views.stok = renderStok;
 refreshers.stok = renderSTbl;
 fkeys.stok = { baru: 'part-new', simpan: () => st.partEdit ? 'part-save' : null };
 Object.assign(actions, {
+  'stok-urut': el => { const k = el.dataset.k, u = st.stokUrut, angka = KOLOM.find(x => x[0] === k)?.[2];
+    st.stokUrut = u.k === k ? { k, arah: -u.arah } : { k, arah: angka ? -1 : 1 };
+    try { localStorage.setItem('amu-stok-urut', JSON.stringify(st.stokUrut)); } catch (e) { /* abaikan */ }
+    renderSTbl(); document.querySelector(`[data-act="stok-urut"][data-k="${k}"]`)?.focus(); },
+  'stok-lagi': () => { st.stokN += MAX_ROWS; renderSTbl(); },
+  'stok-semua': () => { st.stokN = Infinity; renderSTbl(); },
   'part-new': () => { st.partEdit = { mode: 'new', data: { kode: '', nama: '', kategori: '', cocok: '', rak: '', beli: 0, jual: 0, stok: 0, min: 0 } }; renderSPanel(); $('#p-kode').focus(); },
   'part-edit': el => { st.partEdit = { mode: 'edit', data: { ...part(el.dataset.k) } }; renderSPanel(); $('#s-panel').scrollIntoView({ block: 'nearest' }); $('#p-nama').focus(); },
   'go-pembelian': () => go('pembelian'),
@@ -186,9 +217,10 @@ Object.assign(actions, {
   'tf-terima': tfTerima,
   'go-opname': () => go('opname')
 });
-inputHandlers.push(e => { if (e.target.id === 's-q') { st.stokQ = e.target.value; renderSTbl(); } });
+inputHandlers.push(e => { if (e.target.id === 's-q') { st.stokQ = e.target.value; st.stokN = MAX_ROWS; renderSTbl(); } });
 changeHandlers.push(e => {
   const t = e.target;
   if (t.id === 's-kat') { st.stokKat = t.value; renderSTbl(); }
   if (t.id === 's-low') { st.stokLow = t.checked; renderSTbl(); }
+  if (t.id === 's-ada') { st.stokAda = t.value; st.stokN = MAX_ROWS; renderSTbl(); }
 });
