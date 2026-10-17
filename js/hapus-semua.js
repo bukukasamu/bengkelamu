@@ -2,6 +2,7 @@
 // Menghapus SEMUA data aplikasi: cabang, karyawan & login PIN, konsumen, kendaraan, part, nota, WO, absensi, gaji,
 // pengaturan, logo, dll. Yang tersisa hanya akun super admin. Wajib: baca peringatan, ketik kalimat konfirmasi,
 // lalu kata sandi super admin.
+import { izinkanKeluar } from './keluar.js';
 import { $, esc, stamp, toast, errMsg, modal, closeModal } from './util.js';
 import { st } from './state.js';
 import { db, auth, collection, getDocs, query, limit, writeBatch, doc, setDoc, signOut } from './firebase.js';
@@ -65,6 +66,6 @@ async function jalankan() {
     <p style="margin:0">${total.toLocaleString('id-ID')} data dihapus.${gagal.length ? ` Gagal: ${esc(gagal.join(', '))}. Pastikan firestore.rules terbaru sudah dipublish, lalu ulangi.` : ''}</p>
     <div class="note small">Akun login karyawan (PIN) sudah tidak bisa dipakai karena data karyawannya terhapus. Untuk membersihkan akunnya juga, buka Firebase Console → <b>Authentication → Users</b>, lalu hapus semua pengguna <b>kecuali cashflow.amu@gmail.com</b>.</div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" id="hs-selesai">Keluar &amp; muat ulang</button></div>`;
-  $('#hs-selesai').onclick = async () => { closeModal(); try { await signOut(auth); } catch (e) {} location.reload(); };
+  $('#hs-selesai').onclick = async () => { closeModal(); try { await signOut(auth); } catch (e) {} izinkanKeluar(); location.reload(); };
   toast(gagal.length ? 'Sebagian data gagal dihapus' : 'Semua data dihapus');
 }

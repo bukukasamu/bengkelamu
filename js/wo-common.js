@@ -79,7 +79,7 @@ export function woHeader(w) {
 
 export function partsTable(w, removeAct) {
   if (!(w.parts || []).length) return '<div class="small muted">Belum ada order sparepart.</div>';
-  return `<div class="tw"><table><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Stok</th><th class="r">Jumlah</th>${removeAct ? '<th></th>' : ''}</tr></thead><tbody>${w.parts.map((x, i) => {
+  return `<div class="tw"><table class="bernomor"><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Stok</th><th class="r">Jumlah</th>${removeAct ? '<th></th>' : ''}</tr></thead><tbody>${w.parts.map((x, i) => {
     const p = part(x.kode) || { nama: x.kode + ' (tidak ada di master)', jual: 0, stok: 0 };
     return `<tr><td>${esc(p.nama)}<br><span class="small muted mono">${esc(x.kode)}</span></td><td class="r num">${x.qty}</td><td class="r">${p.stok < x.qty ? `<span class="pill p-bad">${p.stok}</span>` : `<span class="num">${p.stok}</span>`}</td><td class="r num">${rp(p.jual * x.qty)}</td>${removeAct ? `<td><button class="btn sm ghost" type="button" data-act="${removeAct}" data-i="${i}" aria-label="Hapus">✕</button></td>` : ''}</tr>`;
   }).join('')}</tbody></table></div>`;

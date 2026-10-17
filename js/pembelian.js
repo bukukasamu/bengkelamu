@@ -79,7 +79,7 @@ function renderForm() {
 
 function renderItems() {
   const p = st.pbDraft, lock = p.status === 'Diterima';
-  $('#pb-items').innerHTML = p.items.length ? `<div class="tw"><table><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Harga beli</th><th class="r">Subtotal</th>${lock ? '' : '<th></th>'}</tr></thead><tbody>${p.items.map((x, i) => `<tr><td>${esc(x.nama)}<br><span class="small muted mono">${esc(x.kode)}</span></td>
+  $('#pb-items').innerHTML = p.items.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Harga beli</th><th class="r">Subtotal</th>${lock ? '' : '<th></th>'}</tr></thead><tbody>${p.items.map((x, i) => `<tr><td>${esc(x.nama)}<br><span class="small muted mono">${esc(x.kode)}</span></td>
     <td class="r">${lock ? `<span class="num">${x.qty}</span>` : `<input class="inline-input num" type="number" min="1" id="pi-q${i}" data-pi="${i}" data-pf="qty" value="${x.qty}" style="width:70px;text-align:right" aria-label="Qty">`}</td>
     <td class="r">${lock ? `<span class="num">${rp(x.harga)}</span>` : `<input class="inline-input num" type="number" min="0" id="pi-h${i}" data-pi="${i}" data-pf="harga" value="${x.harga}" style="width:110px;text-align:right" aria-label="Harga beli">`}</td>
     <td class="r num" id="pi-s${i}">${rp(x.qty * x.harga)}</td>${lock ? '' : `<td><button class="btn sm ghost" type="button" data-act="pb-rm" data-i="${i}" aria-label="Hapus">✕</button></td>`}</tr>`).join('')}</tbody></table></div>` : '<div class="empty" style="border:1px dashed var(--line);border-radius:6px">Belum ada barang.</div>';
@@ -137,7 +137,7 @@ function preview() {
   }).join('');
   modal(`<div class="row spread"><h2>Cek sebelum masuk stok</h2><button class="btn sm ghost" type="button" data-close="1" aria-label="Tutup">✕</button></div>
    <div class="note small"><b>${esc(p.supplier)}</b> · Invoice <span class="mono">${esc(p.noInvoice)}</span> · ${fmtTgl(p.tglInvoice)} · ${p.statusBayar === 'Lunas' ? 'Lunas' : 'Belum lunas' + (p.jatuhTempo ? ', jatuh tempo ' + fmtTgl(p.jatuhTempo) : '')}</div>
-   <div class="tw"><table><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Harga</th><th class="r">Subtotal</th><th class="r">Stok</th><th class="r">Harga beli rata-rata</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="tw"><table class="bernomor"><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Harga</th><th class="r">Subtotal</th><th class="r">Stok</th><th class="r">Harga beli rata-rata</th></tr></thead><tbody>${rows}</tbody></table></div>
    <div class="totals"><span class="muted">Jumlah barang</span><span class="num">${p.items.length} jenis · ${qtyOf(p.items)} pcs</span><span style="font-weight:600">Total pembelian</span><span class="big num">${rp(t)}</span>${inv ? `<span class="muted">Total di invoice</span><span class="num">${rp(inv)}</span><span class="muted">Selisih</span><span class="${sel ? 'diff-bad' : 'diff-ok'} num">${sel ? (sel > 0 ? '+' : '−') + rp(Math.abs(sel)) : 'Cocok'}</span>` : ''}</div>
    ${sel ? '<div class="err">Total tidak sama dengan invoice. Periksa lagi qty dan harga sebelum menerima barang.</div>' : ''}
    <label class="row small" for="pb-cek" style="gap:8px;cursor:pointer"><input type="checkbox" id="pb-cek" style="width:auto">Barang sudah dicek fisik dan sesuai dengan pesanan</label>

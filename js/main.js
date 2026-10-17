@@ -3,7 +3,7 @@ import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal
 import './cari-pilihan.js';   // pilihan panjang: daftar baru muncul setelah mengetik
 import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from './firebase.js';
 import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
-import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal } from './state.js';
+import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal, viewSebelum } from './state.js';
 import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
 import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
 import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
@@ -35,6 +35,7 @@ import './stok.js';
 import './pembelian.js';
 import './master.js';
 import './import-excel.js';
+import { pasangPenjaga, konfirmasiLogout } from './keluar.js';
 
 document.querySelectorAll('.app-ver').forEach(e => { e.textContent = 'versi ' + APP_VERSION; });
 document.querySelectorAll('.app-name').forEach(e => { e.textContent = APP_NAME.toUpperCase(); });
@@ -121,7 +122,7 @@ $('#login-form').addEventListener('submit', async e => {
     showLogin(m[err.code] || err.message); (emailMode ? $('#login-pass') : $('#login-pin')).focus();
   }
 });
-$('#logout').addEventListener('click', () => signOut(auth));
+$('#logout').addEventListener('click', async () => { if (await konfirmasiLogout()) { viewSebelum.length = 0; signOut(auth); } });
 
 // Ganti PIN sendiri
 $('#ganti-pin').addEventListener('click', () => {
@@ -199,7 +200,7 @@ function subscribe() {
   if (can('pembelian')) need.push('pembelian');
   const mark = k => {
     ready[k] = true;
-    if (need.every(n => ready[n])) { if (!st.loaded) { st.loaded = true; seedMaster(); go(st.view); cekAbsenTertunda(); } else refresh(); }
+    if (need.every(n => ready[n])) { if (!st.loaded) { st.loaded = true; seedMaster(); go(st.view); cekAbsenTertunda(); pasangPenjaga(); } else refresh(); }
   };
   const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, fail));
   sub(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
