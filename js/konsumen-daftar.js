@@ -9,7 +9,7 @@ import { nopolKey } from './cari-kendaraan.js';
 import { cabangList, namaCabang, multiCabang, cabangOf, cabAktif } from './cabang.js';
 import { ambilTrx } from './data-trx.js';
 import { loaderHTML } from './brand.js';
-import { loadXLSX } from './import-excel.js';
+import { loadXLSX, filterOtomatis } from './import-excel.js';
 import { lengkapiCabangPendaftar } from './konsumen-data.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -123,7 +123,7 @@ function hasilHTML() {
 async function keExcel() {
   try {
     const X = await loadXLSX(), rows = baris().map((r, i) => ({ no: i + 1, nama: r.nama, ...(super_() ? { nik: r.nik } : {}), no_hp: r.hp, alamat: r.alamat, kecamatan: r.kecamatan, kabupaten_kota: r.kabupaten, no_polisi: r.nopol, motor: r.tipe, ...(D.bentuk === 'motor' ? { no_rangka: r.noRangka, no_mesin: r.noMesin } : { jumlah_motor: r.jumlahMotor }), ...(multiCabang() ? { cabang_daftar: r.cabang } : {}), terdaftar: r.terdaftar, servis_terakhir: r.servisTerakhir, ...(D.isi === 'servis' ? { jumlah_servis: r.nServis, total_servis: r.totalServis } : {}) }));
-    const wb = X.utils.book_new(), ws = X.utils.json_to_sheet(rows);
+    const wb = X.utils.book_new(), ws = X.utils.json_to_sheet(rows); filterOtomatis(X, ws, rows.length);
     X.utils.sheet_add_aoa(ws, [[judul() + ' · dicetak ' + new Date().toLocaleString('id-ID') + ' oleh ' + namaPetugas()]], { origin: { r: rows.length + 2, c: 0 } });
     X.utils.book_append_sheet(wb, ws, 'Konsumen'); X.writeFile(wb, `daftar-konsumen-${dkey(new Date())}.xlsx`);
   } catch (e) { toast('Gagal export: ' + e.message); }

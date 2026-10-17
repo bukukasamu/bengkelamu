@@ -1,8 +1,9 @@
 // Import / export data part dari & ke Excel (SheetJS dimuat hanya saat dibutuhkan).
 import { $, esc, rp, dkey, stamp, toast, modal, closeModal, errMsg } from './util.js';
-import { S, st, namaPetugas, actions, changeHandlers } from './state.js';
+import { S, st, namaPetugas, actions, changeHandlers, isRole } from './state.js';
 import { db, doc, collection, writeBatch, addDoc } from './firebase.js';
-import { CABANG_UTAMA, cabAktif, stokSet } from './cabang.js';
+import { CABANG_UTAMA, cabAktif, stokSet, cabangList, namaCabang, multiCabang, cabangOf } from './cabang.js';
+import { AKTIF } from './wo-common.js';
 import { parseSheet, planImport, LABEL } from './excel-parser.js';
 import { mintaPassword } from './otorisasi.js';
 
@@ -33,6 +34,14 @@ export function beriKotak(X, ws) {
     lebar[C - r.s.c] = Math.max(lebar[C - r.s.c] || 0, Math.min(50, pj + 2));
   }
   ws['!cols'] = lebar.map(w => ({ wch: Math.max(8, w) }));
+  return ws;
+}
+// Tombol filter (panah) di baris judul kolom: Excel bisa langsung menyaring per cabang, kategori, dll.
+// nBaris = jumlah baris data (tanpa judul); baris catatan di bawah tabel tidak ikut disaring.
+export function filterOtomatis(X, ws, nBaris) {
+  if (!ws || !ws['!ref']) return ws;
+  const r = X.utils.decode_range(ws['!ref']);
+  ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: r.s.r, c: r.s.c }, e: { r: r.s.r + Math.max(1, nBaris ?? (r.e.r - r.s.r)), c: r.e.c } }) };
   return ws;
 }
 export async function loadXLSX() {
@@ -73,8 +82,15 @@ async function readFile(file) {
   try {
     const X = await loadXLSXBaca();
     const wb = X.read(await file.arrayBuffer(), { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
+    // File hasil export stok berisi beberapa sheet: pakai sheet bernama cabang yang sedang dibuka bila ada
+    const nmCab = namaSheet(namaCabang(cabAktif()), new Set()).toLowerCase();
+    const hasilExport = wb.SheetNames.some(n => /^(semua cabang|total per cabang)$/i.test(n));
+    const nmSheet = wb.SheetNames.find(n => n.toLowerCase() === nmCab) || (hasilExport ? null : wb.SheetNames[0]);
+    if (!nmSheet) { $('#imp-body').innerHTML = `<div class="err">File ini tidak punya sheet untuk cabang <b>${esc(namaCabang(cabAktif()))}</b>. Pindah ke cabang yang sesuai dulu, atau ganti nama sheet menjadi nama cabang ini.</div>`; return; }
+    const ws = wb.Sheets[nmSheet];
     const rows = X.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+    if ((rows[0] || []).some(h => String(h ?? '').trim().toLowerCase() === 'cabang')) { $('#imp-body').innerHTML = '<div class="err">Sheet ini berisi stok beberapa cabang sekaligus, jadi tidak bisa di-import. Pakai sheet satu cabang (nama sheet = nama cabang).</div>'; return; }
+    if (wb.SheetNames.length > 1) fileName = file.name + ' · sheet ' + nmSheet;
     const r = parseSheet(rows);
     if (r.error) { $('#imp-body').innerHTML = `<div class="err">${esc(r.error)}</div>`; return; }
     parsed = r; renderPreview();
@@ -148,15 +164,56 @@ async function downloadTemplate() {
   } catch (e) { toast('Gagal membuat template: ' + e.message); }
 }
 
+/* Export stok: satu file berisi
+   1. "Semua cabang" — satu baris per part per cabang, ada kolom Cabang + tombol filter → saring per cabang atau lihat semua
+   2. "Total per cabang" — satu baris per part, kolom stok tiap cabang + total
+   3. satu sheet per cabang (judul kolom sama dengan template, jadi bisa di-import kembali ke cabang itu) */
+const namaSheet = (n, pakai) => { let b = String(n).replace(/[\\/?*[\]:]/g, ' ').slice(0, 28) || 'Cabang', x = b, i = 2; while (pakai.has(x.toLowerCase())) x = b.slice(0, 25) + ' ' + i++; pakai.add(x.toLowerCase()); return x; };
 async function exportParts() {
   if (!S.parts.length) { toast('Belum ada data part'); return; }
   try {
-    const X = await loadXLSX();
-    const rows = S.parts.map(p => ({ kode: p.kode, nama: p.nama, kategori: p.kategori || '', cocok: p.cocok || '', rak: p.rak || '', harga_beli: p.beli || 0, harga_jual: p.jual || 0, stok: p.stok || 0, stok_min: p.min || 0, pengganti: p.pengganti || '', abc: p.abc || '' }));
-    const ws = X.utils.json_to_sheet(rows);
-    ws['!cols'] = [14, 40, 20, 18, 6, 11, 11, 7, 9, 14, 5].map(w => ({ wch: w }));
-    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, 'Stok');
-    X.writeFile(wb, `stok-part-AMU-${dkey(new Date())}.xlsx`);
+    const X = await loadXLSX(), wb = X.utils.book_new(), admin = isRole('admin');
+    const cabs = cabangList(), multi = multiCabang();
+    const stokDi = (p, c) => +((p.stokCab || { [cabAktif()]: p.stok })[c] || 0);
+    // Part yang sudah dipesan servis belum dibayar, per cabang (cabang lain hanya diketahui admin)
+    const pesan = {};
+    (admin && S.woSemua?.length ? S.woSemua : S.wo).filter(w => AKTIF.includes(w.status)).forEach(w => {
+      const c = cabangOf(w); if (!admin && c !== cabAktif()) return;
+      (w.parts || []).forEach(x => { const m = pesan[c] || (pesan[c] = {}); m[x.kode] = (m[x.kode] || 0) + (+x.qty || 0); });
+    });
+    const tahuPesan = c => admin || c === cabAktif();
+    const parts = [...S.parts].sort((a, b) => String(a.kode).localeCompare(String(b.kode)));
+    const dasar = p => ({ kode: p.kode, nama: p.nama, kategori: p.kategori || '', cocok: p.cocok || '', rak: p.rak || '', harga_beli: p.beli || 0, harga_jual: p.jual || 0 });
+    const satuCabang = (p, c) => { const stok = stokDi(p, c), d = tahuPesan(c) ? (pesan[c]?.[p.kode] || 0) : ''; return { stok, dipesan: d, ready: d === '' ? '' : stok - d }; };
+    const catatan = (ws, n, teks) => X.utils.sheet_add_aoa(ws, [[teks]], { origin: { r: n + 2, c: 1 } }); // kolom B: kolom kode kosong → baris ini dilewati saat import
+    const ket = 'Dicetak ' + new Date().toLocaleString('id-ID') + ' oleh ' + namaPetugas() + '. Ready = stok dikurangi part yang sudah dipesan untuk servis yang belum dibayar' + (admin ? '.' : ' (cabang lain: hanya admin yang melihat pesanan servisnya).');
+    const pakai = new Set();
+    if (multi) {
+      // 1. Semua cabang (format panjang, untuk filter)
+      const rows = [];
+      cabs.forEach(c => parts.forEach(p => { const s = satuCabang(p, c.id), b = dasar(p);
+        rows.push({ Cabang: c.nama, Kode: b.kode, 'Nama part': b.nama, Kategori: b.kategori, 'Cocok untuk': b.cocok, Rak: b.rak, 'Harga beli': b.harga_beli, 'Harga jual': b.harga_jual, Stok: s.stok, 'Dipesan servis': s.dipesan, Ready: s.ready, 'Stok min': p.min || 0, 'Nilai stok (harga beli)': s.stok * (p.beli || 0), 'Nilai stok (harga jual)': s.stok * (p.jual || 0), Pengganti: p.pengganti || '', ABC: p.abc || '' }); }));
+      const ws = X.utils.json_to_sheet(rows); filterOtomatis(X, ws, rows.length);
+      catatan(ws, rows.length, 'Pakai tombol panah di judul kolom "Cabang" untuk melihat satu cabang atau semua. ' + ket);
+      X.utils.book_append_sheet(wb, ws, namaSheet('Semua cabang', pakai));
+      // 2. Total per cabang (format lebar)
+      const rows2 = parts.map(p => { const b = dasar(p), o = { Kode: b.kode, 'Nama part': b.nama, Kategori: b.kategori, 'Harga beli': b.harga_beli, 'Harga jual': b.harga_jual }; let t = 0;
+        cabs.forEach(c => { const n = stokDi(p, c.id); o['Stok ' + c.nama] = n; t += n; }); o['Total semua cabang'] = t; o['Nilai total (harga beli)'] = t * (p.beli || 0); return o; });
+      const ws2 = X.utils.json_to_sheet(rows2); filterOtomatis(X, ws2, rows2.length);
+      const jumlah = { Kode: 'TOTAL', 'Nama part': '', Kategori: '', 'Harga beli': '', 'Harga jual': '' };
+      [...cabs.map(c => 'Stok ' + c.nama), 'Total semua cabang', 'Nilai total (harga beli)'].forEach(k => { jumlah[k] = rows2.reduce((a, r) => a + (+r[k] || 0), 0); });
+      X.utils.sheet_add_json(ws2, [jumlah], { origin: { r: rows2.length + 1, c: 0 }, skipHeader: true });
+      X.utils.book_append_sheet(wb, ws2, namaSheet('Total per cabang', pakai));
+    }
+    // 3. Satu sheet per cabang (cabang yang sedang dibuka paling depan)
+    const urut = multi ? [...cabs.filter(c => c.id === cabAktif()), ...cabs.filter(c => c.id !== cabAktif())] : [{ id: cabAktif(), nama: namaCabang(cabAktif()) }];
+    urut.forEach(c => {
+      const rows = parts.map(p => { const s = satuCabang(p, c.id); return { ...dasar(p), stok: s.stok, dipesan_servis: s.dipesan, ready: s.ready, stok_min: p.min || 0, pengganti: p.pengganti || '', abc: p.abc || '' }; });
+      const ws = X.utils.json_to_sheet(rows); filterOtomatis(X, ws, rows.length);
+      catatan(ws, rows.length, 'Stok cabang ' + c.nama + '. ' + ket);
+      X.utils.book_append_sheet(wb, ws, namaSheet(c.nama, pakai));
+    });
+    X.writeFile(wb, `stok-part-AMU-${multi ? 'semua-cabang' : namaCabang(cabAktif()).replace(/\s+/g, '_')}-${dkey(new Date())}.xlsx`);
   } catch (e) { toast('Gagal export: ' + e.message); }
 }
 
