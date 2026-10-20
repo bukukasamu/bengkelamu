@@ -42,7 +42,7 @@ function render() {
   const c = p[0];
   $('#call-no').textContent = c ? (c.a || '–') : '–';
   $('#call-np').textContent = c ? c.nopol : 'Belum ada panggilan';
-  $('#call-ke').textContent = c ? 'Silakan ke ' + (c.ke || 'KASIR') : '';
+  $('#call-ke').textContent = c ? 'Silakan ke ' + (c.ke || 'REGISTER') : '';
   $('#tv-call').classList.toggle('kosong', !c);
   $('#tv-prev').hidden = p.length < 2;
   $('#prev-list').innerHTML = p.slice(1, 4).map(x => `<span><b>${esc(x.a || '–')}</b> ${esc(x.nopol)}</span>`).join('');
@@ -85,7 +85,7 @@ function pilihSuara() {
 }
 // "BL 4521 AB" dibaca per huruf/angka: "B L, 4 5 2 1, A B"
 const eja = np => String(np || '').trim().split(/\s+/).map(g => g.split('').join(' ')).join(', ');
-const kalimat = p => `Nomor antrian, ${p.a ? parseInt(p.a, 10) : ''}. ${eja(p.nopol)}. Silakan ke ${(p.ke || 'kasir').toLowerCase()}.`;
+const kalimat = p => `Nomor antrian, ${p.a ? parseInt(p.a, 10) : ''}. ${eja(p.nopol)}. Silakan ke ${(p.ke || 'REGISTER').toLowerCase()}.`;
 function ucap(teks) {
   return new Promise(res => {
     if (!suaraId || !window.speechSynthesis) return res();
@@ -101,7 +101,7 @@ async function umumkan() {
     const p = antre.shift();
     $('#pop-no').textContent = p.a || '';
     $('#pop-np').textContent = p.nopol;
-    $('#pop-ke').textContent = 'Silakan ke ' + (p.ke || 'KASIR');
+    $('#pop-ke').textContent = 'Silakan ke ' + (p.ke || 'REGISTER');
     $('#tv-pop').hidden = false; $('#tv-call').classList.add('baru');
     await bel(); await ucap(kalimat(p)); await tunggu(600); await ucap(kalimat(p));
     await tunggu(suaraId ? 2500 : 7000);

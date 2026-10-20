@@ -1,5 +1,5 @@
 // Fungsi bersama untuk work order (WO) servis: hitung biaya, tampilan ringkas, simpan.
-import { esc, rp, clone, stamp, waButton, waNumber, toast } from './util.js';
+import { esc, rp, clone, stamp, waButton, waNumber, toast, konfirmasi, errMsg } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, part, mekanikById, namaPetugas, idPetugas, can } from './state.js';
 import { db, doc, getDoc, getDocs, setDoc, deleteDoc, runTransaction, updateDoc, collection, query, where } from './firebase.js';
@@ -44,7 +44,7 @@ export function dipesan(kode, kecualiNo) {
 export const mekanikNama = w => (w.mekanikId && mekanikById(w.mekanikId)?.nama) || w.mekanik || '';
 
 // Mekanik hanya mengerjakan 1 motor. Sibuk = punya WO berstatus Dikerjakan.
-// Mekanik bebas lagi setelah kasir menandai motornya Selesai atau Ditunda (lanjut lama).
+// Mekanik bebas lagi setelah laporan status diterima Register: Selesai atau Ditunda (lanjut lama).
 export function sibukMap() {
   const m = {};
   S.wo.filter(w => w.status === 'Dikerjakan' && (w.mekanikId || w.mekanik)).forEach(w => { m[w.mekanikId || w.mekanik] = w; });
@@ -106,6 +106,28 @@ export async function saveWo(w) {
 // aktif = masih di bengkel; dipakai untuk memuat WO aktif per cabang tanpa indeks tambahan
 export const updateWo = (no, patch) => updateDoc(doc(db, 'wo', no), clone('status' in patch ? { ...patch, aktif: AKTIF.includes(patch.status) } : patch));
 export const findWo = no => S.wo.find(x => x.no === no);
+// Laporan mekanik diterima melalui alur Register, bukan menu Kasir.
+export async function laporStatus(no, status, alasan = '') {
+  const w = findWo(no), mek = mekanikNama(w);
+  if (!w || !['Dikerjakan', 'Ditunda'].includes(w.status)) return false;
+  if (status === 'Ditunda' && (w.status !== 'Dikerjakan' || alasan.trim().length < 3)) { toast('Tulis alasan ditunda (mis. tunggu part, konsumen ambil besok)'); return false; }
+  const ok = await konfirmasi(status === 'Selesai' ? `Tandai ${w.nopol} selesai?` : `Tunda pengerjaan ${w.nopol}?`,
+    status === 'Selesai'
+      ? `Laporan diteruskan ke <b>Register</b>. Mekanik <b>${esc(mek || '–')}</b> menjadi kosong, nomor antrian <b>${esc(fmtAntri(w.antrian) || w.nopol)}</b> dipanggil ke REGISTER di layar TV.`
+      : `Alasan: <b>${esc(alasan.trim())}</b><br>Laporan diteruskan ke <b>Register</b>. Mekanik <b>${esc(mek || '–')}</b> menjadi kosong.`,
+    { ya: status === 'Selesai' ? 'Ya, laporkan selesai' : 'Ya, tunda' });
+  if (!ok) return false;
+  const base = { log: logStatus(w.log, status, status === 'Ditunda' ? { a: alasan.trim(), m: mek } : { m: mek }), lapor: namaPetugas(), laporKe: 'registrasi' };
+  const patch = status === 'Selesai' ? { ...base, status: 'Selesai', selesai: stamp(new Date()) }
+    : { ...base, status: 'Ditunda', tglTunda: stamp(new Date()), alasanTunda: alasan.trim(), mekanikTunda: mek };
+  try {
+    await updateWo(w.no, patch); Object.assign(w, patch); syncPantau(w);
+    if (status === 'Selesai') await panggilLayar(w, 'REGISTER');
+    toast(`${w.nopol}: laporan ${status === 'Selesai' ? 'selesai' : 'ditunda'} diteruskan ke Register. Mekanik kosong.`);
+    return true;
+  } catch (e) { toast(errMsg(e)); return false; }
+}
+
 
 /* ---------- Catatan waktu servis ----------
    Setiap perubahan status disimpan di w.log = [{ s: status, t: 'YYYY-MM-DD HH:MM', o: petugas, a?: alasan, m?: mekanik, mid?: id mekanik }].
@@ -168,7 +190,7 @@ const ringkasWo = w => ({ no: w.no, cabang: namaCabang(cabangOf(w)), antrian: fm
   jasa: normJasa(w).map(j => j.nama), parts: (w.parts || []).map(x => ({ nama: part(x.kode)?.nama || x.kode, qty: x.qty })),
   biaya: (w.biaya || []).filter(b => b.jumlah).map(b => ({ ket: b.ket, jumlah: b.jumlah })), diskon: w.diskon || 0,
   estimasi: Math.max(0, woCalc(w).total - (w.diskon || 0)), alasanTunda: w.alasanTunda || '', tglTunda: w.tglTunda || '' });
-// Dipanggil setelah WO disimpan / status berubah / dibayar. Gagal di sini tidak membatalkan pekerjaan kasir.
+// Dipanggil setelah WO disimpan / laporan status berubah / dibayar. Gagal di sini tidak membatalkan pekerjaan operasional.
 export async function syncPantau(w, trx) {
   syncLayar(w);
   try {
@@ -271,8 +293,8 @@ export function syncLayar(terbaru, segera) {
   if (segera) return run();
   layarTimer = setTimeout(run, 700);
 }
-// Panggil nomor antrian ke layar TV (bunyi + suara). Dipanggil otomatis saat motor ditandai Selesai.
-export async function panggilLayar(w, ke = 'KASIR') {
+// Panggil nomor antrian ke layar TV (bunyi + suara). Dipanggil saat laporan selesai diterima Register.
+export async function panggilLayar(w, ke = 'REGISTER') {
   const ref = doc(db, 'publik', layarDocId(cabangOf(w)));
   const s = await getDoc(ref), lama = (s.exists() && s.data().panggil) || [];
   const p = { id: Date.now() + '-' + Math.random().toString(36).slice(2, 6), a: fmtAntri(w.antrian), nopol: w.nopol, tipe: w.tipe || '', ke, t: stamp(new Date()) };

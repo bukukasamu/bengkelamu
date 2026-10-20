@@ -372,7 +372,7 @@ async function renderLayar() {
    <ol class="small" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
     <li>Buka alamat ini di browser TV (Smart TV, Android TV box, atau laptop yang tersambung HDMI): <span class="mono">${esc(url)}</span></li>
     <li>Klik layar sekali untuk mengaktifkan suara panggilan dan layar penuh (aturan browser: suara baru boleh bunyi setelah ada klik).</li>
-    <li>Nomor dipanggil otomatis saat kasir menandai motor <b>Selesai</b>. Di menu Pembayaran ada tombol <b>Panggil ulang di layar</b>.</li>
+    <li>Nomor dipanggil otomatis saat laporan mekanik diterima <b>Register</b>. Di menu Pembayaran ada tombol <b>Panggil ulang di layar</b>.</li>
     <li>Suara memakai pembaca teks Bahasa Indonesia bawaan perangkat. Bila perangkat tidak punya, yang terdengar hanya bunyi bel.</li>
    </ol>`;
 }

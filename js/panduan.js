@@ -20,7 +20,7 @@ const P = {
     ['2. Isi data', '<b>Data konsumen</b> sesuai KTP, <b>data kendaraan</b> sesuai STNK, <b>KM saat ini</b>, keluhan, jenis servis (Reguler / KSB / KSG ke-1..4 + nomor kupon), dan jasa. Data lama yang diubah tercatat otomatis (siapa & kapan).'],
     ['3. Kilometer', 'Di samping kolom KM tertulis <b>KM terakhir</b> motor itu. KM baru <b>tidak boleh lebih kecil</b>; aplikasi menolak menyimpan. Bila speedometer memang diganti/direset, minta <b>admin</b> menyimpan (admin wajib menulis keterangan).'],
     ['4. Pilih mekanik', 'Pilih mekanik yang <b>kosong</b> (yang sedang mengerjakan motor lain tidak bisa dipilih). Belum ada yang kosong? Biarkan kosong → status <b>Antri</b>.'],
-    ['5. Daftarkan', '<kbd>F2</kbd> → nomor antrian keluar (bisa dicetak / dikirim WA). Status: <b>Antri</b> (belum ada mekanik) → <b>Dikerjakan</b> → <b>Selesai</b> (dilaporkan ke kasir) → <b>Lunas</b>.'],
+    ['5. Daftarkan', '<kbd>F2</kbd> → nomor antrian keluar (bisa dicetak / dikirim WA). Status: <b>Antri</b> (belum ada mekanik) → <b>Dikerjakan</b> → <b>Selesai</b> (dilaporkan ke Register) → <b>Lunas</b>.'],
     ['6. Saat ramai: nomor cepat', 'Tombol <b>Nomor cepat (cukup nopol)</b> langsung memberi nomor antrian. Motor bertanda <b>Data belum lengkap</b>; lengkapi datanya sebelum dibayar (kasir tidak bisa menerima pembayaran sebelum lengkap).'],
     ['7. Memantau antrian', 'Tab <b>Aktif / Hari ini / Ditunda / Semua</b> di kiri. Registrasi yang memantau: begitu ada mekanik kosong, buka motor <b>Antri</b> paling awal → pilih mekanik → <kbd>F2</kbd>.'],
     ['8. Motor ditunda', 'Kasir menandai <b>Lanjut lama (tunda)</b> dengan alasan (mis. tunggu part). Alasannya terlihat di tab <b>Ditunda</b> dan oleh konsumen. Untuk melanjutkan: buka motornya → pilih mekanik kosong (boleh sama atau mekanik lain) → <b>▶ Lanjutkan dikerjakan</b> → konfirmasi. Lama kerja tiap mekanik tercatat terpisah.'],
@@ -42,7 +42,7 @@ const P = {
     ['6. Stok opname', 'Menu <b>Stok Opname</b> → buat → isi jumlah fisik tiap part (tersimpan otomatis) → <b>Ajukan</b>. Stok baru disesuaikan setelah disetujui super admin.']
   ] },
   kasir: { judul: 'Kasir', ringkas: 'Status servis dari mekanik, pembayaran, penjualan part, kas harian, klaim KSG.', bagian: [
-    ['1. Laporan mekanik', 'Menu <b>Pembayaran & Status Servis</b>. Mekanik melapor ke kasir: <b>Motor selesai</b> → nomor antrian otomatis dipanggil di layar TV; atau <b>Lanjut lama (tunda)</b> → <b>alasan wajib diisi</b> (mis. tunggu part, konsumen ambil besok). Keduanya membuat mekanik kosong lagi.'],
+    ['1. Laporan mekanik', 'Menu <b>Pembayaran & Status Servis</b>. Mekanik melapor ke Register: <b>Motor selesai</b> → nomor antrian otomatis dipanggil di layar TV; atau <b>Lanjut lama (tunda)</b> → <b>alasan wajib diisi</b> (mis. tunggu part, konsumen ambil besok). Keduanya membuat mekanik kosong lagi.'],
     ['2. Terima pembayaran servis', 'Pilih motor <b>Selesai</b> → periksa jasa & sparepart → tambah <b>biaya lain</b> / diskon bila ada → isi <b>cash / transfer</b> (pilih rekening) → <kbd>F2</kbd> → periksa total & kembalian di kotak konfirmasi → nota keluar (cetak / PDF / WA). Stok part terpotong dan jadwal ganti oli dihitung otomatis.'],
     ['Cek stok', 'Menu <b>Cek Stok</b>: ketik part → stok, sudah dipesan servis, <b>ready</b>, dan stok cabang lain. Stok kurang saat menjual → muncul pilihan <b>Minta kirim</b> dari cabang lain.'],
     ['3. Penjualan sparepart langsung', 'Menu <b>Penjualan Sparepart</b> → <kbd>F3</kbd> cari/scan part → keranjang → nama pelanggan (opsional) → pembayaran → <kbd>F2</kbd> → konfirmasi → nota.'],
@@ -51,10 +51,10 @@ const P = {
     ['6. Klaim KSG', 'Menu <b>Klaim KSG</b>: centang nota KSG bulan itu → <b>Ajukan</b> ke main dealer. Saat uang klaim diterima → <b>Dibayar</b> (jumlah & tanggal).'],
     ['7. Pengingat servis', 'Kasir juga bisa membuka <b>Pengingat Servis</b> untuk mengirim WA pengingat ganti oli (lihat panduan Registrasi no. 10).']
   ] },
-  mekanik: { judul: 'Mekanik', ringkas: 'Mengerjakan motor yang diberikan registrasi, melapor ke kasir, melihat performa & penghasilan.', bagian: [
+  mekanik: { judul: 'Mekanik', ringkas: 'Mengerjakan motor yang diberikan registrasi, melapor ke Register, melihat performa & penghasilan.', bagian: [
     ['1. Menerima motor', 'Registrasi memilihkan motor untuk Anda. Satu mekanik mengerjakan <b>satu motor</b> sampai dilaporkan selesai atau ditunda. Lihat motor Anda di <b>Performa Mekanik → Pekerjaan saat ini</b>.'],
     ['2. Butuh sparepart', 'Sampaikan kebutuhan part ke bagian sparepart; mereka mengisi <b>Order Sparepart</b> untuk motor Anda.'],
-    ['3. Selesai atau ditunda', 'Lapor ke <b>kasir</b>: motor <b>selesai</b>, atau harus <b>ditunda</b> (sebutkan alasannya: tunggu part, perlu izin konsumen, dll.). Setelah itu Anda kosong dan bisa menerima motor berikutnya. Motor yang ditunda bisa dilanjutkan oleh Anda atau mekanik lain; waktu kerja masing-masing tercatat.'],
+    ['3. Selesai atau ditunda', 'Lapor ke <b>Register</b>: motor <b>selesai</b>, atau harus <b>ditunda</b> (sebutkan alasannya: tunggu part, perlu izin konsumen, dll.). Setelah itu Anda kosong dan bisa menerima motor berikutnya. Motor yang ditunda bisa dilanjutkan oleh Anda atau mekanik lain; waktu kerja masing-masing tercatat.'],
     ['4. Performa', '<b>Performa Mekanik</b>: jumlah motor selesai, nilai jasa, rata-rata lama mengerjakan (waktu ditunda tidak dihitung), per tipe motor. Nilai jasa dihitung untuk mekanik yang menyelesaikan (tercantum di nota).'],
     ['5. Penghasilan & absensi', '<b>Penghasilan Saya</b> untuk gaji, komisi/insentif, slip, serta THR &amp; bonus (tab <b>THR &amp; Bonus</b>). <b>Absensi Saya</b> untuk scan QR datang & pulang.']
   ] },

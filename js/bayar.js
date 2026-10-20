@@ -1,6 +1,5 @@
 // Menu Pembayaran & Status Servis (kasir):
-// 1. Mekanik melapor ke kasir: motor Selesai, atau harus Lanjut lama (Ditunda). Keduanya membuat mekanik bebas lagi.
-// 2. Motor Selesai: cek jasa, sparepart, biaya lain, diskon, terima pembayaran cash / transfer / campur.
+// Menu Kasir hanya menerima pembayaran motor berstatus Selesai. Laporan selesai/tunda diterima Register.
 import { $, esc, rp, stamp, clone, toast, errMsg, waButton, konfirmasi } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas, idPetugas } from './state.js';
@@ -35,13 +34,10 @@ const draftWo = () => ({ ...findWo(st.bayarNo), biaya: st.bayarDraft.biaya });
 const grandTotal = () => Math.max(0, woCalc(draftWo()).total - (st.bayarDraft.diskon || 0));
 
 function statusPanel(w) {
-  if (w.status === 'Dikerjakan') return `<div class="note"><b>Laporan mekanik ${esc(mekanikNama(w))}</b>
-    <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="bay-status" data-s="Selesai">Motor selesai</button><input id="bay-tunda" class="inline-input" placeholder="Alasan lanjut lama (wajib), mis. tunggu part" style="flex:1 1 200px" aria-label="Alasan ditunda"><button class="btn" type="button" data-act="bay-status" data-s="Ditunda">Lanjut lama (tunda)</button></div>
-    <div class="small muted" style="margin-top:4px">Kedua pilihan membuat mekanik kosong dan bisa menerima motor berikutnya.</div></div>`;
-  if (w.status === 'Ditunda') return `<div class="tunda-box">${tundaInfo(w)}
-    <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="bay-status" data-s="Selesai">Motor sudah selesai</button><span class="small muted">Untuk dikerjakan lagi, pilih mekanik kosong di Registrasi → Lanjutkan dikerjakan.</span></div></div>`;
+  if (w.status === 'Dikerjakan') return '<div class="note small">Motor masih dikerjakan. Laporan selesai atau lanjut lama diterima di menu <b>Registrasi Servis</b> / akun Mekanik.</div>';
+  if (w.status === 'Ditunda') return `<div class="tunda-box">${tundaInfo(w)}<div class="small" style="margin-top:6px">Laporan berikutnya diproses oleh Register. Kasir dapat menerima pembayaran setelah status menjadi Selesai.</div></div>`;
   if (w.status === 'Antri') return `<div class="note small">${w.dataKurang ? 'Data konsumen belum lengkap. ' : ''}Belum ada mekanik. Registrasi perlu memilih mekanik yang kosong.</div>`;
-  if (w.status === 'Selesai') return `<div class="row"><button class="btn" type="button" data-act="bay-panggil">Panggil ulang di layar</button><span class="small muted">Nomor ${esc(fmtAntri(w.antrian) || w.nopol)} dipanggil ke kasir lewat layar TV.</span></div>`;
+  if (w.status === 'Selesai') return `<div class="row"><button class="btn" type="button" data-act="bay-panggil">Panggil ulang di layar</button><span class="small muted">Nomor ${esc(fmtAntri(w.antrian) || w.nopol)} dipanggil ke REGISTER lewat layar TV.</span></div>`;
   return '';
 }
 
@@ -97,29 +93,6 @@ function renderTot() {
   const el = $('#bay-tot'); if (!el) return;
   const c = woCalc(draftWo()), d = st.bayarDraft, total = grandTotal();
   el.innerHTML = `<div class="totals"><span class="muted">Sparepart</span><span class="num">${rp(c.parts)}</span><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span><span class="muted">Biaya lain</span><span class="num">${rp(c.biaya)}</span><span class="muted">Diskon</span><span class="num">${d.diskon ? '−' + rp(d.diskon) : rp(0)}</span><span style="font-weight:600">Total bayar</span><span class="big num">${rp(total)}</span>${payTotals(d.pay, total)}</div>`;
-}
-
-async function setStatus(el) {
-  if (st.saving || !st.bayarNo) return;
-  const s = el.dataset.s, w = findWo(st.bayarNo), mek = mekanikNama(w);
-  const alasan = s === 'Ditunda' ? ($('#bay-tunda')?.value || '').trim() : '';
-  if (s === 'Ditunda' && alasan.length < 3) { toast('Tulis alasan ditunda (mis. tunggu part, konsumen ambil besok)'); $('#bay-tunda')?.focus(); return; }
-  const ok = await konfirmasi(s === 'Selesai' ? `Tandai ${w.nopol} selesai?` : `Tunda pengerjaan ${w.nopol}?`,
-    s === 'Selesai' ? `Mekanik <b>${esc(mek || '–')}</b> menjadi kosong, nomor antrian <b>${esc(fmtAntri(w.antrian) || w.nopol)}</b> dipanggil ke kasir di layar TV, dan motor siap dibayar.`
-      : `Alasan: <b>${esc(alasan)}</b><br>Alasan ini terlihat oleh registrasi, tercatat di riwayat servis, dan tampil di halaman cek servis konsumen. Mekanik <b>${esc(mek || '–')}</b> menjadi kosong.`,
-    { ya: s === 'Selesai' ? 'Ya, motor selesai' : 'Ya, tunda' });
-  if (!ok) return;
-  const base = { log: logStatus(w.log, s, s === 'Ditunda' ? { a: alasan, m: mek } : { m: mek }), lapor: namaPetugas() };
-  const patch = s === 'Selesai' ? { ...base, status: 'Selesai', selesai: stamp(new Date()) }
-    : { ...base, status: 'Ditunda', tglTunda: stamp(new Date()), alasanTunda: alasan, mekanikTunda: mek };
-  st.saving = true;
-  try {
-    await updateWo(w.no, patch); Object.assign(w, patch); syncPantau(w);
-    // Motor selesai: nomor antrian otomatis dipanggil di layar TV supaya konsumen datang ke kasir
-    if (s === 'Selesai') panggilLayar(w).catch(e => console.warn('Panggilan layar gagal', e));
-    toast(`${w.nopol}: ${s}. ${mek || 'Mekanik'} sekarang kosong.${s === 'Selesai' ? ' Nomor dipanggil di layar.' : ''}`); renderList(); renderDetail();
-  }
-  catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 
 async function confirm() {
@@ -194,8 +167,7 @@ Object.assign(actions, {
     st.bayarNo = o.no; st.bayarDraft = { biaya: clone(o.biaya || []), diskon: o.diskon || 0, pay: emptyPay() };
     renderList(); renderDetail();
   },
-  'bay-status': setStatus,
-  'bay-panggil': async () => { const w = findWo(st.bayarNo); if (!w) return; try { await panggilLayar(w); toast('Nomor ' + (fmtAntri(w.antrian) || w.nopol) + ' dipanggil di layar'); } catch (e) { toast(errMsg(e)); } },
+  'bay-panggil': async () => { const w = findWo(st.bayarNo); if (!w) return; try { await panggilLayar(w, 'REGISTER'); toast('Nomor ' + (fmtAntri(w.antrian) || w.nopol) + ' dipanggil di layar'); } catch (e) { toast(errMsg(e)); } },
   'bay-addbiaya': () => { st.bayarDraft.biaya.push({ ket: '', jumlah: 0 }); renderDetail(); $('#bi-k' + (st.bayarDraft.biaya.length - 1))?.focus(); },
   'bay-rmbiaya': el => { st.bayarDraft.biaya.splice(+el.dataset.i, 1); renderDetail(); simpanDraft(); },
   'bay-confirm': confirm

@@ -4,7 +4,7 @@ import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole, namaPetugas } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, collection, query, where, limit, documentId } from './firebase.js';
-import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, fmtAntri, kurangBadge, tundaInfo, mekanikNama, syncLayar } from './wo-common.js';
+import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, fmtAntri, kurangBadge, tundaInfo, mekanikNama, syncLayar, laporStatus } from './wo-common.js';
 import { showAntrian } from './antrian.js';
 import { bedaKonsumen, simpanDenganCatatan } from './log-konsumen.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
@@ -57,6 +57,15 @@ function mekanikOptions(w) {
   return `<option value="">Belum ada mekanik (antri)</option>` + list.map(({ m, busy }) => `<option value="${esc(m.id)}" ${m.id === w.mekanikId ? 'selected' : ''} ${busy && m.id !== w.mekanikId ? 'disabled' : ''}>${esc(m.nama)} — ${busy ? 'sibuk (' + esc(busy.nopol) + ')' : 'kosong'}</option>`).join('');
 }
 
+function laporanStatusHTML(w) {
+  if (!w.no || !['Dikerjakan', 'Ditunda', 'Selesai'].includes(w.status) || !(isRole('registrasi') || isRole('admin'))) return '';
+  if (w.status === 'Dikerjakan') return `<div class="note"><b>Laporan mekanik ${esc(mekanikNama(w) || '–')}</b>
+    <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="reg-status" data-s="Selesai" data-no="${esc(w.no)}">Motor selesai</button><input id="reg-tunda" class="inline-input" placeholder="Alasan lanjut lama (wajib), mis. tunggu part" aria-label="Alasan lanjut lama" style="flex:1 1 230px"><button class="btn" type="button" data-act="reg-status" data-s="Ditunda" data-no="${esc(w.no)}">Lanjut lama (tunda)</button></div>
+    <div class="small muted" style="margin-top:4px">Register menekan tombol setelah menerima laporan mekanik. Kedua pilihan membuat mekanik kosong.</div></div>`;
+  if (w.status === 'Ditunda') return `<div class="tunda-box">${tundaInfo(w)}
+    <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="reg-status" data-s="Selesai" data-no="${esc(w.no)}">Motor sudah selesai</button><span class="small muted">Untuk mengerjakan lagi, pilih mekanik kosong lalu tekan Lanjutkan dikerjakan.</span></div></div>`;
+  return '<div class="note p-good"><b>Laporan selesai diterima Register.</b> Nomor antrean dipanggil ke REGISTER di layar TV; motor siap dibayar oleh kasir.</div>';
+}
 function renderRegistrasi() {
   if (!st.regDraft) st.regDraft = blank();
   const w = st.regDraft, locked = w.status === 'Lunas', dis = locked ? 'disabled' : '';
@@ -72,6 +81,7 @@ function renderRegistrasi() {
    </div>
    <div class="panel"><div class="row spread"><h2 class="row" style="gap:10px">${w.no ? `<span>Antrian ${fmtAntri(w.antrian) || '–'}</span> <span class="small muted mono" title="Nomor kartu kerja (work order)">${esc(w.no)}</span><button class="btn sm ghost" type="button" data-act="rw-buka" data-np="${esc(w.nopol)}">Riwayat motor</button>` : 'Registrasi motor masuk'}</h2>${w.no ? `<span class="row">${kurangBadge(w)}${jenisBadge(w)}${statusPill(w.status)}</span>` : ''}</div>
     ${w.status === 'Ditunda' && w.no ? `<div class="tunda-box">${tundaInfo(w)}<div class="small" style="margin-top:4px">Untuk melanjutkan: pilih mekanik yang kosong di bagian <b>3. Servis</b> (boleh mekanik yang sama atau lain), lalu tekan <b>Lanjutkan dikerjakan</b>.</div></div>` : ''}
+    ${laporanStatusHTML(w)}
     ${locked ? '' : `<div class="cari-box"><label class="f" for="r-cari">Pernah servis di sini? Cari data lama<span class="row" style="gap:6px"><input id="r-cari" placeholder="No. polisi, nama, no. HP, NIK, no. rangka, atau no. mesin — boleh sebagian (F3)" autocomplete="off" style="flex:1 1 220px"><button class="btn" type="button" data-act="reg-cari">Cari [F3]</button></span></label><div id="r-cari-hasil"></div></div>`}
     <h3>1. Data konsumen <span class="h-sub">sesuai KTP</span></h3>
     <div class="form">
@@ -452,6 +462,7 @@ Object.assign(actions, {
   'reg-pakai-km': el => pakaiKonsumen(el, el.dataset.n),
   'reg-hapus-antar': () => { delete st.regDraft.pengantar; renderRegistrasi(); },
   'reg-lanjut': async () => { const w = st.regDraft; w._lanjut = true; try { await save(); } finally { delete w._lanjut; } },
+  'reg-status': async el => { const alasan = el.dataset.s === 'Ditunda' ? ($('#reg-tunda')?.value || '') : ''; if (await laporStatus(el.dataset.no, el.dataset.s, alasan)) { st.regDraft = { ...blank(), ...clone(findWo(el.dataset.no)), jasa: normJasa(findWo(el.dataset.no)) }; renderRegistrasi(); } },
   'reg-oli-luar': () => catatOliLuar(st.regDraft.nopol, oli => { infoKm.oli = oli; infoKm.key = ''; isiInfoKm(); }),
   // Admin: hapus pendaftaran yang salah/ganda (belum dibayar). Nomor antrian tidak dipakai ulang.
   'reg-hapus': async () => {
