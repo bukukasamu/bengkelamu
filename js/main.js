@@ -1,7 +1,7 @@
 // Titik masuk aplikasi: login + peran, sidebar, sinkron data Firestore, shortcut keyboard.
 import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal)
 import './cari-pilihan.js';   // pilihan panjang: daftar baru muncul setelah mengetik
-import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, onSnapshot, query, where, orderBy, limit, writeBatch } from './firebase.js';
+import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch } from './firebase.js';
 import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
 import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal, viewSebelum } from './state.js';
 import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
@@ -192,8 +192,8 @@ onAuthStateChanged(auth, async u => {
 /* ---------- SINKRON DATA (realtime) ---------- */
 function subscribe() {
   const now = new Date();
-  const from = dkey(new Date(now.getFullYear(), now.getMonth() - 1, 1));   // awal bulan lalu: cukup untuk grafik, laporan & gaji mekanik
-  setLoadedFrom(from); setPhLoadedFrom(from);
+  const today = dkey(now), bulanIni = today.slice(0, 7); // transaksi realtime hanya hari ini; WO bulan berjalan tetap tersedia untuk riwayat
+  setLoadedFrom(today); setPhLoadedFrom(today);
   const fail = e => { $('#view').innerHTML = '<div class="panel"><div class="err">Gagal memuat data: ' + esc(errMsg(e)) + '</div></div>'; };
   need = ['parts', 'trx', 'wo', 'jasa', 'mekanik', 'settings', 'aturan'];
   if (st.role !== 'admin') need.push('woAktif');
@@ -203,9 +203,16 @@ function subscribe() {
     if (need.every(n => ready[n])) { if (!st.loaded) { st.loaded = true; seedMaster(); go(st.view); cekAbsenTertunda(); pasangPenjaga(); } else refresh(); }
   };
   const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, fail));
-  sub(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
-  sub(collection(db, 'jasa'), 'jasa', s => { S.jasa = s.docs.map(d => ({ id: d.id, ...d.data() })); });
-  sub(collection(db, 'mekanik'), 'mekanik', s => { raw.mekanik = s.docs.map(d => ({ id: d.id, ...d.data() })); });
+  // Master relatif jarang berubah: baca sekali per sesi, bukan listener realtime global.
+  const once = (q, k, fn) => getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(fail);
+  const perluParts = can('registrasi') || can('kasir') || can('stok') || can('order') || can('pembelian');
+  const perluJasa = can('registrasi') || can('bayar');
+  if (perluParts) once(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
+  else { raw.parts = []; mark('parts'); }
+  if (perluJasa) once(collection(db, 'jasa'), 'jasa', s => { S.jasa = s.docs.map(d => ({ id: d.id, ...d.data() })); });
+  else { S.jasa = []; mark('jasa'); }
+  // Daftar mekanik dipakai untuk penugasan, performa, dan penghasilan; koleksinya biasanya kecil.
+  once(collection(db, 'mekanik'), 'mekanik', s => { raw.mekanik = s.docs.map(d => ({ id: d.id, ...d.data() })); });
   sub(doc(db, 'meta', 'settings'), 'settings', s => { S.settings = s.exists() ? s.data() : {}; });
   sub(doc(db, 'penghasilan', 'aturan'), 'aturan', s => { S.aturan = s.exists() ? s.data() : null; });
   // Hak akses menu berubah (diatur super admin): perbarui menu tanpa perlu login ulang
@@ -215,18 +222,18 @@ function subscribe() {
   }, () => {}));
   if (st.role === 'admin') {
     // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
-    sub(query(collection(db, 'trx'), where('tgl', '>=', from)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
-    sub(query(collection(db, 'wo'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
+    sub(query(collection(db, 'trx'), where('tgl', '>=', today)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    sub(query(collection(db, 'wo'), where('tgl', '>=', bulanIni + '-01'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(300)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()); });
   } else {
-    // Karyawan: hanya data cabangnya (dikunci juga oleh aturan database). Dua bulan terakhir + WO yang masih aktif.
-    const cab = cabAktif(), bulan = [from.slice(0, 7), dkey(now).slice(0, 7)];
-    sub(query(collection(db, 'trx'), where('cabang', '==', cab), where('bulan', 'in', bulan)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    // Karyawan: hanya data cabangnya. WO bulan berjalan + WO aktif; histori transaksi lama dimuat saat laporan dibuka.
+    const cab = cabAktif(), bulan = [bulanIni];
+    sub(query(collection(db, 'trx'), where('cabang', '==', cab), where('tgl', '>=', today)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
     let woBulan = [], woAktif = [];
     const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
     sub(query(collection(db, 'wo'), where('cabang', '==', cab), where('bulan', 'in', bulan)), 'wo', s => { woBulan = s.docs.map(d => d.data()); gabungWo(); });
     sub(query(collection(db, 'wo'), where('cabang', '==', cab), where('aktif', '==', true)), 'woAktif', s => { woAktif = s.docs.map(d => d.data()); gabungWo(); });
-    if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
+    if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab), limit(100)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
   }
   pantauPersetujuan(unsubs);
   pantauMinta(unsubs);
