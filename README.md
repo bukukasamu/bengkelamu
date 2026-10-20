@@ -1,9 +1,14 @@
-# Aceh Mandiri Utama POS · versi 5.2.0
+# Aceh Mandiri Utama POS · versi 5.3.1
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.3.1 — tombol status dipindahkan ke Register
+- Mekanik melaporkan kondisi motor ke Register; petugas Register menekan **Motor selesai** atau **Lanjut lama (tunda)**, dengan alasan tunda wajib diisi.
+- Laporan status diterima dan dipantau di menu **Registrasi Servis (Register)**, bukan di menu Kasir. Kedua pilihan membuat mekanik kosong lagi.
+- Motor selesai otomatis memanggil nomor antrian ke **REGISTER** di layar TV. Kasir hanya menerima pembayaran setelah status Selesai.
 
 ## 5.2.0 — dialog Kembali/Keluar & nomor urut
 - Tombol **Kembali** (browser/HP) memunculkan kotak dialog: Kembali ke menu sebelumnya / Keluar dari aplikasi / Batal. Bila jendela (form) terbuka: "Tutup jendela ini?". Sidebar HP yang terbuka cukup ditutup.
@@ -420,7 +425,7 @@ Disarankan (keamanan): GitHub → foto profil → **Settings → Pages → Add a
 - **Nomor antrian harian** (001, 002, … mulai lagi dari 001 setiap hari). Nomor keluar otomatis saat motor didaftarkan di Registrasi Servis, berurutan sesuai kedatangan, dan tidak pernah kembar walau dua petugas menyimpan bersamaan. Setelah disimpan muncul jendela nomor besar dengan tombol **Kirim nomor via WA** (berisi nomor + link cek servis) dan **Cetak tiket** (struk 58 mm dengan QR code cek servis).
 - **Nomor cepat (cukup nopol)**: saat ramai, cukup isi nomor polisi lalu tekan *Nomor cepat* — nomor antrian langsung keluar. Motor ditandai **Data belum lengkap**; datanya dilengkapi sesudahnya. Mekanik baru bisa dipilih dan pembayaran baru bisa diterima setelah data lengkap.
 - **Layar TV ruang tunggu** (`layar.html`, tanpa login): nomor yang **dipanggil**, motor **sedang dikerjakan** (dengan nama mekanik), **menunggu**, dan **siap diambil**, teks berjalan, jam, dan **QR code** ke halaman cek servis. Nomor polisi tampil penuh; nama konsumen, no. HP, dan biaya tidak ditampilkan. Daftar yang panjang bergeser sendiri per halaman.
-- **Panggilan bersuara**: saat kasir menandai motor **Selesai**, layar menampilkan nomor besar, berbunyi bel, lalu mengucapkan dua kali, mis. *"Nomor antrian dua belas. B L, 4 5 2 1, A B. Silakan ke kasir."* Di menu Pembayaran ada tombol **Panggil ulang di layar**.
+- **Panggilan bersuara**: saat laporan mekanik diterima **Register**, layar menampilkan nomor besar, berbunyi bel, lalu mengucapkan dua kali, mis. *"Nomor antrian dua belas. B L, 4 5 2 1, A B. Silakan ke REGISTER."* Di menu Pembayaran ada tombol **Panggil ulang di layar**.
 - **Master Data → Layar TV** (admin): ubah teks berjalan (jam buka, promo, info KSG), buka layar, dan petunjuk pemasangan.
 - Nomor antrian juga tampil di daftar motor, Pembayaran, dan halaman cek servis konsumen. Nomor WO (kartu kerja per motor) tetap ada untuk catatan internal.
 
@@ -494,7 +499,7 @@ Di belakang layar setiap petugas punya akun Firebase dengan email buatan (`…@p
 **Mekanik hanya mengerjakan 1 motor.** Status WO:
 - **Antri**: belum ada mekanik.
 - **Dikerjakan**: mekanik dipilih di registrasi; mekanik ini tidak bisa dipilih untuk motor lain.
-- Mekanik **melapor ke kasir**; kasir menandai **Selesai** (siap dibayar) atau **Lanjut lama / Ditunda** (mis. tunggu part, dengan alasan). Keduanya membuat mekanik **kosong** lagi.
+- Mekanik **melapor kepada Register; tombol status ditekan petugas Register**; pilih **Selesai** (siap dibayar) atau **Lanjut lama / Ditunda** (mis. tunggu part, dengan alasan wajib). Keduanya membuat mekanik **kosong** lagi.
 - Motor Ditunda dilanjutkan dari Registrasi → pilih mekanik kosong → *Lanjutkan dikerjakan*.
 - **Lunas**: sudah dibayar.
 
