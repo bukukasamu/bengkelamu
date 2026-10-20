@@ -1,0 +1,47 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "trx",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cabang",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tgl",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "wo",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cabang",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bulan",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "wo",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cabang",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "aktif",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
