@@ -228,11 +228,14 @@ function subscribe() {
   } else {
     // Karyawan: hanya data cabangnya. WO bulan berjalan + WO aktif; histori transaksi lama dimuat saat laporan dibuka.
     const cab = cabAktif(), bulan = [bulanIni];
-    sub(query(collection(db, 'trx'), where('cabang', '==', cab), where('tgl', '>=', today)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    // Mode kompatibilitas: filter cabang tunggal tidak membutuhkan composite index.
+    // Tanggal/status disaring di perangkat agar login tidak gagal saat index belum selesai dibuat.
+    sub(query(collection(db, 'trx'), where('cabang', '==', cab)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
     let woBulan = [], woAktif = [];
     const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
-    sub(query(collection(db, 'wo'), where('cabang', '==', cab), where('bulan', 'in', bulan)), 'wo', s => { woBulan = s.docs.map(d => d.data()); gabungWo(); });
-    sub(query(collection(db, 'wo'), where('cabang', '==', cab), where('aktif', '==', true)), 'woAktif', s => { woAktif = s.docs.map(d => d.data()); gabungWo(); });
+    sub(query(collection(db, 'wo'), where('cabang', '==', cab)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
+    // Tetap menandai listener kedua agar kebutuhan readiness lama tetap terpenuhi; data sudah berasal dari query cabang di atas.
+    ready.woAktif = true;
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab), limit(100)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
   }
   pantauPersetujuan(unsubs);
