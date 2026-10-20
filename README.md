@@ -1,9 +1,15 @@
-# Aceh Mandiri Utama POS · versi 5.3.1
+# Aceh Mandiri Utama POS · versi 5.4.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.4.0 — optimasi pembacaan Firestore
+- Master part dan jasa dibaca sekali per sesi dan hanya untuk peran yang membutuhkan; tidak lagi memakai listener realtime global.
+- Transaksi realtime dipersempit ke hari berjalan; WO dibatasi ke bulan berjalan dan WO aktif agar riwayat operasional tetap tersedia.
+- WO aktif tetap dipantau untuk operasional, pembelian cabang dibatasi 100 dokumen terbaru.
+- Cache lokal Firestore tetap digunakan untuk mengurangi pembacaan ulang saat sesi berjalan.
 
 ## 5.3.1 — tombol status dipindahkan ke Register
 - Mekanik melaporkan kondisi motor ke Register; petugas Register menekan **Motor selesai** atau **Lanjut lama (tunda)**, dengan alasan tunda wajib diisi.
