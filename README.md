@@ -1,9 +1,15 @@
-# Aceh Mandiri Utama POS · versi 5.4.1
+# Aceh Mandiri Utama POS · versi 5.4.2
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.4.2 — fallback tanpa composite index
+- User cabang kini memakai query dengan filter `cabang` tunggal agar tidak gagal login ketika indeks gabungan belum aktif.
+- Transaksi disaring ke hari berjalan di perangkat.
+- WO bulan berjalan dan WO aktif disaring dari satu query cabang.
+- Indeks komposit tetap disertakan untuk optimasi bila sudah dideploy.
 
 ## 5.4.1 — indeks query cabang
 - Menambahkan `firestore.indexes.json` untuk query transaksi berdasarkan `cabang + tgl`.
