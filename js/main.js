@@ -194,9 +194,7 @@ function subscribe() {
   const now = new Date();
   const today = dkey(now), bulanIni = today.slice(0, 7); // transaksi realtime hanya hari ini; WO bulan berjalan tetap tersedia untuk riwayat
   setLoadedFrom(today); setPhLoadedFrom(today);
-  // Satu query yang lambat/gagal tidak boleh membuat seluruh aplikasi berhenti di loading.
-  // Data yang tersedia tetap dipakai; listener akan mengisi data ketika koneksi pulih.
-  const fail = (e, k) => { console.warn('Data ' + (k || 'Firestore') + ' belum siap:', e); if (k) mark(k); };
+  const fail = e => { $('#view').innerHTML = '<div class="panel"><div class="err">Gagal memuat data: ' + esc(errMsg(e)) + '</div></div>'; };
   need = ['parts', 'trx', 'wo', 'jasa', 'mekanik', 'settings', 'aturan'];
   if (st.role !== 'admin') need.push('woAktif');
   if (can('pembelian')) need.push('pembelian');
@@ -204,9 +202,9 @@ function subscribe() {
     ready[k] = true;
     if (need.every(n => ready[n])) { if (!st.loaded) { st.loaded = true; seedMaster(); go(st.view); cekAbsenTertunda(); pasangPenjaga(); } else refresh(); }
   };
-  const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, e => fail(e, k)));
+  const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, fail));
   // Master relatif jarang berubah: baca sekali per sesi, bukan listener realtime global.
-  const once = (q, k, fn) => getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => fail(e, k));
+  const once = (q, k, fn) => getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(fail);
   const perluParts = can('registrasi') || can('kasir') || can('stok') || can('order') || can('pembelian');
   const perluJasa = can('registrasi') || can('bayar');
   if (perluParts) once(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
@@ -230,13 +228,12 @@ function subscribe() {
   } else {
     // Karyawan: hanya data cabangnya. WO bulan berjalan + WO aktif; histori transaksi lama dimuat saat laporan dibuka.
     const cab = cabAktif(), bulan = [bulanIni];
-    // Mode kompatibilitas: filter cabang tunggal + limit tidak membutuhkan composite index.
-    // Batas 500 menjaga login tetap cepat ketika histori cabang sangat besar.
+    // Mode kompatibilitas: filter cabang tunggal tidak membutuhkan composite index.
     // Tanggal/status disaring di perangkat agar login tidak gagal saat index belum selesai dibuat.
-    sub(query(collection(db, 'trx'), where('cabang', '==', cab), limit(500)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    sub(query(collection(db, 'trx'), where('cabang', '==', cab)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
     let woBulan = [], woAktif = [];
     const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
-    sub(query(collection(db, 'wo'), where('cabang', '==', cab), limit(500)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
+    sub(query(collection(db, 'wo'), where('cabang', '==', cab)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
     // Tetap menandai listener kedua agar kebutuhan readiness lama tetap terpenuhi; data sudah berasal dari query cabang di atas.
     ready.woAktif = true;
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab), limit(100)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
@@ -244,8 +241,6 @@ function subscribe() {
   pantauPersetujuan(unsubs);
   pantauMinta(unsubs);
   unsubs.push(watchCabang(() => { if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA; renderCabangBox(); if (st.loaded) { terapkanCabang(); refresh(); } }));
-  // Pengaman: buka shell maksimal 8 detik setelah login; data yang belum siap menyusul lewat listener.
-  setTimeout(() => { if (!st.loaded) { console.warn('Startup timeout: membuka aplikasi dengan data yang tersedia'); need.forEach(k => { ready[k] = true; }); mark('__startup_timeout__'); } }, 8000);
 }
 
 /* ---------- CABANG ----------
