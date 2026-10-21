@@ -1,9 +1,20 @@
-# Aceh Mandiri Utama POS · versi 5.5.0
+# Aceh Mandiri Utama POS · versi 5.5.2
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.5.2 — perbaikan loading startup
+- Aplikasi tidak lagi menunggu seluruh query Firestore sebelum membuka menu.
+- Query yang lambat atau gagal dicatat di Console dan tidak membuat layar loading permanen.
+- Listener tetap berjalan dan mengisi data ketika koneksi pulih.
+- Ditambahkan pengaman startup maksimal 8 detik setelah login.
+
+## 5.5.1 — percepat loading Kasir
+- Query kompatibilitas transaksi dan WO cabang dibatasi maksimal 500 dokumen saat login.
+- Penyaringan hari berjalan, bulan berjalan, dan WO aktif tetap dilakukan di perangkat.
+- Tujuannya mencegah aplikasi menunggu pembacaan seluruh histori cabang sebelum masuk menu.
 
 ## 5.5.0 — Kasir hanya menerima pembayaran
 - Kasir hanya melihat motor berstatus `Selesai` yang sudah difinalkan oleh Register.
