@@ -1,9 +1,16 @@
-# Aceh Mandiri Utama POS · versi 5.4.2
+# Aceh Mandiri Utama POS · versi 5.5.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.5.0 — Kasir hanya menerima pembayaran
+- Kasir hanya melihat motor berstatus `Selesai` yang sudah difinalkan oleh Register.
+- Biaya tambahan, diskon, jasa, dan part servis tidak dapat ditambah, diubah, atau dihapus dari menu Kasir.
+- Kasir hanya memilih metode pembayaran Tunai dan/atau Transfer, lalu klik Terima pembayaran.
+- Finalisasi biaya servis tetap menjadi tanggung jawab Register.
+- Menu Penjualan Sparepart tidak lagi tersedia untuk peran kasir; tetap tersedia untuk admin.
 
 ## 5.4.2 — fallback tanpa composite index
 - User cabang kini memakai query dengan filter `cabang` tunggal agar tidak gagal login ketika indeks gabungan belum aktif.
