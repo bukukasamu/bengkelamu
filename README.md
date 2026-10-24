@@ -1,9 +1,15 @@
-# Aceh Mandiri Utama POS · versi 5.5.3
+# Aceh Mandiri Utama POS · versi 5.5.4
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.5.4 — Biaya lainnya di Register
+- Register memiliki bagian **Biaya lainnya** untuk keterangan dan nominal biaya tambahan.
+- Register dapat menambah dan menghapus baris biaya sebelum WO dibayar.
+- Biaya tersimpan di WO, masuk ke total servis, tampil di Kasir, dan ikut masuk ke nota.
+- Kasir tetap tidak dapat mengubah biaya tersebut.
 
 ## 5.5.3 — perbaikan modul POS
 - Memperbaiki sintaks template halaman Pembayaran yang menyebabkan `/pos` berhenti di loader.
