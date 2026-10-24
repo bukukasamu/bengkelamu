@@ -32,7 +32,8 @@ const TABS = [
   ['logo', 'Logo', ['admin'], 'super'],
   ['tema', 'Tema Tampilan', ['admin'], 'super'],
   ['akses', 'Hak Akses Menu', ['admin'], 'super'],
-  ['logk', 'Riwayat Perubahan Konsumen', ['admin'], 'super']
+  ['logk', 'Riwayat Perubahan Konsumen', ['admin'], 'super'],
+  ['aktivitas', 'Log Aktivitas', ['admin'], 'super']
 ];
 const tabsFor = () => TABS.filter(t => isRole(...t[2]) && (t[3] !== 'super' || st.petugas?.super));
 let kend = null, kendQ = '', kendEdit = null, logins = null;
@@ -49,7 +50,7 @@ const intro = t => `<p class="small muted" style="margin-block:12px 8px">${t}</p
 function renderMaster() {
   const tabs = tabsFor(); if (!tabs.find(t => t[0] === st.masterTab)) st.masterTab = tabs[0][0];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="ms-tab" data-t="${k}" aria-selected="${k === st.masterTab}">${l}</button>`).join('')}</div><div id="ms-body"></div></div>`;
-  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo, tema: renderTema, akses: renderAkses, logk: renderLogKonsumen })[st.masterTab]();
+  ({ kendaraan: renderKend, jasa: renderJasa, ksg: renderKsg, mekanik: renderMek, rekening: renderRek, tipe: renderTipe, petugas: renderStaff, layar: renderLayar, cabang: renderCabang, insentif: renderInsentif, logo: renderLogo, tema: renderTema, akses: renderAkses, logk: renderLogKonsumen, aktivitas: renderAktivitas })[st.masterTab]();
 }
 
 /* ---------- Konsumen & kendaraan ---------- */
@@ -465,6 +466,16 @@ async function renderGaji() {
   const el = $('#ph-gaji'); if (!el) return;
   el.innerHTML = phGaji.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nama</th><th>Peran</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Gaji pokok / bulan (Rp)</th><th class="r">Komisi jasa % <span class="small muted">(mekanik)</span></th></tr></thead><tbody>${phGaji.map((g, i) => `<tr><td>${esc(g.nama)}</td><td class="small">${esc(ROLES[g.peran] || g.peran)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(g.cabang))}</td>` : ''}<td class="r"><input class="inline-input num" id="gj-${i}" data-num value="${g.gaji || ''}" style="width:150px;text-align:right" aria-label="Gaji pokok ${esc(g.nama)}"></td><td class="r">${g.peran === 'mekanik' ? `<input class="inline-input num" id="gk-${i}" type="number" data-raw min="0" max="100" step="0.5" value="${g.komisi || ''}" style="width:80px;text-align:right" aria-label="Komisi ${esc(g.nama)}">` : ''}</td></tr>`).join('')}</tbody></table></div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="gj-save">Simpan gaji pokok</button></div>` : '<div class="small muted">Belum ada karyawan.</div>';
+}
+
+async function renderAktivitas() {
+  const el = $('#ms-body'); if (!el) return;
+  el.innerHTML = loaderHTML('Memuat log aktivitas…');
+  try {
+    const q = await getDocs(query(collection(db, 'aktivitas'), orderBy('tgl', 'desc'), limit(100)));
+    const rows = q.docs.map(x => ({ id: x.id, ...x.data() }));
+    el.innerHTML = `<p class="small muted">100 aktivitas terbaru. Log penghapusan tidak dapat diubah.</p>${rows.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Waktu</th><th>Aktivitas</th><th>Data</th><th>Oleh</th><th>Cabang</th></tr></thead><tbody>${rows.map(x => `<tr><td class="small">${esc(x.tgl || '')}</td><td><span class="pill p-bad">${esc(x.jenis || '')}</span></td><td><b>${esc(x.kode || '')}</b><div class="small">${esc(x.nama || '')}</div></td><td>${esc(x.oleh || '')}</td><td>${esc(x.cabang || '')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada aktivitas tercatat.</div>'}`;
+  } catch (e) { el.innerHTML = `<div class="err">Log aktivitas belum bisa dimuat: ${esc(errMsg(e))}. Publish firestore.rules versi terbaru.</div>`; }
 }
 
 views.master = renderMaster;

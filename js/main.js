@@ -209,7 +209,8 @@ function subscribe() {
   const once = (q, k, fn) => getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => fail(e, k));
   const perluParts = can('registrasi') || can('kasir') || can('stok') || can('order') || can('pembelian');
   const perluJasa = can('registrasi') || can('bayar');
-  if (perluParts) once(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
+  // Master part dipantau realtime supaya part baru/hasil edit langsung muncul tanpa logout-login.
+  if (perluParts) sub(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
   else { raw.parts = []; mark('parts'); }
   if (perluJasa) once(collection(db, 'jasa'), 'jasa', s => { S.jasa = s.docs.map(d => ({ id: d.id, ...d.data() })); });
   else { S.jasa = []; mark('jasa'); }

@@ -3,6 +3,7 @@ import { $, esc, rp, toast, errMsg, konfirmasi } from './util.js';
 import { S, st, part, kategoriList, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, go } from './state.js';
 import { db, doc, setDoc, updateDoc, runTransaction, collection, getDocs, query, orderBy, limit, addDoc, where, writeBatch } from './firebase.js';
 import { modal, closeModal, stamp, dkey } from './util.js';
+import { mintaPassword } from './otorisasi.js';
 import { partPicker, pickedKode, namaPetugas, isRole, filterBuka, tombolFilter } from './state.js';
 import { CABANG_UTAMA, cabAktif, cabangList, namaCabang, multiCabang, stokOf, stokField } from './cabang.js';
 import { catatMutasi, dataMutasi } from './kontrol.js';
@@ -87,7 +88,23 @@ function renderSPanel() {
    <label class="f" for="p-jual">Harga jual<input id="p-jual" type="number" min="0" class="num" value="${p.jual || 0}"></label>
    <label class="f" for="p-stok">Stok${multiCabang() ? ' di ' + esc(namaCabang(cabAktif())) : ''}<input id="p-stok" type="number" min="0" class="num" value="${p.stok || 0}" ${pe.mode === 'edit' ? 'readonly title="Ubah stok lewat Stok opname, Pembelian, atau Transfer supaya tercatat di kartu stok"' : ''}></label>
    <label class="f" for="p-min">Stok minimum<input id="p-min" type="number" min="0" class="num" value="${p.min || 0}"></label>
-  </div><div class="row" style="justify-content:flex-end">${pe.mode === 'edit' ? `<button class="btn ghost" type="button" data-act="kartu-stok" data-k="${esc(p.kode)}">Kartu stok</button><span class="small muted" style="margin-right:auto">Stok diubah lewat Stok opname / Pembelian / Transfer</span>` : ''}<button class="btn" type="button" data-act="panel-close">Batal</button><button class="btn pri" type="button" data-act="part-save">Simpan part [F2]</button></div></div>`;
+  </div><div class="row" style="justify-content:flex-end">${pe.mode === 'edit' ? `<button class="btn ghost" type="button" data-act="kartu-stok" data-k="${esc(p.kode)}">Kartu stok</button>${st.petugas?.super ? `<button class="btn danger" type="button" data-act="part-delete">Hapus permanen</button>` : ''}<span class="small muted" style="margin-right:auto">Stok diubah lewat Stok opname / Pembelian / Transfer</span>` : ''}<button class="btn" type="button" data-act="panel-close">Batal</button><button class="btn pri" type="button" data-act="part-save">Simpan part [F2]</button></div></div>`;
+}
+
+async function partDelete() {
+  const pe = st.partEdit, p = pe?.data; if (!p || pe.mode !== 'edit' || !st.petugas?.super || st.saving) return;
+  const dipakai = (S.woSemua || S.wo || []).filter(w => AKTIF.includes(w.status) && (w.parts || []).some(x => x.kode === p.kode));
+  if (dipakai.length) { toast('Part tidak bisa dihapus karena masih dipesan pada ' + dipakai.length + ' WO aktif.'); return; }
+  const ok = await konfirmasi('Hapus part permanen?', `<b>${esc(p.kode)} · ${esc(p.nama)}</b><br>Data master, harga, dan stok part akan dihapus. Riwayat transaksi tetap tersimpan, tetapi part ini tidak bisa dipakai lagi. Tindakan ini tidak bisa dibatalkan.`, { ya: 'Ya, hapus permanen', bahaya: true });
+  if (!ok || !(await mintaPassword('Konfirmasi hapus part', 'Masukkan password Super Admin untuk melanjutkan.'))) return;
+  st.saving = true;
+  try {
+    const b = writeBatch(db), ref = doc(db, 'parts', p.kode), logRef = doc(collection(db, 'aktivitas'));
+    b.delete(ref);
+    b.set(logRef, { tgl: stamp(new Date()), jenis: 'HAPUS_PART', modul: 'Stok Part', kode: p.kode, nama: p.nama || '', kategori: p.kategori || '', stok: +p.stok || 0, cabang: cabAktif(), oleh: namaPetugas(), olehId: st.petugas?.email || st.petugas?.loginId || '', peran: 'super' });
+    await b.commit();
+    st.partEdit = null; toast('Part ' + p.kode + ' dihapus dan tercatat di Log Aktivitas'); renderSPanel(); renderSTbl();
+  } catch (e) { toast('Gagal menghapus part: ' + errMsg(e)); } finally { st.saving = false; }
 }
 
 async function partSave() {
@@ -107,8 +124,8 @@ async function partSave() {
       if (stok) catatMutasi(b, dataMutasi(cab, d.kode, d.nama, stok, 'awal', d.kode));
       await b.commit();
     } else { const { kode, ...rest } = dasar; await updateDoc(doc(db, 'parts', kode), rest); }   // stok tidak diubah dari sini
-    st.partEdit = null; toast('Part ' + d.kode + ' disimpan'); renderSPanel();
-  } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
+    st.partEdit = null; toast('Part ' + d.kode + ' disimpan'); renderSPanel(); renderSTbl();
+  } catch (e) { toast('Gagal menyimpan part: ' + errMsg(e)); } finally { st.saving = false; }
 }
 
 /* ---------- Transfer stok antar cabang (dua langkah) ----------
@@ -210,6 +227,7 @@ Object.assign(actions, {
   'go-pembelian': () => go('pembelian'),
   'panel-close': () => { st.partEdit = null; renderSPanel(); },
   'part-save': partSave,
+  'part-delete': partDelete,
   'tf-open': tfOpen,
   'tf-run': tfRun,
   'tf-tambah': tfTambah,
