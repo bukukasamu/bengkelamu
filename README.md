@@ -1,9 +1,23 @@
-# Aceh Mandiri Utama POS · versi 5.5.4
+# Aceh Mandiri Utama POS · versi 5.5.6
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.5.6 — hapus part dengan otorisasi Super Admin
+- Tombol hapus permanen hanya muncul untuk Super Admin pada panel ubah part.
+- Penghapusan meminta konfirmasi dan password Super Admin melalui Firebase re-authentication.
+- Part yang masih dipakai pada WO aktif tidak dapat dihapus.
+- Penghapusan dan pencatatan Log Aktivitas dilakukan dalam satu batch atomik.
+- Log Aktivitas tersedia di Master Data → Log Aktivitas dan bersifat tidak dapat diubah/dihapus.
+- Firestore rules menambahkan koleksi audit `aktivitas` khusus Super Admin.
+
+## 5.5.5 — part baru langsung tampil
+- Koleksi `parts` sekarang dipantau realtime setelah login.
+- Part baru atau perubahan master part langsung muncul di tabel Stok Part tanpa logout-login.
+- Setelah penyimpanan part, tabel stok langsung dirender ulang.
+- Pesan error penyimpanan part dibuat lebih jelas.
 
 ## 5.5.4 — Biaya lainnya di Register
 - Register memiliki bagian **Biaya lainnya** untuk keterangan dan nominal biaya tambahan.

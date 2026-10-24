@@ -134,6 +134,11 @@ service cloud.firestore {
       allow update: if isSuper() || (hasRole(['admin', 'sparepart']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang);
       allow delete: if hasRole(['admin']);
     }
+    // Log aktivitas sensitif: hanya super admin yang boleh membaca dan menambah; tidak boleh diubah/dihapus.
+    match /aktivitas/{id} {
+      allow read, create: if isSuper();
+      allow update, delete: if false;
+    }
     // Kartu stok (mutasi keluar/masuk): hanya ditambah, tidak bisa diubah/dihapus
     match /mutasi/{id} {
       allow read: if isStaff() && bolehCabang(resource.data.cabang);
