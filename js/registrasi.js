@@ -121,7 +121,11 @@ function renderRegistrasi() {
     <h3>Jasa servis</h3>
     <div class="checks">${[...jasaList, ...extra].map((j, i) => `<label for="r-j${i}"><input type="checkbox" id="r-j${i}" data-jasa="${esc(j.nama)}" data-harga="${j.harga}" ${selected.find(x => x.nama === j.nama) ? 'checked' : ''} ${dis}>${esc(j.nama)}<span class="hr">${w.jenisServis === 'KSG' ? 'gratis' : rp(j.harga)}</span></label>`).join('') || '<div class="small muted">Belum ada jasa. Tambahkan di Master Data → Jasa Servis.</div>'}</div>
     ${w.no ? timelineHTML(w) : ''}
-    <div class="totals small"><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span>${c.klaim ? `<span class="muted">Klaim KSG</span><span class="num">${rp(c.klaim)}</span>` : ''}${w.parts.length ? `<span class="muted">Order sparepart</span><span class="num">${rp(c.parts)}</span>` : ''}</div>
+    <h3>Biaya lainnya</h3>
+    <div class="small muted" style="margin-bottom:6px">Tambahkan biaya di luar jasa dan sparepart, misalnya cuci motor, las, atau biaya lain. Biaya ini akan masuk ke total pembayaran Kasir.</div>
+    <div class="tw"><table><thead><tr><th>Keterangan</th><th class="r">Nominal (Rp)</th>${locked ? '' : '<th></th>'}</tr></thead><tbody>${(w.biaya || []).length ? (w.biaya || []).map((b, i) => `<tr><td><input class="inline-input" data-bi="${i}" data-bf="ket" value="${esc(b.ket || '')}" placeholder="mis. Cuci motor" ${dis}></td><td><input class="inline-input num" data-bi="${i}" data-bf="jumlah" type="number" min="0" step="1000" value="${b.jumlah || ''}" placeholder="0" style="text-align:right" ${dis}></td>${locked ? '' : `<td><button class="btn sm ghost" type="button" data-act="reg-rm-biaya" data-i="${i}" aria-label="Hapus biaya">✕</button></td>`}</tr>`).join('') : `<tr><td colspan="${locked ? 2 : 3}" class="small muted">Belum ada biaya lainnya.</td></tr>`}</tbody></table></div>
+    ${locked ? '' : '<button class="btn sm" type="button" data-act="reg-add-biaya">+ Tambah biaya lainnya</button>'}
+    <div class="totals small"><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span>${c.klaim ? `<span class="muted">Klaim KSG</span><span class="num">${rp(c.klaim)}</span>` : ''}${w.parts.length ? `<span class="muted">Order sparepart</span><span class="num">${rp(c.parts)}</span>` : ''}${c.biaya ? `<span class="muted">Biaya lainnya</span><span class="num">${rp(c.biaya)}</span>` : ''}</div>
     <div class="row" style="justify-content:flex-end">
      ${w.no && !locked && isRole('admin') ? `<label class="f" for="r-status" style="flex-direction:row;align-items:center;gap:6px">Status<select id="r-status" style="width:auto">${AKTIF.map(s => `<option ${s === w.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>` : ''}
      ${w.status === 'Ditunda' && !locked ? '<button class="btn warn" type="button" data-act="reg-lanjut">▶ Lanjutkan dikerjakan</button>' : ''}
@@ -460,6 +464,8 @@ Object.assign(actions, {
   'reg-pakai': pakaiData,
   'reg-pakai-k': el => pakaiKonsumen(el),
   'reg-pakai-km': el => pakaiKonsumen(el, el.dataset.n),
+  'reg-add-biaya': () => { if (st.regDraft?.status === 'Lunas') return; st.regDraft.biaya = [...(st.regDraft.biaya || []), { ket: '', jumlah: 0 }]; renderRegistrasi(); document.querySelector('[data-bi="' + (st.regDraft.biaya.length - 1) + '"][data-bf="ket"]')?.focus(); },
+  'reg-rm-biaya': el => { if (st.regDraft?.status === 'Lunas') return; st.regDraft.biaya.splice(+el.dataset.i, 1); renderRegistrasi(); },
   'reg-hapus-antar': () => { delete st.regDraft.pengantar; renderRegistrasi(); },
   'reg-lanjut': async () => { const w = st.regDraft; w._lanjut = true; try { await save(); } finally { delete w._lanjut; } },
   'reg-status': async el => { const alasan = el.dataset.s === 'Ditunda' ? ($('#reg-tunda')?.value || '') : ''; if (await laporStatus(el.dataset.no, el.dataset.s, alasan)) { st.regDraft = { ...blank(), ...clone(findWo(el.dataset.no)), jasa: normJasa(findWo(el.dataset.no)) }; renderRegistrasi(); } },
@@ -484,6 +490,9 @@ inputHandlers.push(e => {
   if ((t.id === 'r-hp' || t.id === 'r-nama') && $('#r-wa')) $('#r-wa').innerHTML = waButton(st.regDraft.hp, waMsg(st.regDraft));
   if (t.id === 'r-nama' && st.regDraft.stnkSama !== false && $('#r-namaStnk')) $('#r-namaStnk').value = t.value;
   if (t.id === 'r-nik') t.value = t.value.replace(/\D/g, '').slice(0, 16), st.regDraft.nik = t.value;
+  if (t.dataset.bi !== undefined && st.regDraft.biaya?.[+t.dataset.bi]) {
+    st.regDraft.biaya[+t.dataset.bi][t.dataset.bf] = t.dataset.bf === 'jumlah' ? (+t.value || 0) : t.value;
+  }
 });
 changeHandlers.push(e => {
   const t = e.target, w = st.regDraft; if (!w) return;
