@@ -1,9 +1,13 @@
-# Aceh Mandiri Utama POS · versi 5.6.1
+# Aceh Mandiri Utama POS · versi 5.6.2
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.6.2 — Perbaikan cetak BAST kendaraan masuk
+- Memperbaiki tombol Preview/Cetak BAST pada Register yang tidak membuka dialog karena fungsi modal belum terhubung.
+- BAST kendaraan masuk sekarang dapat dibuka dari tombol atas maupun tombol di bagian BAST Register.
 
 ## 5.6.1 — Tombol BAST langsung di Register
 - Tombol BAST masuk untuk KSB/KSG langsung terlihat sejak formulir Register dibuka.
