@@ -1,9 +1,22 @@
-# Aceh Mandiri Utama POS · versi 5.5.7
+# Aceh Mandiri Utama POS · versi 5.5.9
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.5.9 — Pusat Bantuan lengkap dan pencarian panduan
+- Panduan diperluas untuk umum, Registrasi, Kasir, Mekanik, Sparepart, Admin, Super Admin, dan troubleshooting.
+- Pengguna hanya melihat panduan yang sesuai perannya; admin/super admin dapat melihat seluruh topik.
+- Ditambahkan pencarian lintas panduan berdasarkan kata kunci dan masalah.
+- Ditambahkan panduan rinci KSB/KSG, BAST kendaraan, laporan mekanik, pembayaran, stok, transfer, BAST transfer stok, absensi, payroll, backup, dan penanganan error.
+
+## 5.5.8 — BAST kendaraan dan alur KSG/KSB Register
+- Register baru memakai pilihan KSB/KSG; WO lama Reguler tetap dapat dibuka.
+- KSG menyembunyikan checklist jasa standar dan otomatis mengosongkan jasa tertagih; KSG ke-berapa dan nilai klaim tetap terlihat.
+- Register menampilkan rincian part secara detail.
+- BAST kendaraan berisi kode KSG1/KSG2/KSG3/KSG4 atau KSB di pojok kanan atas, data konsumen/kendaraan, pengerjaan, estimasi manual, hari/tanggal/jam, keterangan, dan tanda tangan.
+- BAST dapat dipreview dan dicetak/disimpan sebagai PDF.
 
 ## 5.5.7 — BAST transfer stok
 - Riwayat transfer stok memiliki tombol BAST.
