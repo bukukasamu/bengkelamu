@@ -1,7 +1,7 @@
 // Menu Registrasi Servis: data konsumen & kendaraan, keluhan, jenis servis (Reguler/KSB/KSG), jasa, mekanik.
 import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber, konfirmasi, modal } from './util.js';
 import { APP_NAME } from './config.js';
-import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole, namaPetugas } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, part, mekanikById, isRole, namaPetugas } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, collection, query, where, limit, documentId } from './firebase.js';
 import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, partsTable, fmtAntri, kurangBadge, tundaInfo, mekanikNama, syncLayar, laporStatus } from './wo-common.js';
@@ -81,6 +81,16 @@ function bastKendCss() { return `.bk-doc{font-family:Arial,sans-serif;color:#202
 function bastKendPrint(w) { const x=window.open('', '_blank'); if (!x) { toast('Izinkan pop-up untuk membuka preview BAST'); return; } x.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>BAST ${esc(bastKode(w))} ${esc(w.nopol || '')}</title><style>${bastKendCss()}</style></head><body>${bastKendHtml(w,true)}<script>window.onload=()=>{window.focus();window.print()}<\/script></body></html>`); x.document.close(); }
 function bastKendOpen(w) { modal(`<style>${bastKendCss()}</style><div class="row spread no-print"><h2>BAST Kendaraan · ${esc(bastKode(w))}</h2><button class="btn sm ghost" type="button" data-close="1">✕</button></div>${bastKendHtml(w)}<div class="row no-print" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="reg-bast-print">Print / Simpan PDF</button></div>`, 'wide'); }
 
+function detailBiayaHTML(w, c) {
+  const jasa = normJasa(w), parts = w.parts || [], biaya = w.biaya || [];
+  const jasaRows = w.jenisServis === 'KSG'
+    ? `<tr><td>Jasa standar KSG ke-${esc(w.ksgKe || '–')}</td><td class="r">${rp(c.klaim)}</td><td><span class="pill p-good">Gratis konsumen</span></td></tr>`
+    : jasa.map(j => `<tr><td>${esc(j.nama)}</td><td class="r">${rp(+j.harga || 0)}</td><td><span class="pill p-info">Ditagihkan</span></td></tr>`).join('') || '<tr><td colspan="3" class="small muted">Belum ada jasa yang dipilih.</td></tr>';
+  const partRows = parts.map(x => { const p = part(x.kode) || {}; const qty = +x.qty || 0, harga = +p.jual || 0; return `<tr><td><b>${esc(p.nama || x.nama || x.kode)}</b><br><span class="small muted mono">${esc(x.kode || '')}</span></td><td class="r">${qty}</td><td class="r">${rp(harga)}</td><td class="r"><b>${rp(qty * harga)}</b></td></tr>`; }).join('') || '<tr><td colspan="4" class="small muted">Belum ada part yang ditagihkan.</td></tr>';
+  const biayaRows = biaya.filter(x => x.ket || +x.jumlah).map(x => `<tr><td>${esc(x.ket || 'Biaya lainnya')}</td><td class="r"><b>${rp(+x.jumlah || 0)}</b></td></tr>`).join('') || '<tr><td colspan="2" class="small muted">Belum ada biaya lainnya.</td></tr>';
+  return `<div class="note" style="margin-top:10px"><b>Detail biaya yang akan ditagihkan</b><div class="tw" style="margin-top:7px"><table><thead><tr><th>Jasa ${w.jenisServis === 'KSG' ? '(KSG gratis / nilai klaim)' : ''}</th><th class="r">Nominal</th><th>Status</th></tr></thead><tbody>${jasaRows}</tbody></table></div><div class="tw" style="margin-top:7px"><table><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Harga satuan</th><th class="r">Jumlah</th></tr></thead><tbody>${partRows}</tbody></table></div><div class="tw" style="margin-top:7px"><table><thead><tr><th>Biaya lainnya</th><th class="r">Nominal</th></tr></thead><tbody>${biayaRows}</tbody></table></div></div>`;
+}
+
 function renderRegistrasi() {
   if (!st.regDraft) st.regDraft = blank();
   const w = st.regDraft, locked = w.status === 'Lunas', dis = locked ? 'disabled' : '';
@@ -142,7 +152,8 @@ function renderRegistrasi() {
     <div class="small muted" style="margin-bottom:6px">Tambahkan biaya di luar jasa dan sparepart, misalnya cuci motor, las, atau biaya lain. Biaya ini akan masuk ke total pembayaran Kasir.</div>
     <div class="tw"><table><thead><tr><th>Keterangan</th><th class="r">Nominal (Rp)</th>${locked ? '' : '<th></th>'}</tr></thead><tbody>${(w.biaya || []).length ? (w.biaya || []).map((b, i) => `<tr><td><input class="inline-input" data-bi="${i}" data-bf="ket" value="${esc(b.ket || '')}" placeholder="mis. Cuci motor" ${dis}></td><td><input class="inline-input num" data-bi="${i}" data-bf="jumlah" type="number" min="0" step="1000" value="${b.jumlah || ''}" placeholder="0" style="text-align:right" ${dis}></td>${locked ? '' : `<td><button class="btn sm ghost" type="button" data-act="reg-rm-biaya" data-i="${i}" aria-label="Hapus biaya">✕</button></td>`}</tr>`).join('') : `<tr><td colspan="${locked ? 2 : 3}" class="small muted">Belum ada biaya lainnya.</td></tr>`}</tbody></table></div>
     ${locked ? '' : '<button class="btn sm" type="button" data-act="reg-add-biaya">+ Tambah biaya lainnya</button>'}
-    <div class="totals small"><span class="muted">Jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span>${c.klaim ? `<span class="muted">Klaim KSG</span><span class="num">${rp(c.klaim)}</span>` : ''}${w.parts.length ? `<span class="muted">Order sparepart</span><span class="num">${rp(c.parts)}</span>` : ''}${c.biaya ? `<span class="muted">Biaya lainnya</span><span class="num">${rp(c.biaya)}</span>` : ''}</div>
+    ${detailBiayaHTML(w, c)}
+    <div class="totals small"><span class="muted">Total jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span>${c.klaim ? `<span class="muted">Klaim KSG</span><span class="num">${rp(c.klaim)}</span>` : ''}${w.parts.length ? `<span class="muted">Total part ditagih</span><span class="num">${rp(c.parts)}</span>` : ''}${c.biaya ? `<span class="muted">Total biaya lainnya</span><span class="num">${rp(c.biaya)}</span>` : ''}<span class="muted"><b>Total servis</b></span><span class="num"><b>${rp(c.total)}</b></span></div>
     <div class="row" style="justify-content:flex-end">
      ${w.no && !locked && isRole('admin') ? `<label class="f" for="r-status" style="flex-direction:row;align-items:center;gap:6px">Status<select id="r-status" style="width:auto">${AKTIF.map(s => `<option ${s === w.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>` : ''}
      ${w.status === 'Ditunda' && !locked ? '<button class="btn warn" type="button" data-act="reg-lanjut">▶ Lanjutkan dikerjakan</button>' : ''}
