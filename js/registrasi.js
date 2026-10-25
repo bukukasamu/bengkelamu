@@ -4,7 +4,7 @@ import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole, namaPetugas } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, collection, query, where, limit, documentId } from './firebase.js';
-import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, fmtAntri, kurangBadge, tundaInfo, mekanikNama, syncLayar, laporStatus } from './wo-common.js';
+import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, partsTable, fmtAntri, kurangBadge, tundaInfo, mekanikNama, syncLayar, laporStatus } from './wo-common.js';
 import { showAntrian } from './antrian.js';
 import { bedaKonsumen, simpanDenganCatatan } from './log-konsumen.js';
 import { wilayahHTML, fillWilayah, WIL_FIELDS } from './wilayah.js';
@@ -21,7 +21,7 @@ export { nopolKey };
 export const KONSUMEN_FIELDS = ['nik', 'nama', 'tempatLahir', 'tglLahir', 'jk', 'pekerjaan', 'hp', 'rtrw', ...WIL_FIELDS];
 const UNIT_FIELDS = ['nopol', 'namaStnk', 'stnkSama', 'tipe', 'tahun', 'warna', 'noRangka', 'noMesin'];
 const KEND_FIELDS = [...KONSUMEN_FIELDS, ...UNIT_FIELDS];
-const blank = () => ({ no: null, tgl: stamp(new Date()), nik: '', nama: '', tempatLahir: '', tglLahir: '', jk: '', pekerjaan: '', hp: '', rtrw: '', namaStnk: '', stnkSama: true, nopol: '', provinsi: '', kabKode: '', kabupaten: '', kecamatan: '', kelurahan: '', alamat: '', tipe: '', tahun: '', warna: '', noRangka: '', noMesin: '', km: '', keluhan: '', jenisServis: 'Reguler', ksgKe: '', noKartu: '', jasa: [], mekanikId: '', mekanik: '', parts: [], biaya: [], catatanPart: '', status: 'Antri', konsumenId: '' });
+const blank = () => ({ no: null, tgl: stamp(new Date()), nik: '', nama: '', tempatLahir: '', tglLahir: '', jk: '', pekerjaan: '', hp: '', rtrw: '', namaStnk: '', stnkSama: true, nopol: '', provinsi: '', kabKode: '', kabupaten: '', kecamatan: '', kelurahan: '', alamat: '', tipe: '', tahun: '', warna: '', noRangka: '', noMesin: '', km: '', keluhan: '', jenisServis: 'KSB', ksgKe: '', noKartu: '', jasa: [], mekanikId: '', mekanik: '', parts: [], biaya: [], catatanPart: '', estimasi: '', bastTgl: dkey(new Date()), bastJam: new Date().toTimeString().slice(0, 5), bastKet: '', status: 'Antri', konsumenId: '' });
 let filter = 'aktif';
 const waMsg = w => `Halo ${w.nama || 'Bapak/Ibu'}, kami dari ${APP_NAME} mengenai motor ${w.nopol || ''}${w.antrian ? ' (antrian ' + fmtAntri(w.antrian) + ')' : ''}. `;
 
@@ -66,6 +66,21 @@ function laporanStatusHTML(w) {
     <div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="reg-status" data-s="Selesai" data-no="${esc(w.no)}">Motor sudah selesai</button><span class="small muted">Untuk mengerjakan lagi, pilih mekanik kosong lalu tekan Lanjutkan dikerjakan.</span></div></div>`;
   return '<div class="note p-good"><b>Laporan selesai diterima Register.</b> Nomor antrean dipanggil ke REGISTER di layar TV; motor siap dibayar oleh kasir.</div>';
 }
+const bastKode = w => w.jenisServis === 'KSG' ? 'KSG' + (w.ksgKe || '') : w.jenisServis === 'KSB' ? 'KSB' : '';
+const hariTanggal = t => t ? new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '–';
+function bastKendHtml(w, print = false) {
+  const kode = bastKode(w), items = w.parts || [], jasa = normJasa(w);
+  return `<div class="bk-doc ${print ? 'bk-print' : ''}"><div class="bk-head"><div><h1>BAST KENDARAAN</h1><div>BERITA ACARA SERAH TERIMA KENDARAAN</div></div><div class="bk-code"><b>${esc(kode)}</b></div></div>
+  <div class="bk-meta"><div><b>Data konsumen</b><br>Nama: ${esc(w.nama || '–')}<br>NIK: ${esc(w.nik || '–')}<br>No. HP/WA: ${esc(w.hp || '–')}</div><div><b>Data kendaraan</b><br>No. Polisi: <b>${esc(w.nopol || '–')}</b><br>Tipe: ${esc(w.tipe || '–')} · Tahun: ${esc(w.tahun || '–')}<br>Warna: ${esc(w.warna || '–')}<br>KM: ${esc(w.km || '–')}</div></div>
+  <h3>Pengerjaan</h3><p>${esc(w.keluhan || '–')}</p><p><b>Jenis layanan:</b> ${esc(kode || w.jenisServis || '–')}${w.ksgKe ? ' · KSG ke-' + esc(w.ksgKe) : ''} · <b>Mekanik:</b> ${esc(w.mekanik || '–')}</p>
+  <h3>Rincian part dan jasa</h3><table class="bk-table"><thead><tr><th>No.</th><th>Jenis</th><th>Rincian</th><th class="r">Qty</th></tr></thead><tbody>${jasa.map((x,i)=>`<tr><td>${i+1}</td><td>Jasa</td><td>${esc(x.nama)}</td><td class="r">1</td></tr>`).join('')}${items.map((x,i)=>`<tr><td>${jasa.length+i+1}</td><td>Part</td><td>${esc(x.nama || x.kode)} <span class="small">${esc(x.kode || '')}</span></td><td class="r">${x.qty}</td></tr>`).join('')}${!jasa.length && !items.length ? '<tr><td colspan="4">Tidak ada rincian part/jasa.</td></tr>' : ''}</tbody></table>
+  <div class="bk-est"><b>Estimasi selesai / pengambilan:</b> ${esc(w.estimasi || '–')}</div><p><b>Hari, tanggal, jam:</b> ${esc(hariTanggal(w.bastTgl))}, ${esc(w.bastJam || '–')}</p><p><b>Keterangan:</b> ${esc(w.bastKet || 'BAST ini dibawa saat pengambilan kendaraan.')}</p>
+  <div class="bk-sign"><div>Petugas bengkel<div class="bk-space"></div><b>${esc(namaPetugas() || '________________')}</b></div><div>Konsumen<div class="bk-space"></div><b>${esc(w.nama || '________________')}</b></div></div></div>`;
+}
+function bastKendCss() { return `.bk-doc{font-family:Arial,sans-serif;color:#20242a;max-width:820px;margin:0 auto;padding:30px;background:#fff;font-size:13px;line-height:1.45}.bk-head{display:flex;justify-content:space-between;border-bottom:2px solid #20242a;padding-bottom:12px}.bk-head h1{margin:0 0 3px;font-size:21px}.bk-code{font-size:25px;border:2px solid #20242a;padding:8px 14px;height:max-content}.bk-meta{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin:20px 0}.bk-doc h3{font-size:14px;border-bottom:1px solid #999;padding-bottom:4px;margin:15px 0 7px}.bk-table{width:100%;border-collapse:collapse}.bk-table th,.bk-table td{border:1px solid #555;padding:6px 8px}.bk-table th{text-align:left;background:#f0f1f3}.bk-table .r{text-align:right}.bk-est{border:1px solid #555;padding:10px;margin:18px 0;font-size:15px}.bk-sign{display:grid;grid-template-columns:1fr 1fr;gap:70px;text-align:center;margin-top:40px}.bk-space{height:52px}.small{font-size:11px;color:#666}@media print{@page{size:A4 portrait;margin:14mm}.bk-doc{padding:0;max-width:none}.no-print{display:none}}`; }
+function bastKendPrint(w) { const x=window.open('', '_blank'); if (!x) { toast('Izinkan pop-up untuk membuka preview BAST'); return; } x.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>BAST ${esc(bastKode(w))} ${esc(w.nopol || '')}</title><style>${bastKendCss()}</style></head><body>${bastKendHtml(w,true)}<script>window.onload=()=>{window.focus();window.print()}<\/script></body></html>`); x.document.close(); }
+function bastKendOpen(w) { modal(`<style>${bastKendCss()}</style><div class="row spread no-print"><h2>BAST Kendaraan · ${esc(bastKode(w))}</h2><button class="btn sm ghost" type="button" data-close="1">✕</button></div>${bastKendHtml(w)}<div class="row no-print" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="reg-bast-print">Print / Simpan PDF</button></div>`, 'wide'); }
+
 function renderRegistrasi() {
   if (!st.regDraft) st.regDraft = blank();
   const w = st.regDraft, locked = w.status === 'Lunas', dis = locked ? 'disabled' : '';
@@ -111,16 +126,18 @@ function renderRegistrasi() {
     <div id="r-oli"></div>
     <h3>3. Servis</h3>
     <div class="form">
-     <label class="f" for="r-jenis">Jenis servis<select id="r-jenis" data-rf="jenisServis" ${dis}>${Object.entries(JENIS_SERVIS).map(([k, l]) => `<option value="${k}" ${k === w.jenisServis ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+     <label class="f" for="r-jenis">Jenis servis<select id="r-jenis" data-rf="jenisServis" ${dis}>${Object.entries(JENIS_SERVIS).filter(([k]) => ['KSB', 'KSG'].includes(k) || k === w.jenisServis).map(([k, l]) => `<option value="${k}" ${k === w.jenisServis ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
      ${w.jenisServis === 'KSG' ? `<label class="f" for="r-ksgke">KSG ke-<select id="r-ksgke" data-rf="ksgKe" ${dis}><option value="">Pilih</option>${[1, 2, 3, 4].map(n => `<option ${String(n) === String(w.ksgKe) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
      ${w.jenisServis !== 'Reguler' ? inp('noKartu', w.jenisServis === 'KSG' ? 'No. kupon / buku servis' : 'No. kartu KSB', 'class="mono"') : ''}
      <label class="f" for="r-mek">Mekanik<select id="r-mek" data-rf="mekanikId" ${dis}>${mekanikOptions(w)}</select></label>
      <label class="f wide" for="r-keluhan">Keluhan konsumen<textarea id="r-keluhan" data-rf="keluhan" ${dis}>${esc(w.keluhan)}</textarea></label>
     </div>
-    ${w.jenisServis === 'KSG' ? `<div class="note small">KSG: jasa servis gratis untuk konsumen. ${w.tipe && w.ksgKe ? (tarifKsg(w) ? `Klaim ke main dealer (${esc(w.tipe)}, KSG ke-${esc(w.ksgKe)}): <b>${rp(tarifKsg(w))}</b>.` : `<span class="diff-bad">Tarif KSG ${esc(w.tipe)} ke-${esc(w.ksgKe)} belum diisi</span> di Master Data → Tarif KSG.`) : 'Pilih tipe motor dan KSG ke berapa untuk melihat nilai klaim.'} Sparepart dan biaya lain tetap ditagih.</div>` : ''}
-    <h3>Jasa servis</h3>
-    <div class="checks">${[...jasaList, ...extra].map((j, i) => `<label for="r-j${i}"><input type="checkbox" id="r-j${i}" data-jasa="${esc(j.nama)}" data-harga="${j.harga}" ${selected.find(x => x.nama === j.nama) ? 'checked' : ''} ${dis}>${esc(j.nama)}<span class="hr">${w.jenisServis === 'KSG' ? 'gratis' : rp(j.harga)}</span></label>`).join('') || '<div class="small muted">Belum ada jasa. Tambahkan di Master Data → Jasa Servis.</div>'}</div>
+    ${w.jenisServis === 'KSG' ? `<div class="note small">KSG: jasa standar tidak dipilih satu per satu dan tidak ditagihkan ke konsumen. ${w.tipe && w.ksgKe ? (tarifKsg(w) ? `Klaim ke main dealer (${esc(w.tipe)}, KSG ke-${esc(w.ksgKe)}): <b>${rp(tarifKsg(w))}</b>.` : `<span class="diff-bad">Tarif KSG ${esc(w.tipe)} ke-${esc(w.ksgKe)} belum diisi</span> di Master Data → Tarif KSG.`) : 'Pilih tipe motor dan KSG ke berapa untuk melihat nilai klaim.'} Part dan jasa/biaya tambahan tetap ditampilkan.</div>` : ''}
+    <h3>${w.jenisServis === 'KSG' ? 'Jasa lainnya' : 'Jasa servis'}</h3>
+    ${w.jenisServis === 'KSG' ? '<div class="small muted">Jasa KSG otomatis mengikuti KSG ke-berapa. Tidak ada checklist jasa standar untuk KSG.</div>' : `<div class="checks">${[...jasaList, ...extra].map((j, i) => `<label for="r-j${i}"><input type="checkbox" id="r-j${i}" data-jasa="${esc(j.nama)}" data-harga="${j.harga}" ${selected.find(x => x.nama === j.nama) ? 'checked' : ''} ${dis}>${esc(j.nama)}<span class="hr">${rp(j.harga)}</span></label>`).join('') || '<div class="small muted">Belum ada jasa. Tambahkan di Master Data → Jasa Servis.</div>'}</div>`}
+    <h3>Rincian part</h3>${partsTable(w)}
     ${w.no ? timelineHTML(w) : ''}
+    ${(w.jenisServis === 'KSG' || w.jenisServis === 'KSB') ? `<h3>BAST kendaraan <span class="badge ${w.jenisServis === 'KSG' ? 'b-ksg' : 'b-ksb'}">${esc(bastKode(w))}</span></h3><div class="form"><label class="f wide" for="r-estimasi">Estimasi selesai / pengambilan (manual)<input id="r-estimasi" data-rf="estimasi" value="${esc(w.estimasi || '')}" placeholder="mis. Sore ini / 2 hari" ${dis}></label><label class="f" for="r-bastTgl">Tanggal BAST<input id="r-bastTgl" type="date" data-rf="bastTgl" value="${esc(w.bastTgl || dkey(new Date()))}" ${dis}></label><label class="f" for="r-bastJam">Jam<input id="r-bastJam" type="time" data-rf="bastJam" value="${esc(w.bastJam || '')}" ${dis}></label><label class="f wide-2" for="r-bastKet">Keterangan BAST<textarea id="r-bastKet" data-rf="bastKet" placeholder="BAST dibawa saat pengambilan kendaraan" ${dis}>${esc(w.bastKet || 'BAST ini dibawa saat pengambilan kendaraan.')}</textarea></label></div><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="reg-bast">Preview BAST ${esc(bastKode(w))}</button></div>` : ''}
     <h3>Biaya lainnya</h3>
     <div class="small muted" style="margin-bottom:6px">Tambahkan biaya di luar jasa dan sparepart, misalnya cuci motor, las, atau biaya lain. Biaya ini akan masuk ke total pembayaran Kasir.</div>
     <div class="tw"><table><thead><tr><th>Keterangan</th><th class="r">Nominal (Rp)</th>${locked ? '' : '<th></th>'}</tr></thead><tbody>${(w.biaya || []).length ? (w.biaya || []).map((b, i) => `<tr><td><input class="inline-input" data-bi="${i}" data-bf="ket" value="${esc(b.ket || '')}" placeholder="mis. Cuci motor" ${dis}></td><td><input class="inline-input num" data-bi="${i}" data-bf="jumlah" type="number" min="0" step="1000" value="${b.jumlah || ''}" placeholder="0" style="text-align:right" ${dis}></td>${locked ? '' : `<td><button class="btn sm ghost" type="button" data-act="reg-rm-biaya" data-i="${i}" aria-label="Hapus biaya">✕</button></td>`}</tr>`).join('') : `<tr><td colspan="${locked ? 2 : 3}" class="small muted">Belum ada biaya lainnya.</td></tr>`}</tbody></table></div>
@@ -292,6 +309,7 @@ async function save(opts = {}) {
   else if (status === 'Dikerjakan' && stored && mek && stored.mekanikId !== mek.id) w.log = logStatus(w.log || stored.log || [], 'Dikerjakan', { ...infoMek, a: 'ganti mekanik dari ' + (mekanikNama(stored) || '–') });
   w.status = status; w.mekanik = mek?.nama || '';
   delete w._manual; delete w._lanjut;
+  if (w.jenisServis === 'KSG') w.jasa = [];
   w.jasa = normJasa(w); w.dataKurang = false;
   st.saving = true;
   try {
@@ -459,6 +477,8 @@ Object.assign(actions, {
   'reg-pick': el => { const o = findWo(el.dataset.no); if (o) { st.regDraft = { ...blank(), ...clone(o), jasa: normJasa(o) }; renderRegistrasi(); } },
   'reg-filter': el => { filter = el.dataset.f; document.querySelectorAll('[data-act="reg-filter"]').forEach(b => b.setAttribute('aria-pressed', b === el)); renderList(); },
   'reg-save': () => save(),
+  'reg-bast': () => { if (!st.regDraft?.nopol || !st.regDraft?.nama) { toast('Lengkapi data konsumen dan kendaraan dulu'); return; } bastKendOpen(st.regDraft); },
+  'reg-bast-print': () => st.regDraft && bastKendPrint(st.regDraft),
   'reg-cepat': () => save({ cepat: true }),
   'reg-cari': cariData,
   'reg-pakai': pakaiData,
@@ -497,7 +517,7 @@ inputHandlers.push(e => {
 changeHandlers.push(e => {
   const t = e.target, w = st.regDraft; if (!w) return;
   if (t.dataset.rf) w[t.dataset.rf] = t.value;
-  if (t.id === 'r-jenis') { if (w.jenisServis !== 'KSG') w.ksgKe = ''; renderRegistrasi(); }
+  if (t.id === 'r-jenis') { if (w.jenisServis !== 'KSG') w.ksgKe = ''; if (w.jenisServis === 'KSG') w.jasa = []; renderRegistrasi(); }
   if ((t.id === 'r-ksgke' || t.id === 'r-tipe') && w.jenisServis === 'KSG') renderRegistrasi();   // perbarui nilai klaim KSG
   if (t.dataset.jasa && t.closest('.checks') && $('#r-nopol')) {
     const n = t.dataset.jasa;

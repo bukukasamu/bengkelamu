@@ -1,102 +1,156 @@
-// Menu Panduan Penggunaan: cara kerja aplikasi per peran (alur kerja tiap petugas berbeda).
-// Petugas melihat panduan perannya + panduan umum; admin & super admin bisa membuka semua.
+// Pusat Bantuan Aplikasi AMU Service.
+// Panduan disaring berdasarkan peran, tetapi admin/super admin dapat melihat seluruh topik.
 import { $, esc } from './util.js';
 import { st, views, refreshers, actions } from './state.js';
 
-// Format isi: [judul langkah, isi (HTML sederhana)]. <kbd> untuk tombol keyboard.
 const P = {
-  umum: { judul: 'Umum (semua petugas)', ringkas: 'Masuk, tombol cepat, absensi, dan aturan dasar.', bagian: [
-    ['Masuk aplikasi', 'Buka <b>www.amuservice.id/pos</b> → pilih nama → ketik <b>PIN 6 angka</b>. Ganti PIN sendiri lewat tombol <b>Ganti PIN</b> di bawah menu. Jangan berikan PIN ke orang lain: semua pekerjaan tercatat atas nama Anda.'],
-    ['Tombol cepat keyboard', '<kbd>F1</kbd> data baru · <kbd>F2</kbd> simpan · <kbd>F3</kbd> langsung ke kotak pencarian · <kbd>F8</kbd> cetak nota terakhir · <kbd>Esc</kbd> menutup jendela. Tombol yang sama juga ada di bawah judul halaman.'],
-    ['Kotak konfirmasi', 'Setiap tindakan penting (setujui, selesai, tunda, bayar, transfer, tutup kas, hapus) menampilkan kotak konfirmasi. Baca isinya dulu. Tombol yang aktif pertama kali adalah <b>Batal</b>, jadi tekan Enter tanpa sengaja tidak menyetujui apa pun.'],
-    ['Tombol Kembali &amp; Keluar', 'Tombol <b>Kembali</b> (browser atau HP) tidak langsung keluar: muncul pilihan <b>Kembali ke menu sebelumnya</b>, <b>Keluar dari aplikasi</b>, atau <b>Batal</b>. Bila ada jendela terbuka, ditanya dulu sebelum ditutup. Menutup tab / memuat ulang halaman memunculkan peringatan browser, dan tombol <b>Keluar</b> akun juga minta konfirmasi.'],
-    ['Nomor urut', 'Daftar (stok part, konsumen, motor di bengkel, laporan, dll.) diberi nomor urut di kolom paling kiri, mengikuti urutan yang sedang tampil.'],
-    ['Absensi', 'Datang & pulang: menu <b>Absensi Saya</b> → <b>Scan QR</b> di layar absen bengkel → selfie. QR berganti setiap beberapa detik, jadi harus di bengkel. Satu akun hanya bisa absen dari HP yang terdaftar (minta super admin reset bila ganti HP).'],
-    ['Penghasilan Saya', 'Melihat gaji pokok, insentif, target, potongan, slip gaji bulanan, serta THR &amp; bonus (tab THR &amp; Bonus, slip bisa diunduh PDF) milik Anda sendiri. Karyawan lain tidak bisa melihatnya.'],
-    ['Cek servis konsumen', 'Konsumen bisa memantau servis & riwayat motornya di <b>www.amuservice.id</b> dengan nomor polisi + nomor HP yang terdaftar. Link-nya ikut terkirim di WA nota dan pengingat.']
-  ] },
-  registrasi: { judul: 'Registrasi Servis', ringkas: 'Menerima motor, memberi nomor antrian, mengatur mekanik, dan mengingatkan konsumen.', bagian: [
-    ['1. Motor datang', 'Menu <b>Registrasi Servis</b> → <kbd>F1</kbd> (+ Motor masuk). Kursor langsung di <b>NIK</b>. Tanyakan dulu: <i>pernah servis di sini?</i> Bila ya, tekan <kbd>F3</kbd> → ketik nopol / nama / no. HP (boleh sebagian) → <b>Pakai data</b>. Motor lain milik konsumen yang sama: <b>Konsumen saja</b>.'],
-    ['2. Isi data', '<b>Data konsumen</b> sesuai KTP, <b>data kendaraan</b> sesuai STNK, <b>KM saat ini</b>, keluhan, jenis servis (Reguler / KSB / KSG ke-1..4 + nomor kupon), dan jasa. Data lama yang diubah tercatat otomatis (siapa & kapan).'],
-    ['3. Kilometer', 'Di samping kolom KM tertulis <b>KM terakhir</b> motor itu. KM baru <b>tidak boleh lebih kecil</b>; aplikasi menolak menyimpan. Bila speedometer memang diganti/direset, minta <b>admin</b> menyimpan (admin wajib menulis keterangan).'],
-    ['4. Pilih mekanik', 'Pilih mekanik yang <b>kosong</b> (yang sedang mengerjakan motor lain tidak bisa dipilih). Belum ada yang kosong? Biarkan kosong → status <b>Antri</b>.'],
-    ['5. Daftarkan', '<kbd>F2</kbd> → nomor antrian keluar (bisa dicetak / dikirim WA). Status: <b>Antri</b> (belum ada mekanik) → <b>Dikerjakan</b> → <b>Selesai</b> (dilaporkan ke Register) → <b>Lunas</b>.'],
-    ['6. Saat ramai: nomor cepat', 'Tombol <b>Nomor cepat (cukup nopol)</b> langsung memberi nomor antrian. Motor bertanda <b>Data belum lengkap</b>; lengkapi datanya sebelum dibayar (kasir tidak bisa menerima pembayaran sebelum lengkap).'],
-    ['7. Memantau antrian', 'Tab <b>Aktif / Hari ini / Ditunda / Semua</b> di kiri. Registrasi yang memantau: begitu ada mekanik kosong, buka motor <b>Antri</b> paling awal → pilih mekanik → <kbd>F2</kbd>.'],
-    ['8. Motor ditunda', 'Kasir menandai <b>Lanjut lama (tunda)</b> dengan alasan (mis. tunggu part). Alasannya terlihat di tab <b>Ditunda</b> dan oleh konsumen. Untuk melanjutkan: buka motornya → pilih mekanik kosong (boleh sama atau mekanik lain) → <b>▶ Lanjutkan dikerjakan</b> → konfirmasi. Lama kerja tiap mekanik tercatat terpisah.'],
-    ['9. Satu motor, satu pendaftaran', 'Motor yang masih di bengkel (Antri/Dikerjakan/Ditunda/Selesai) <b>tidak bisa didaftarkan lagi</b>. Saat nopol diketik muncul peringatan → tekan <b>Buka servis</b> untuk membuka pendaftaran yang ada.'],
-    ['10. Pengingat ganti oli', 'Setiap hari buka <b>Pengingat Servis</b> → tab <b>Perlu diingatkan</b> → <b>WA ingatkan</b> (pesan sudah terisi). Konsumen bilang sudah ganti oli di bengkel lain → <b>Ganti di luar</b> (isi tanggal & KM). Minta diingatkan nanti → <b>Tunda 14 hari</b>. Motor dijual/pindah → <b>Stop</b>. Saat registrasi, jadwal oli motor juga tampil di formulir.'],
-    ['11. Database konsumen', 'Satu konsumen bisa punya banyak motor. Konsumen dikenali dari <b>no. HP</b> (dan NIK bila diisi), bukan dari nama. Konsumen baru tanpa motor: <b>Konsumen & Kendaraan → Konsumen → + Konsumen baru</b>; motornya ditambahkan saat servis atau lewat <b>+ Tambah motor</b>. Saat registrasi: <kbd>F3</kbd> → cari nama/HP/NIK → <b>Pakai konsumen</b> → cukup isi data motor.'],
-    ['12. Motor milik orang lain', 'Bila nopol tercatat milik orang lain, aplikasi bertanya saat simpan: <b>Ganti pemilik</b> (motor dijual — wajib cek STNK & tulis alasan; riwayat servis tetap ikut motor, data pemilik lama disembunyikan dari pemilik baru) atau <b>Hanya mengantar</b> (pemilik tetap, pengantar dicatat di servis ini).'],
-    ['13. No. HP / NIK sudah terdaftar', 'No. HP milik konsumen lain → <b>Pakai data</b> (orang yang sama) atau <b>Orang lain, nomor sama</b> (mis. suami/istri). NIK yang sama selalu orang yang sama.'],
-    ['14. Ganti plat & no. rangka', 'Nopol baru tetapi no. rangka/mesin sudah tercatat → pilih <b>Ganti nomor polisi</b> supaya riwayat bersambung. No. rangka/mesin berbeda dengan data nopol itu → periksa STNK fisik dulu.'],
-    ['15. Data & riwayat konsumen', '<b>Konsumen & Kendaraan</b> untuk memperbaiki data (salah no. HP, alamat). <b>Riwayat Kendaraan</b> untuk melihat semua servis motor dalam bentuk tabel; klik baris untuk rincian & nota.']
-  ] },
-  sparepart: { judul: 'Sparepart', ringkas: 'Order part untuk servis, stok, pembelian, transfer, dan stok opname.', bagian: [
-    ['1. Order sparepart servis', 'Menu <b>Order Sparepart</b> → pilih motor di kiri → tulis <b>permintaan mekanik</b> → cari part → jumlah → <b>Tambah</b>. Stok yang sudah dipesan servis lain otomatis dikurangi dari jumlah yang bisa diorder.'],
-    ['2. Simpan order', 'Tombol <b>kuning "Simpan order"</b> = ada perubahan yang belum disimpan → tekan <kbd>F2</kbd> → muncul kotak <b>Order sparepart tersimpan</b> dan tombol berubah <b>hijau "✓ Tersimpan"</b>. Stok baru berkurang saat kasir menerima pembayaran.'],
-    ['3. Stok part', 'Kolom <b>Ready</b> = stok dikurangi part yang sudah dipesan servis. Kolom <b>Cabang lain</b> bisa diklik untuk rincian per cabang. Menu <b>Stok Part</b>: cari part, <b>⚲ Filter</b> kategori / stok menipis, nilai stok (harga beli, harga jual, proyeksi laba). Buka part → <b>Kartu stok</b> untuk melihat riwayat keluar-masuk. <b>Export Excel</b> berisi sheet <b>Semua cabang</b> (saring kolom Cabang dengan tombol panah di judul kolom), <b>Total per cabang</b>, dan satu sheet per cabang.'],
-    ['4. Pembelian dari supplier', 'Menu <b>Pembelian Stok</b> → <kbd>F1</kbd> invoice baru → tanggal, no. invoice, supplier, status bayar (lunas / belum + jatuh tempo), barang & harga beli → <b>Simpan draft</b>. Setelah barang datang: <b>Preview & terima barang</b> → cek fisik → centang → <b>Masukkan ke stok</b>. Hutang supplier ditandai lunas saat dibayar.'],
-    ['5. Transfer antar cabang', 'Kirim: Stok Part → Transfer → pilih cabang tujuan & part → konfirmasi (stok cabang ini berkurang). Terima: cek fisik barang dulu → <b>Terima</b> → konfirmasi (stok bertambah).'],
-    ['7. Permintaan barang antar cabang', 'Stok kurang? Di <b>Cek Stok</b> (atau saat order/jual stok tidak cukup) tekan <b>Minta kirim</b> pada cabang yang punya. Cabang pemilik barang melihat <b>Permintaan masuk</b> (angka merah di menu) → <b>Kirim</b> atau <b>Tolak</b> dengan alasan. Setelah barang sampai, cabang peminta menekan <b>Terima</b> di Stok Part.'],
-    ['6. Stok opname', 'Menu <b>Stok Opname</b> → buat → isi jumlah fisik tiap part (tersimpan otomatis) → <b>Ajukan</b>. Stok baru disesuaikan setelah disetujui super admin.']
-  ] },
-  kasir: { judul: 'Kasir', ringkas: 'Status servis dari mekanik, pembayaran, penjualan part, kas harian, klaim KSG.', bagian: [
-    ['1. Laporan mekanik', 'Menu <b>Pembayaran & Status Servis</b>. Mekanik melapor ke Register: <b>Motor selesai</b> → nomor antrian otomatis dipanggil di layar TV; atau <b>Lanjut lama (tunda)</b> → <b>alasan wajib diisi</b> (mis. tunggu part, konsumen ambil besok). Keduanya membuat mekanik kosong lagi.'],
-    ['2. Terima pembayaran servis', 'Pilih motor <b>Selesai</b> → periksa jasa & sparepart → tambah <b>biaya lain</b> / diskon bila ada → isi <b>cash / transfer</b> (pilih rekening) → <kbd>F2</kbd> → periksa total & kembalian di kotak konfirmasi → nota keluar (cetak / PDF / WA). Stok part terpotong dan jadwal ganti oli dihitung otomatis.'],
-    ['Cek stok', 'Menu <b>Cek Stok</b>: ketik part → stok, sudah dipesan servis, <b>ready</b>, dan stok cabang lain. Stok kurang saat menjual → muncul pilihan <b>Minta kirim</b> dari cabang lain.'],
-    ['3. Penjualan sparepart langsung', 'Menu <b>Penjualan Sparepart</b> → <kbd>F3</kbd> cari/scan part → keranjang → nama pelanggan (opsional) → pembayaran → <kbd>F2</kbd> → konfirmasi → nota.'],
-    ['4. Salah nota', 'Buka nota → <b>Ajukan pembatalan</b> + alasan. Nota baru batal setelah disetujui super admin (stok kembali, servis bisa dibayar ulang). Nota tidak bisa diubah langsung.'],
-    ['5. Kas harian', 'Pagi: <b>Kas & Pengeluaran</b> → <b>Buka kas</b> (uang awal di laci). Pengeluaran dicatat saat terjadi. Sore: hitung uang fisik → <b>Tutup kas</b> (selisih wajib diberi catatan) → setoran. Kas yang sudah ditutup hanya bisa dibuka ulang super admin.'],
-    ['6. Klaim KSG', 'Menu <b>Klaim KSG</b>: centang nota KSG bulan itu → <b>Ajukan</b> ke main dealer. Saat uang klaim diterima → <b>Dibayar</b> (jumlah & tanggal).'],
-    ['7. Pengingat servis', 'Kasir juga bisa membuka <b>Pengingat Servis</b> untuk mengirim WA pengingat ganti oli (lihat panduan Registrasi no. 10).']
-  ] },
-  mekanik: { judul: 'Mekanik', ringkas: 'Mengerjakan motor yang diberikan registrasi, melapor ke Register, melihat performa & penghasilan.', bagian: [
-    ['1. Menerima motor', 'Registrasi memilihkan motor untuk Anda. Satu mekanik mengerjakan <b>satu motor</b> sampai dilaporkan selesai atau ditunda. Lihat motor Anda di <b>Performa Mekanik → Pekerjaan saat ini</b>.'],
-    ['2. Butuh sparepart', 'Sampaikan kebutuhan part ke bagian sparepart; mereka mengisi <b>Order Sparepart</b> untuk motor Anda.'],
-    ['3. Selesai atau ditunda', 'Lapor ke <b>Register</b>: motor <b>selesai</b>, atau harus <b>ditunda</b> (sebutkan alasannya: tunggu part, perlu izin konsumen, dll.). Setelah itu Anda kosong dan bisa menerima motor berikutnya. Motor yang ditunda bisa dilanjutkan oleh Anda atau mekanik lain; waktu kerja masing-masing tercatat.'],
-    ['4. Performa', '<b>Performa Mekanik</b>: jumlah motor selesai, nilai jasa, rata-rata lama mengerjakan (waktu ditunda tidak dihitung), per tipe motor. Nilai jasa dihitung untuk mekanik yang menyelesaikan (tercantum di nota).'],
-    ['5. Penghasilan & absensi', '<b>Penghasilan Saya</b> untuk gaji, komisi/insentif, slip, serta THR &amp; bonus (tab <b>THR &amp; Bonus</b>). <b>Absensi Saya</b> untuk scan QR datang & pulang.']
-  ] },
-  admin: { judul: 'Admin / Kepala Cabang', ringkas: 'Semua pekerjaan operasional + beberapa izin khusus.', bagian: [
-    ['1. Beranda', 'Ringkasan hari ini: omzet, part terjual, motor masuk & status mekanik, stok menipis. Admin bisa membuka semua menu operasional (registrasi, order, kasir, stok, laporan).'],
-    ['Daftar & cetak konsumen', 'Konsumen & Kendaraan → Konsumen → <b>🖨 Daftar &amp; Cetak</b>: pilih <b>yang servis</b> / <b>yang didaftarkan</b> pada periode (hari ini, bulan ini, bulan lalu, pilih tanggal) atau <b>semua</b>, cabang, kecamatan, punya/belum punya motor, bentuk per konsumen atau per motor → <b>Tampilkan</b> → Excel, PDF, atau Print. Admin hanya cabang yang sedang dibuka; super admin semua cabang & kolom NIK.'],
-    ['Konsumen ganda & salah sambung', '<b>Gabungkan dengan…</b> (di data konsumen) bila satu orang tercatat dua kali — pilih isian yang benar per kolom, semua motor pindah. <b>Pindahkan</b> (di daftar motor konsumen) bila motor tersambung ke orang yang salah (koreksi, wajib alasan). Daftar <b>⚑ Perlu dicek</b> berisi data yang kemungkinan ganda.'],
-    ['2. Izin khusus admin', '<b>KM lebih kecil</b> dari KM terakhir (speedometer diganti): simpan dari Registrasi dan tulis keterangannya. <b>Batalkan pendaftaran</b> ganda/salah daftar yang belum dibayar (tombol di Registrasi). Mengubah status servis manual.'],
-    ['3. Persetujuan layar absen', 'Perangkat layar absen cabang baru meminta aktivasi → <b>Persetujuan</b> → cocokkan <b>kode di layar</b> → Setujui.'],
-    ['4. Master Data', 'Admin mengatur <b>Tipe Motor</b> dan <b>Layar TV</b>. Data lain (harga jasa, mekanik, petugas & PIN, rekening, insentif) khusus super admin.'],
-    ['5. Laporan & Insight', '<b>Laporan Penjualan</b> per periode (bisa Excel), penjualan part dalam rupiah, laba part. <b>Insight Konsumen</b> untuk konsumen yang lama tidak datang.']
-  ] },
-  super: { judul: 'Super Admin (pemilik)', ringkas: 'Pengaturan, persetujuan, keamanan data, gaji.', bagian: [
-    ['1. Masuk', 'Masuk dengan <b>email + kata sandi</b> super admin. Tindakan penting meminta kata sandi lagi.'],
-    ['2. Persetujuan', 'Menu <b>Persetujuan</b>: pembatalan nota (catatan + kata sandi), stok opname (periksa selisih → setujui/tolak), layar absen.'],
-    ['3. Master Data', 'Jasa & harga, Tarif KSG, Mekanik, Petugas & PIN, Rekening, Cabang (isi <b>No. telp/WA</b> cabang supaya konsumen bisa booking dari halaman cek servis), Insentif & Potongan, Logo, <b>Tema Tampilan</b> (pilihan warna, termasuk Gelap & Kaca), <b>Hak Akses Menu</b> (menu & kotak Beranda per peran), Riwayat Perubahan Konsumen.'],
-    ['Database konsumen', 'Setelah update ke versi 5, buka <b>Konsumen & Kendaraan → Konsumen</b> → <b>Bentuk database konsumen</b> (sekali). <b>Hapus data pribadi</b> konsumen atas permintaannya ada di data konsumen (riwayat servis & nota tetap ada).'],
-    ['4. Pengingat ganti oli', '<b>Pengingat Servis</b> → atur interval (bawaan 2.000 km / 60 hari). Setelah update pertama kali tekan <b>Bangun jadwal dari nota lama</b> sekali.'],
-    ['5. Karyawan', '<b>Absensi Karyawan</b> (rekap, ubah manual dengan catatan, reset HP), <b>Penghasilan Karyawan</b> (rekap, slip, kunci bulan).'],
-    ['6. THR & bonus', '<b>Penghasilan Karyawan → THR &amp; Bonus</b> → <b>+ THR / Bonus baru</b>. Jumlah = <b>gaji pokok × persen</b> (atur untuk semua, lalu ubah per orang bila perlu) + tambahan Rp. Untuk THR isi tanggal hari raya & tanggal mulai kerja: masa kerja di bawah 12 bulan dihitung proporsional, dan kolom <b>Min. aturan</b> memberi tanda bila di bawah batas minimal. <b>Kunci &amp; terbitkan</b> → slip muncul di Penghasilan Saya tiap karyawan, total tercatat sebagai pengeluaran.'],
-    ['7. Data', '<b>Backup Data</b> seminggu sekali (file JSON, bisa dipulihkan). Hapus semua data hanya dengan peringatan, ketik kalimat konfirmasi, dan kata sandi.']
-  ] }
+  umum: { judul: 'Umum — semua pengguna', ringkas: 'Cara masuk, memahami tampilan, keamanan akun, tombol cepat, dan aturan dasar penggunaan.', bagian: [
+    ['Cara masuk sebagai petugas', '<b>1.</b> Buka <b>www.amuservice.id/pos</b>. <b>2.</b> Pilih nama Anda. <b>3.</b> Masukkan PIN 6 angka. <b>4.</b> Tekan <b>Masuk</b>. Jangan memakai akun orang lain karena setiap registrasi, perubahan, pembayaran, stok, dan persetujuan dicatat atas nama akun yang sedang masuk.'],
+    ['Cara masuk sebagai super admin', 'Super admin masuk memakai email dan kata sandi. Tindakan sensitif seperti membatalkan nota, menghapus data, mengubah data penting, atau menyetujui stok opname dapat meminta kata sandi lagi.'],
+    ['Memahami tampilan aplikasi', 'Menu di sisi kiri adalah modul yang boleh dibuka oleh peran Anda. <b>Beranda</b> berisi ringkasan. Angka merah berarti ada pekerjaan yang perlu ditindaklanjuti. Tombol <b>?</b> atau menu <b>Panduan Penggunaan</b> membuka halaman bantuan ini.'],
+    ['Pencarian panduan', 'Ketik kata seperti <b>BAST</b>, <b>KSG</b>, <b>transfer</b>, <b>stok</b>, <b>nota</b>, <b>PIN</b>, atau <b>absensi</b> di kotak pencarian. Hasil akan menampilkan topik dan langkah yang mengandung kata tersebut. Hapus kata pencarian untuk melihat seluruh panduan yang tersedia bagi Anda.'],
+    ['Tombol cepat keyboard', '<kbd>F1</kbd> membuat data baru, <kbd>F2</kbd> menyimpan atau mengirim, <kbd>F3</kbd> memfokuskan pencarian, <kbd>F8</kbd> membuka/cetak nota terakhir, dan <kbd>Esc</kbd> menutup dialog. Di HP, gunakan tombol yang tampil di layar.'],
+    ['Konfirmasi tindakan penting', 'Baca dialog sebelum menyetujui. Konfirmasi digunakan untuk pembayaran, status selesai, tunda, transfer, penerimaan barang, stok opname, penghapusan, pembatalan nota, dan keluar akun. Jika ragu, tekan <b>Batal</b>.'],
+    ['Menyimpan pekerjaan', 'Jika tombol masih bertuliskan <b>Simpan</b> atau berwarna kuning, perubahan belum masuk database. Tekan tombol simpan dan tunggu pesan berhasil. Jangan menutup halaman saat indikator masih menyimpan. Jika muncul pesan gagal, catat nomor dokumen dan laporkan ke admin.'],
+    ['Keluar dan tombol kembali', 'Gunakan tombol <b>Keluar</b> di aplikasi. Tombol kembali HP/browser dapat menampilkan pilihan kembali ke menu, keluar, atau batal. Bila ada formulir yang belum disimpan, simpan dulu atau batalkan dengan sadar.'],
+    ['Absensi saya', 'Buka <b>Absensi Saya → Scan QR</b>, arahkan kamera ke QR di layar absensi bengkel, lalu ikuti instruksi selfie. QR berubah berkala dan biasanya hanya dapat dipakai di lokasi bengkel. Tekan <b>Datang</b> saat mulai kerja dan <b>Pulang</b> saat selesai. Jika ganti HP, minta admin/super admin mereset perangkat.'],
+    ['Penghasilan saya', 'Menu <b>Penghasilan Saya</b> hanya menampilkan data Anda: gaji pokok, komisi/insentif, potongan, slip, THR, dan bonus yang sudah diterbitkan. Jika angka tidak sesuai, jangan mengubah sendiri; sampaikan periode dan bagian yang salah kepada admin.'],
+    ['Cek servis konsumen', 'Konsumen dapat membuka <b>www.amuservice.id</b> memakai nomor polisi dan nomor HP yang terdaftar. Pastikan nomor HP benar agar link cek servis dan pengingat WhatsApp tidak salah penerima.'],
+    ['Aturan keamanan data', 'Jangan membagikan PIN, kata sandi, data NIK, atau screenshot transaksi ke pihak yang tidak berkepentingan. Jangan menghapus atau mengubah data untuk memperbaiki kesalahan tanpa mengikuti alur koreksi. Semua perubahan penting dapat masuk log aktivitas.']
+  ]},
+  registrasi: { judul: 'Registrasi Servis', ringkas: 'Menerima motor, mencatat konsumen/kendaraan, membuat antrean, mengatur mekanik, BAST, dan menerima laporan selesai/tunda.', bagian: [
+    ['Alur kerja singkat', '<b>Motor datang → cari data lama → isi konsumen/kendaraan → pilih KSB/KSG → pilih mekanik → simpan → nomor antrean tampil → mekanik bekerja → mekanik melapor ke Register → Register menekan Selesai/Tunda → BAST dan pembayaran diproses.</b>'],
+    ['Membuat pendaftaran baru', 'Buka <b>Registrasi Servis → + Motor masuk</b> atau tekan <kbd>F1</kbd>. Isi data sesuai KTP dan STNK. Nomor polisi wajib diisi. Pilih tipe motor, isi KM, keluhan, jenis layanan, dan mekanik bila sudah tersedia. Tekan <kbd>F2</kbd> untuk menyimpan dan membuat nomor antrean.'],
+    ['Mencari data konsumen lama', 'Tekan <kbd>F3</kbd> atau gunakan kotak <b>Pernah servis di sini?</b>. Cari dengan sebagian nomor polisi, nama, nomor HP, NIK, nomor rangka, atau nomor mesin. Klik <b>Pakai data</b> jika konsumen dan motor sama. Klik <b>Pakai konsumen</b> atau <b>Konsumen saja</b> jika konsumennya sama tetapi motornya berbeda. Periksa kembali semua data sebelum menyimpan.'],
+    ['Data konsumen yang wajib diperiksa', 'Nama harus sesuai KTP. Isi NIK 16 angka bila tersedia, nomor HP/WA, tempat/tanggal lahir, jenis kelamin, pekerjaan, alamat, RT/RW, provinsi, kabupaten/kota, kecamatan, dan kelurahan. Salah nomor HP dapat membuat konsumen tidak menerima notifikasi atau membuka riwayat yang salah.'],
+    ['Data kendaraan yang wajib diperiksa', 'Periksa nomor polisi, nama pemilik di STNK, tipe, tahun, warna, nomor rangka, nomor mesin, dan KM. Jika nama STNK sama dengan konsumen, biarkan pilihan <b>sama dengan konsumen</b>. Jika berbeda, hilangkan centang dan isi nama STNK.'],
+    ['KM kendaraan', 'Aplikasi menampilkan KM terakhir. KM baru tidak boleh lebih kecil. Jika speedometer diganti atau di-reset, admin harus menyimpan dengan catatan alasan. Jangan menurunkan KM hanya agar pengingat servis berubah.'],
+    ['Pilihan KSB dan KSG', 'Untuk pendaftaran baru, pilih <b>KSB</b> atau <b>KSG</b>. KSB adalah kartu service berkala. KSG adalah kartu service gratis dan wajib memilih <b>KSG ke-1, ke-2, ke-3, atau ke-4</b> serta nomor kupon/buku servis bila tersedia. Data WO lama Reguler tetap dapat dibuka untuk menjaga riwayat.'],
+    ['Aturan KSG', 'Setelah memilih KSG, checklist jasa standar tidak ditampilkan dan jasa KSG otomatis dianggap gratis. Nilai klaim diambil dari <b>Master Data → Tarif KSG</b> sesuai tipe motor dan KSG ke-berapa. Part serta biaya/jasa tambahan yang memang bukan bagian KSG tetap terlihat dan dapat ditagihkan sesuai kebijakan bengkel.'],
+    ['Rincian jasa dan part', 'Bagian <b>Jasa servis/Jasa lainnya</b> menunjukkan jasa yang dipilih. Bagian <b>Rincian part</b> menampilkan kode, nama, jumlah, stok, dan nilai part yang sudah di-order untuk motor tersebut. Jika part belum terlihat, pastikan bagian Sparepart sudah menyimpan order dengan nomor WO yang benar.'],
+    ['BAST kendaraan', 'Pada Register KSB/KSG tersedia bagian <b>BAST kendaraan</b>. Isi estimasi selesai/pengambilan secara manual, tanggal, jam, dan keterangan. Kode BAST otomatis menjadi <b>KSB</b> atau <b>KSG1–KSG4</b> dan muncul di pojok kanan atas. Tekan <b>Preview BAST</b>, lalu <b>Print / Simpan PDF</b>. BAST dibawa konsumen saat mengambil kendaraan.'],
+    ['Memilih mekanik', 'Pilih mekanik yang berstatus kosong. Mekanik yang sedang mengerjakan motor lain tidak dapat dipilih. Jika belum ada mekanik, simpan tanpa mekanik sehingga statusnya <b>Antri</b>. Saat mekanik kosong, buka motor antri, pilih mekanik, lalu tekan <b>Simpan perubahan</b>.'],
+    ['Status motor', '<b>Antri</b> berarti menunggu mekanik. <b>Dikerjakan</b> berarti ada mekanik yang menangani. <b>Ditunda</b> berarti pekerjaan berhenti sementara dan mekanik kembali kosong. <b>Selesai</b> berarti laporan mekanik sudah diterima Register dan menunggu pembayaran. <b>Lunas</b> berarti pembayaran selesai.'],
+    ['Menerima laporan mekanik', 'Mekanik melapor kepada Register, bukan Kasir. Pada motor berstatus Dikerjakan, Register memilih <b>Motor selesai</b> jika pengerjaan selesai atau mengisi alasan lalu memilih <b>Lanjut lama (tunda)</b>. Alasan tunda wajib, misalnya <i>tunggu part</i> atau <i>konsumen ambil besok</i>. Kedua pilihan membuat mekanik kosong. Motor selesai memicu pemanggilan nomor antrean di layar TV.'],
+    ['Melanjutkan motor yang ditunda', 'Buka tab <b>Ditunda</b>, pilih motor, pilih mekanik yang kosong, lalu tekan <b>Lanjutkan dikerjakan</b>. Mekanik boleh sama atau berbeda. Aplikasi menyimpan waktu kerja masing-masing mekanik dan alasan tunda.'],
+    ['Nomor cepat saat ramai', 'Jika antrean panjang, gunakan <b>Nomor cepat (cukup nopol)</b>. Nomor antrean langsung dibuat, tetapi motor diberi tanda <b>Data belum lengkap</b>. Lengkapi data sebelum pembayaran atau sebelum pekerjaan membutuhkan informasi teknis.'],
+    ['Motor terdaftar dua kali', 'Satu nomor polisi hanya boleh mempunyai satu servis aktif. Jika muncul peringatan, jangan membuat pendaftaran kedua. Tekan <b>Buka servis</b> untuk memperbaiki WO yang sudah ada.'],
+    ['Ganti plat atau pemilik', 'Jika kendaraan berganti nomor polisi, gunakan alur <b>Ganti nomor polisi</b> agar riwayat tetap tersambung. Jika motor sudah menjadi milik orang lain, pilih <b>Ganti pemilik</b> dan isi alasan setelah memeriksa STNK. Jika orang lain hanya mengantar, pilih <b>Hanya mengantar</b> agar pemilik tetap benar.'],
+    ['Pengingat ganti oli', 'Buka <b>Pengingat Servis</b>. Tab <b>Perlu diingatkan</b> berisi motor yang sudah mencapai batas KM atau hari. Gunakan <b>WA ingatkan</b>. Jika konsumen sudah ganti oli di tempat lain, catat tanggal dan KM pada <b>Ganti di luar</b>. Gunakan <b>Tunda 14 hari</b> bila belum ingin diingatkan atau <b>Stop</b> bila motor sudah dijual/pindah.']
+  ]},
+  kasir: { judul: 'Kasir', ringkas: 'Menerima pembayaran servis atau penjualan part, mencetak nota, mengelola kas, dan memantau klaim.', bagian: [
+    ['Batas tugas Kasir', 'Kasir berfokus pada <b>klik bayar</b>: cash atau transfer. Tambahan biaya, jasa, part, diskon, jenis layanan, dan finalisasi pekerjaan dilakukan di Register sesuai alur bengkel. Kasir tidak menekan Selesai/Tunda untuk laporan mekanik.'],
+    ['Membayar servis', 'Buka <b>Pembayaran & Status Servis</b>, pilih motor berstatus <b>Selesai</b>, periksa nama konsumen, nomor polisi, rincian jasa, part, biaya lain, diskon, total, dan jenis KSG/KSB. Pilih <b>Cash</b> atau <b>Transfer</b>, pilih rekening bila transfer, masukkan nominal, tekan <kbd>F2</kbd>, periksa dialog konfirmasi, lalu setujui.'],
+    ['KSG saat pembayaran', 'Untuk KSG, jasa standar gratis untuk konsumen. Part dan biaya/jasa tambahan tetap masuk sesuai data Register. Periksa nilai total sebelum menerima uang. Jika jasa KSG masih muncul sebagai tagihan, hentikan pembayaran dan minta Register memperbaiki jenis servisnya.'],
+    ['Nota pembayaran', 'Setelah pembayaran berhasil, nota dapat dicetak, diunduh PDF, atau dikirim melalui WhatsApp. Periksa nomor nota, nama, nomor polisi, total, metode bayar, dan link cek servis sebelum menyerahkan nota.'],
+    ['Pembayaran cash', 'Hitung uang yang diterima, masukkan nominal sebenarnya, dan periksa kembalian. Jangan memasukkan nominal pas jika konsumen memberikan uang lebih. Uang cash setelah kembalian masuk perhitungan kas harian.'],
+    ['Pembayaran transfer', 'Pastikan transfer benar-benar masuk ke rekening bengkel, pilih rekening yang sesuai, lalu simpan bukti bila prosedur cabang mewajibkan. Jangan menerima berdasarkan screenshot tanpa memeriksa mutasi atau konfirmasi yang sah.'],
+    ['Penjualan part langsung', 'Buka <b>Penjualan Sparepart</b>, cari/scan part, masukkan jumlah, periksa harga dan stok, isi nama pelanggan bila ada, pilih metode bayar, lalu simpan. Stok berkurang setelah transaksi berhasil.'],
+    ['Kesalahan sebelum pembayaran', 'Jangan membayar WO yang salah. Kembali ke Register untuk memperbaiki data, jasa, part, biaya, atau jenis layanan. Setelah diperbaiki, muat ulang daftar pembayaran dan periksa total lagi.'],
+    ['Pembatalan nota', 'Nota yang sudah dibayar tidak diedit langsung. Buka nota, pilih <b>Ajukan pembatalan</b>, tulis alasan rinci, lalu kirim untuk persetujuan super admin. Jangan membuat nota pengganti sebelum status pembatalan jelas.'],
+    ['Kas harian', 'Pagi hari buka <b>Kas & Pengeluaran → Buka kas</b> dan isi uang awal. Catat setiap pengeluaran pada saat terjadi. Sore hari hitung uang fisik, cocokkan dengan sistem, isi selisih dan catatan jika ada, lalu tekan <b>Tutup kas</b>.'],
+    ['Klaim KSG', 'Buka <b>Klaim KSG</b>, pilih periode, periksa WO/nota KSG, centang dokumen yang diajukan, lalu kirim pengajuan. Saat pembayaran dari main dealer diterima, catat tanggal dan nominal pembayaran klaim.']
+  ]},
+  mekanik: { judul: 'Mekanik', ringkas: 'Melihat pekerjaan, mengerjakan kendaraan, meminta part, dan melaporkan selesai atau tunda kepada Register.', bagian: [
+    ['Melihat pekerjaan', 'Buka <b>Performa Mekanik</b> dan lihat bagian pekerjaan saat ini. Motor yang diberikan Register akan muncul bersama nomor polisi, tipe, keluhan, dan rincian yang tersedia. Satu mekanik menangani satu motor berstatus Dikerjakan.'],
+    ['Memeriksa pekerjaan sebelum mulai', 'Cocokkan nomor polisi dengan motor fisik, baca keluhan, cek KM dan kondisi awal, lalu pastikan part yang dibutuhkan sudah diminta. Jika data kendaraan salah, jangan mengubah sembarangan; laporkan kepada Register.'],
+    ['Meminta sparepart', 'Sampaikan kode/nama part dan jumlah kepada bagian Sparepart. Bagian Sparepart membuat order pada WO yang benar. Jika part tidak tersedia, minta Register menerima laporan tunda dengan alasan yang jelas.'],
+    ['Laporan selesai', 'Jika motor selesai dikerjakan, lapor kepada Register secara langsung atau melalui prosedur internal bengkel. Register yang menekan <b>Motor selesai</b>. Setelah laporan diterima, status berubah Selesai, nomor antrean dipanggil di TV, dan Anda dapat menerima pekerjaan lain.'],
+    ['Laporan tunda', 'Jika pekerjaan belum bisa dilanjutkan, lapor kepada Register beserta alasan spesifik: menunggu part, menunggu persetujuan, menunggu konsumen, atau alasan teknis. Register wajib mengisi alasan dan menekan <b>Lanjut lama (tunda)</b>.'],
+    ['Melanjutkan pekerjaan', 'Jika motor ditunda lalu part atau persetujuan sudah tersedia, minta Register membuka tab Ditunda dan memilih mekanik yang akan melanjutkan. Jangan mengerjakan WO yang statusnya masih Ditunda tanpa pengaktifan kembali.'],
+    ['Performa dan penghasilan', 'Menu Performa Mekanik menampilkan pekerjaan selesai, nilai jasa, dan waktu kerja. Menu Penghasilan Saya menampilkan gaji/insentif yang diterbitkan. Tunda tidak dihitung sebagai waktu kerja aktif.'],
+    ['Absensi', 'Gunakan Absensi Saya untuk scan QR datang dan pulang. Pastikan status berhasil tersimpan sebelum meninggalkan layar. Jika QR gagal, laporkan waktu kejadian kepada admin, jangan meminjam akun mekanik lain.']
+  ]},
+  sparepart: { judul: 'Sparepart', ringkas: 'Order untuk WO, pembelian supplier, stok cabang, transfer, permintaan barang, dan stok opname.', bagian: [
+    ['Order part untuk servis', 'Buka <b>Order Sparepart</b>, pilih motor/WO di daftar kiri, tulis permintaan mekanik, cari kode atau nama part, isi jumlah, lalu tambah. Perhatikan kolom ready karena part yang sudah dipesan WO lain tidak dihitung sebagai stok bebas.'],
+    ['Menyimpan order', 'Setelah semua item benar, tekan <b>Simpan order</b> atau <kbd>F2</kbd>. Tunggu indikator berubah menjadi <b>✓ Tersimpan</b>. Part belum dipotong dari stok saat order; stok dipotong ketika pembayaran servis diterima.'],
+    ['Rincian part di Register', 'Setelah order tersimpan, Register dapat melihat kode, nama, jumlah, stok, dan nilai part pada bagian <b>Rincian part</b>. Jika salah WO, hapus dari order yang benar lalu simpan ulang.'],
+    ['Stok Part', 'Buka <b>Stok Part</b> untuk mencari kode/nama, melihat stok, harga beli, harga jual, kategori, stok menipis, dan kartu stok. Gunakan filter agar tidak perlu memuat semua data saat mencari.'],
+    ['Menambah part baru', 'Di Stok Part pilih <b>Part baru</b>, isi kode unik, nama, kategori, harga beli, harga jual, dan stok awal bila diizinkan. Simpan dan tunggu pesan berhasil. Jika salah ketik, ubah data; penghapusan part hanya untuk super admin dengan verifikasi password dan masuk log aktivitas.'],
+    ['Pembelian supplier', 'Buka <b>Pembelian Stok → Invoice baru</b>. Isi tanggal, nomor invoice, supplier, status pembayaran, jatuh tempo, serta item dan harga beli. Simpan draft. Saat barang datang, buka <b>Preview & terima barang</b>, cocokkan fisik, lalu masukkan ke stok.'],
+    ['Transfer antar cabang', 'Di <b>Stok Part → Transfer</b>, pilih cabang tujuan, tambahkan part dan jumlah, periksa, lalu kirim. Pengirim membuat BAST dari riwayat transfer; penerima memeriksa fisik kemudian menekan <b>Terima</b>.'],
+    ['BAST transfer stok', 'Buka riwayat transfer, tekan <b>BAST</b>, periksa nomor transfer, cabang asal/tujuan, item, jumlah, pengirim, penerima, catatan, dan status. Tekan <b>Print / Simpan PDF</b> atau <b>Unduh PDF</b>. BAST dapat dipakai sebagai dokumen serah terima internal.'],
+    ['Permintaan antar cabang', 'Jika stok cabang sendiri kurang, gunakan <b>Cek Stok → Minta kirim</b>. Cabang pemilik membuka <b>Permintaan masuk</b>, lalu memilih Kirim atau Tolak dengan alasan. Setelah barang tiba, cabang peminta wajib menekan <b>Terima</b>.'],
+    ['Stok opname', 'Buka <b>Stok Opname → Mulai opname</b>, hitung fisik per kode, isi jumlah sebenarnya, dan ajukan. Super admin memeriksa selisih lalu menyetujui atau menolak. Jangan mengubah stok manual untuk menutupi selisih.'],
+    ['Export data stok', 'Gunakan <b>Export Excel</b> untuk analisis. File dapat berisi semua cabang, total per cabang, dan sheet masing-masing cabang. Filter Excel berdasarkan kolom cabang atau kategori.']
+  ]},
+  admin: { judul: 'Admin / Kepala Cabang', ringkas: 'Mengawasi operasional, memperbaiki data sesuai izin, memeriksa laporan, dan membantu semua bagian.', bagian: [
+    ['Rutinitas awal hari', 'Buka Beranda, periksa motor aktif, mekanik kosong/sibuk, stok menipis, permintaan transfer, kas, dan notifikasi persetujuan. Pastikan layar TV serta perangkat absensi aktif.'],
+    ['Rutinitas akhir hari', 'Pastikan semua motor memiliki status yang benar, order part tersimpan, motor selesai sudah dilaporkan Register, pembayaran tidak tertinggal, kas ditutup, dan permintaan transfer ditindaklanjuti.'],
+    ['Membantu Register', 'Admin dapat membuka Registrasi, mencari WO, memeriksa data konsumen/kendaraan, memperbaiki data, mengatur tipe/mekanik, menerima laporan Selesai/Tunda, dan mencetak BAST. Untuk KM lebih kecil, wajib menulis catatan alasan.'],
+    ['Membatalkan pendaftaran', 'Gunakan hanya untuk pendaftaran ganda atau salah daftar yang belum dibayar. Periksa nomor WO, nomor antrean, part yang sudah dipesan, dan alasan. Konfirmasi penghapusan karena data servis, layar, dan cek konsumen ikut terpengaruh.'],
+    ['Konsumen dan kendaraan', 'Gunakan menu <b>Konsumen & Kendaraan</b> untuk mencari, memperbaiki, menggabungkan data konsumen ganda, memindahkan motor ke pemilik yang benar, melihat log perubahan, dan mencetak daftar konsumen. Selalu tulis alasan untuk koreksi kepemilikan.'],
+    ['Persetujuan perangkat layar absensi', 'Jika ada perangkat baru, cocokkan kode yang tampil di perangkat dengan permintaan di menu <b>Persetujuan</b>. Setujui hanya perangkat milik cabang. Cabut perangkat yang hilang atau tidak dikenal.'],
+    ['Master Data yang dikelola admin', 'Admin biasanya mengatur tipe motor dan layar TV. Harga jasa, tarif KSG, rekening, mekanik, petugas, insentif, cabang, logo, tema, dan hak akses dapat dibatasi untuk super admin sesuai konfigurasi.'],
+    ['Laporan dan Insight', 'Gunakan Laporan Penjualan untuk memeriksa omzet, nota, metode pembayaran, part terlaris, laba part, kasir, mekanik, dan cabang. Insight Konsumen membantu menemukan konsumen yang lama tidak datang.'],
+    ['Backup dan perubahan versi', 'Sebelum perubahan besar, pastikan backup tersedia. Setelah rilis aplikasi baru, minta pengguna memperbarui halaman dengan bersih bila tampilan lama masih tersimpan. Jangan menghapus data Firebase untuk memperbaiki masalah tampilan.']
+  ]},
+  super: { judul: 'Super Admin / Pemilik', ringkas: 'Keamanan, master data, persetujuan, cabang, payroll, backup, dan audit.', bagian: [
+    ['Keamanan akun utama', 'Gunakan email dan password super admin hanya untuk pemilik/penanggung jawab. Jangan menyimpan password di komputer kasir. Setelah selesai, keluar akun. Tindakan sensitif harus dilakukan sendiri dan tidak didelegasikan dengan membagikan password.'],
+    ['Master jasa dan harga', 'Buka <b>Master Data → Jasa Servis</b>. Tambahkan, ubah, aktifkan/nonaktifkan, atau hapus jasa sesuai kebijakan. Perubahan harga baru berlaku pada transaksi berikutnya; data lama menyimpan rincian harga saat transaksi.'],
+    ['Master Tarif KSG', 'Buka <b>Master Data → Tarif KSG</b>. Isi nilai klaim per tipe motor untuk KSG ke-1 sampai ke-4. Kosongkan jika tidak ada klaim. Pastikan tipe motor dan tarif sesuai dokumen main dealer karena nilai ini masuk laporan klaim dan penghasilan mekanik.'],
+    ['Mekanik dan petugas', 'Atur nama, peran, cabang, akun PIN, dan reset PIN. Jangan menggunakan nama yang sama untuk dua orang. Saat petugas keluar, nonaktifkan aksesnya dan jangan hanya mengganti nama akun lama tanpa mempertimbangkan histori.'],
+    ['Rekening dan cabang', 'Isi rekening transfer yang benar dan data cabang, termasuk nama, alamat, nomor telepon/WA, serta pengaturan layar. Data cabang dipakai pada nota, laporan, transfer, dan komunikasi konsumen.'],
+    ['Hak akses menu', 'Buka <b>Master Data → Hak Akses Menu</b>. Centang hanya menu yang diperlukan tiap peran. Jangan menghapus akses Panduan karena panduan harus selalu dapat dibuka. Uji dengan akun peran terkait setelah menyimpan.'],
+    ['Persetujuan pembatalan nota', 'Periksa nota, konsumen, total, metode bayar, alasan, dan dampak stok. Setujui hanya jika alasan sah. Jika menolak, pastikan kasir memahami koreksi yang harus dilakukan.'],
+    ['Persetujuan stok opname', 'Bandingkan hasil fisik, selisih, nilai rupiah, riwayat kartu stok, pembelian, transfer, dan transaksi. Setujui hanya setelah penyebab selisih dipahami. Persetujuan akan menyesuaikan stok.'],
+    ['Absensi dan payroll', 'Menu Absensi Karyawan untuk rekap dan koreksi manual dengan catatan. Menu Penghasilan Karyawan untuk gaji, insentif, potongan, slip, dan penguncian periode. Setelah periode dikunci, koreksi harus terdokumentasi.'],
+    ['THR dan bonus', 'Buat periode THR/bonus, atur persen dan tambahan, periksa masa kerja/pro-rata, tinjau per karyawan, lalu <b>Kunci & terbitkan</b>. Setelah terbit, slip muncul pada Penghasilan Saya dan total masuk pengeluaran sesuai alur.'],
+    ['Backup data', 'Buat backup JSON secara berkala dan simpan di lokasi aman yang tidak dapat diakses semua petugas. Uji bahwa file dapat dibaca. Pemulihan data adalah tindakan besar; lakukan hanya setelah memastikan file, periode, dan dampak pemulihan.'],
+    ['Log aktivitas dan penghapusan part', 'Penghapusan part memerlukan verifikasi password super admin dan dicatat pada log aktivitas. Sebelum menghapus, pastikan part tidak dipakai WO, nota, pembelian, atau laporan. Lebih aman menonaktifkan data daripada menghapus jika masih memiliki histori.']
+  ]},
+  troubleshooting: { judul: 'Masalah umum & solusi', ringkas: 'Langkah pemeriksaan sebelum meminta bantuan admin atau dukungan teknis.', bagian: [
+    ['Aplikasi loading terus', 'Periksa koneksi internet, muat ulang sekali, lalu tunggu beberapa detik. Jika hanya /pos yang loading, buka dengan alamat resmi <b>www.amuservice.id/pos</b>, bukan file lama/bookmark lama. Jika masih gagal, catat jam, akun/peran, perangkat, dan screenshot error; jangan menghapus data browser sebelum data offline penting dipastikan tersinkron.'],
+    ['Data tidak muncul setelah disimpan', 'Pastikan pesan berhasil muncul, periksa cabang aktif, hapus filter pencarian, dan muat ulang. Jika part/WO dibuat di cabang lain, gunakan filter atau pindah cabang sesuai hak akses. Jangan menyimpan berulang-ulang karena dapat membuat data ganda.'],
+    ['Gagal memuat data atau query/index', 'Catat teks error lengkap dan URL yang tampil. Jangan menekan link indeks Firebase tanpa arahan super admin/developer. Sampaikan menu, peran, cabang, dan waktu kejadian agar query dapat diperbaiki dengan aman.'],
+    ['Part baru tidak terlihat', 'Pastikan kode part unik, simpan sampai pesan berhasil, cek filter kategori/cabang, lalu refresh. Jika part tersimpan tetapi tidak bisa dipakai di order, periksa apakah statusnya aktif dan stok cabang sudah benar.'],
+    ['Nomor antrean tidak tampil di TV', 'Pastikan layar TV membuka alamat layar yang benar, perangkat sudah disetujui, internet aktif, cabang layar sesuai, dan Register menekan Selesai. Refresh layar TV hanya setelah memastikan status WO sudah tersimpan.'],
+    ['Tidak bisa memilih mekanik', 'Mekanik mungkin sedang berstatus Dikerjakan pada motor lain, tidak aktif, berada di cabang berbeda, atau data belum termuat. Periksa daftar Performa Mekanik dan pilih mekanik yang kosong.'],
+    ['Total pembayaran salah', 'Jangan lanjut bayar. Kembali ke Register dan periksa jenis KSB/KSG, KSG ke-berapa, jasa, part, biaya lainnya, diskon, dan status. Setelah diperbaiki, buka ulang halaman pembayaran.'],
+    ['BAST tidak bisa dicetak', 'Lengkapi data konsumen, nomor polisi, tipe, jenis layanan, estimasi, tanggal, dan jam. Izinkan pop-up browser untuk domain aplikasi, kemudian tekan Preview BAST lagi. Pada dialog cetak pilih printer atau <b>Save as PDF</b>.'],
+    ['QR absensi gagal', 'Pastikan kamera diizinkan, QR belum kedaluwarsa, perangkat berada di lokasi, dan akun memakai HP yang terdaftar. Jika ganti HP atau kamera rusak, minta admin mereset perangkat.'],
+    ['Pembayaran transfer belum masuk', 'Jangan menganggap screenshot sebagai bukti final. Periksa rekening dan mutasi. Jika sudah terlanjur salah, jangan membuat nota kedua; catat nomor nota dan ajukan koreksi sesuai prosedur.'],
+    ['Kapan meminta bantuan?', 'Minta bantuan admin jika berkaitan dengan data konsumen, status WO, stok, kas, atau akses. Minta bantuan super admin jika berkaitan dengan password utama, pembatalan nota, penghapusan, persetujuan stok opname, hak akses, atau backup. Sertakan nomor WO/nota, cabang, waktu, langkah terakhir, dan pesan error.']
+  ]}
 };
 
 let pilih = null;
-const bolehLihat = () => st.petugas?.super ? Object.keys(P) : st.role === 'admin' ? ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'umum'] : [st.role, 'umum'];
+let queryCari = '';
+const bolehLihat = () => st.petugas?.super ? Object.keys(P) : st.role === 'admin' ? ['umum', 'registrasi', 'kasir', 'mekanik', 'sparepart', 'admin', 'troubleshooting'] : [st.role, 'umum', 'troubleshooting'];
+const bersih = x => String(x || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').toLowerCase();
 
 function render() {
-  const daftar = bolehLihat();
-  if (!pilih || !daftar.includes(pilih)) pilih = st.petugas?.super ? 'super' : st.role;
+  const daftar = [...new Set(bolehLihat())].filter(k => P[k]);
+  if (!pilih || !daftar.includes(pilih)) pilih = st.petugas?.super ? 'umum' : (daftar.includes(st.role) ? st.role : 'umum');
   const p = P[pilih];
+  const q = queryCari.trim().toLowerCase();
+  const bagian = p.bagian.filter(([j, isi]) => !q || bersih(j + ' ' + isi).includes(q));
+  const hasilSemua = q ? daftar.flatMap(k => P[k].bagian.filter(([j, isi]) => bersih(j + ' ' + isi).includes(q)).map(x => ({ k, x }))) : [];
+  const body = q ? (hasilSemua.length ? hasilSemua.map(({ k, x }) => `<li><b>${esc(P[k].judul)} — ${esc(x[0])}</b><div>${x[1]}</div></li>`).join('') : '<li><div class="empty">Tidak ada hasil. Coba kata yang lebih pendek seperti <b>stok</b>, <b>part</b>, <b>KSG</b>, <b>BAST</b>, atau <b>nota</b>.</div></li>') : bagian.map(([j, isi]) => `<li><b>${esc(j)}</b><div>${isi}</div></li>`).join('');
   $('#view').innerHTML = `<div class="panel panduan">
-    <div class="row spread no-print"><div class="seg" role="group" aria-label="Pilih panduan">${daftar.map(k => `<button type="button" data-act="pd-pilih" data-k="${k}" aria-pressed="${k === pilih}">${esc(P[k].judul.split(' (')[0])}</button>`).join('')}</div><button class="btn sm" type="button" data-act="pd-cetak">🖨 Cetak</button></div>
-    <h2>Panduan ${esc(p.judul)}</h2><p class="muted" style="margin:0">${esc(p.ringkas)}</p>
-    <ol class="pd-list">${p.bagian.map(([j, isi]) => `<li><b>${esc(j.replace(/^\d+\.\s*/, ''))}</b><div>${isi}</div></li>`).join('')}</ol>
-    ${pilih !== 'umum' ? `<p class="small muted no-print" style="margin:0">Lihat juga panduan <button class="link-btn" type="button" data-act="pd-pilih" data-k="umum">Umum</button> (masuk, tombol cepat, absensi).</p>` : ''}
+    <div class="row spread no-print"><div><h2 style="margin:0">Pusat Bantuan</h2><div class="small muted">Panduan untuk: <b>${esc(p.judul)}</b> · ${q ? hasilSemua.length + ' hasil pencarian' : p.bagian.length + ' topik'}</div></div><button class="btn sm" type="button" data-act="pd-cetak">🖨 Cetak</button></div>
+    <div class="cari-box no-print" style="margin-top:12px"><label class="f" for="pd-q">Cari panduan <span class="small muted">contoh: BAST, KSG, transfer, pembayaran, absensi, loading</span><span class="row" style="gap:6px"><input id="pd-q" value="${esc(queryCari)}" placeholder="Ketik kata atau masalah yang dicari..." autocomplete="off" style="flex:1"><button class="btn" type="button" data-act="pd-clear" ${queryCari ? '' : 'disabled'}>Bersihkan</button></span></label></div>
+    <div class="seg no-print" role="group" aria-label="Pilih topik panduan">${daftar.map(k => `<button type="button" data-act="pd-pilih" data-k="${k}" aria-pressed="${k === pilih}">${esc(P[k].judul.split(' —')[0].split(' /')[0])}</button>`).join('')}</div>
+    ${q ? `<div class="note no-print" style="margin-top:10px">Menampilkan semua hasil yang dapat dilihat oleh peran Anda. Klik <button class="link-btn" type="button" data-act="pd-clear">Bersihkan</button> untuk kembali ke topik <b>${esc(p.judul)}</b>.</div>` : `<h2>${esc(p.judul)}</h2><p class="muted" style="margin:0 0 12px">${esc(p.ringkas)}</p>`}
+    <ol class="pd-list">${body}</ol>
+    <div class="note no-print" style="margin-top:16px"><b>Jika masih bingung:</b> cari kata kunci di atas. Jika tetap tidak menemukan jawaban, siapkan nomor WO/nota, cabang, akun/peran, waktu kejadian, langkah terakhir, dan pesan error sebelum menghubungi admin.</div>
   </div>`;
+  if (q) setTimeout(() => { const el = $('#pd-q'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 0);
 }
+
 views.panduan = render;
 refreshers.panduan = () => {};
 Object.assign(actions, {
-  'pd-pilih': el => { pilih = el.dataset.k; render(); },
+  'pd-pilih': el => { pilih = el.dataset.k; queryCari = ''; render(); },
+  'pd-clear': () => { queryCari = ''; render(); },
   'pd-cetak': () => window.print()
 });
+
 export const PANDUAN = P;
+
+// Pencarian memakai input global agar hasil berubah saat mengetik tanpa tombol tambahan.
+document.addEventListener('input', e => {
+  if (e.target.id !== 'pd-q') return;
+  queryCari = e.target.value;
+  render();
+});
