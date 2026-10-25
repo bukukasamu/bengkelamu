@@ -1,9 +1,19 @@
-# Aceh Mandiri Utama POS · versi 5.6.2
+# Aceh Mandiri Utama POS · versi 5.6.4
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.6.4 — Penyempurnaan tabel rincian jasa
+- Kolom rincian jasa dirapikan menjadi jasa, nominal, dan status.
+- Nilai klaim KSG ditampilkan sebagai nilai klaim, tetapi statusnya tetap Gratis konsumen.
+
+## 5.6.3 — Detail biaya Register
+- Register menampilkan rincian setiap jasa: nama, nominal, dan status ditagihkan/gratis.
+- Register menampilkan rincian setiap part: kode, nama, jumlah, harga satuan, dan subtotal.
+- Biaya lainnya ditampilkan per item.
+- Total jasa, klaim KSG, part, biaya lainnya, dan total servis ditampilkan terpisah.
 
 ## 5.6.2 — Perbaikan cetak BAST kendaraan masuk
 - Memperbaiki tombol Preview/Cetak BAST pada Register yang tidak membuka dialog karena fungsi modal belum terhubung.
