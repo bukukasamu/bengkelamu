@@ -8,7 +8,7 @@ import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANI
 import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
 import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
 import { showNota } from './nota.js';
-import { pasangTombol } from './pwa.js';
+import { pasangTombol, updateAplikasi } from './pwa.js';
 import { CABANG_UTAMA, cabangList, cabangById, namaCabang, multiCabang, cabAktif, diCabang, stokOf, stokTotal, watchCabang, loadCabang } from './cabang.js';
 import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
@@ -62,6 +62,9 @@ function toggleSidebar() {
 try { if (localStorage.getItem('amu-sb-hidden')) document.body.classList.add('sb-hidden'); } catch (e) {}
 $('#sb-toggle').addEventListener('click', toggleSidebar);
 $('#sb-backdrop').addEventListener('click', toggleSidebar);
+['#update-app', '#update-app-login'].forEach(sel => { const b = $(sel); b?.addEventListener('click', () => updateAplikasi(b)); });
+window.addEventListener('amu-update-ok', () => toast('Aplikasi sudah menggunakan versi terbaru'));
+window.addEventListener('amu-update-fail', () => toast('Update gagal. Periksa koneksi internet lalu coba lagi.'));
 $('#side-nav').addEventListener('click', e => { const b = e.target.closest('.sb-link'); if (b) go(b.dataset.view); });
 
 /* ---------- LOGIN ---------- */

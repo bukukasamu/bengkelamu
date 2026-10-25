@@ -1,6 +1,8 @@
 // Versi aplikasi (PWA): bisa dipasang di HP dan PC seperti aplikasi biasa, ikon di layar utama, tanpa bilah browser.
 // Tombol "Pasang aplikasi" muncul bila browser mengizinkan; di iPhone/iPad diberi petunjuk "Tambah ke Layar Utama".
 let tawaran = null;
+let swReg = null;
+let updateReloading = false;
 const tombol = new Set();
 const cocok = q => !!window.matchMedia?.(q)?.matches;
 export const terpasang = () => cocok('(display-mode: standalone)') || cocok('(display-mode: fullscreen)') || window.navigator?.standalone === true;
@@ -22,6 +24,21 @@ export function pasangTombol(btn, petunjuk) {
 
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); tawaran = e; perbarui(); });
 window.addEventListener('appinstalled', () => { tawaran = null; perbarui(); });
+
+export async function updateAplikasi(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Memeriksa versi…'; }
+  try {
+    if (!('serviceWorker' in navigator)) { location.reload(); return; }
+    swReg = swReg || await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.getRegistration();
+    if (!swReg) { location.reload(); return; }
+    const reload = () => { if (!updateReloading) { updateReloading = true; location.reload(); } };
+    navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true });
+    if (swReg.waiting) { swReg.waiting.postMessage({ type: 'SKIP_WAITING' }); return; }
+    await swReg.update();
+    if (swReg.waiting) swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    else { if (btn) { btn.disabled = false; btn.textContent = '✓ Versi terbaru'; setTimeout(() => { btn.textContent = 'Update aplikasi'; }, 3000); } window.dispatchEvent(new CustomEvent('amu-update-ok')); }
+  } catch (e) { console.warn('Update aplikasi gagal', e); if (btn) { btn.disabled = false; btn.textContent = 'Update aplikasi'; } window.dispatchEvent(new CustomEvent('amu-update-fail')); }
+}
 
 if (window.navigator && 'serviceWorker' in window.navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(e => console.warn('Service worker gagal', e)));
