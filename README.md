@@ -1,9 +1,15 @@
-# Aceh Mandiri Utama POS · versi 5.5.6
+# Aceh Mandiri Utama POS · versi 5.5.7
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.5.7 — BAST transfer stok
+- Riwayat transfer stok memiliki tombol BAST.
+- BAST menampilkan nomor transfer, tanggal, status, cabang asal/tujuan, item, total pcs, catatan, pengirim, dan penerima.
+- Tersedia Print / Simpan PDF melalui preview cetak browser.
+- Tersedia Unduh PDF A4.
 
 ## 5.5.6 — hapus part dengan otorisasi Super Admin
 - Tombol hapus permanen hanya muncul untuk Super Admin pada panel ubah part.
