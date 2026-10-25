@@ -8,6 +8,7 @@ import { partPicker, pickedKode, namaPetugas, isRole, filterBuka, tombolFilter }
 import { CABANG_UTAMA, cabAktif, cabangList, namaCabang, multiCabang, stokOf, stokField } from './cabang.js';
 import { catatMutasi, dataMutasi } from './kontrol.js';
 import { AKTIF } from './wo-common.js';
+import { APP_NAME } from './config.js';
 
 const MAX_ROWS = 200; // tabel ditampilkan per 200 baris supaya tetap ringan dengan ribuan part (tombol "Tampilkan lagi")
 
@@ -131,7 +132,38 @@ async function partSave() {
 /* ---------- Transfer stok antar cabang (dua langkah) ----------
    1. Cabang asal mengirim: stok asal langsung berkurang, transfer berstatus "dikirim".
    2. Cabang tujuan menerima (cek fisik): stok tujuan bertambah, status "diterima". Semua tercatat di kartu stok. */
-let tfBaris = [];
+let tfBaris = [], tfRiwayat = [];
+function bastIsi(t) {
+  const items = t.items || [{ kode: t.kode, nama: t.nama, qty: t.qty }];
+  const total = items.reduce((a, x) => a + (+x.qty || 0), 0);
+  return { items, total, no: t.no || t.id || '–', status: t.status === 'diterima' || !t.status ? 'DITERIMA' : 'DIKIRIM' };
+}
+function bastHtml(t, print = false) {
+  const b = bastIsi(t), sekarang = new Date().toLocaleString('id-ID');
+  return `<div class="bast-doc ${print ? 'bast-print' : ''}">
+    <div class="bast-head"><div><h1>BAST TRANSFER STOK</h1><div class="muted">BERITA ACARA SERAH TERIMA BARANG</div></div><div class="bast-no"><b>${esc(b.no)}</b><br>${esc(b.status)}</div></div>
+    <p>Pada tanggal <b>${esc(t.tgl || '–')}</b>, telah dilakukan serah terima stok sparepart dari <b>${esc(namaCabang(t.dari))}</b> kepada <b>${esc(namaCabang(t.ke))}</b>.</p>
+    <table class="bast-table"><thead><tr><th>No.</th><th>Kode Part</th><th>Nama Part</th><th class="r">Jumlah</th></tr></thead><tbody>${b.items.map((x, i) => `<tr><td>${i + 1}</td><td class="mono">${esc(x.kode || '')}</td><td>${esc(x.nama || '')}</td><td class="r">${x.qty} pcs</td></tr>`).join('')}<tr class="bast-total"><td colspan="3">Total</td><td class="r">${b.total} pcs</td></tr></tbody></table>
+    ${t.catatan ? `<p><b>Catatan:</b> ${esc(t.catatan)}</p>` : ''}<p>Barang telah ${b.status === 'DITERIMA' ? '<b>diterima dan diperiksa</b> oleh cabang tujuan.' : 'dikirim dan menunggu pemeriksaan/konfirmasi penerimaan cabang tujuan.'}</p>
+    <div class="bast-sign"><div><p>Yang menyerahkan,</p><div class="bast-space"></div><b>${esc(t.pengirim || '________________')}</b><br><span>Cabang ${esc(namaCabang(t.dari))}</span></div><div><p>Yang menerima,</p><div class="bast-space"></div><b>${esc(t.penerima || '________________')}</b><br><span>Cabang ${esc(namaCabang(t.ke))}</span></div></div>
+    <div class="bast-foot">Dokumen ${esc(b.no)} · Dicetak ${esc(sekarang)} · ${esc(APP_NAME || 'AMU Service')}</div>
+  </div>`;
+}
+function bastPrint(t) {
+  const w = window.open('', '_blank'); if (!w) { toast('Izinkan pop-up untuk membuka preview cetak BAST'); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>BAST ${esc(t.no || '')}</title><style>${bastCss()}</style></head><body>${bastHtml(t, true)}<script>window.onload=()=>{window.focus();window.print();}<\/script></body></html>`); w.document.close();
+}
+function bastCss() { return `.bast-doc{font-family:Arial,sans-serif;color:#20242a;max-width:820px;margin:0 auto;padding:32px;background:#fff;font-size:13px;line-height:1.45}.bast-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #20242a;padding-bottom:12px;margin-bottom:18px}.bast-head h1{font-size:21px;margin:0 0 3px}.bast-no{text-align:right;font-size:13px}.muted{color:#6b7280}.bast-table{width:100%;border-collapse:collapse;margin:18px 0}.bast-table th,.bast-table td{border:1px solid #555;padding:7px 8px}.bast-table th{background:#f0f1f3;text-align:left}.bast-table .r{text-align:right}.bast-table .bast-total td{font-weight:bold;background:#f7f7f7}.mono{font-family:monospace}.bast-sign{display:grid;grid-template-columns:1fr 1fr;gap:70px;margin-top:42px;text-align:center}.bast-sign p{margin-bottom:0}.bast-space{height:58px}.bast-foot{border-top:1px solid #bbb;margin-top:42px;padding-top:7px;color:#777;font-size:10px}@media print{@page{size:A4 portrait;margin:14mm}.bast-doc{padding:0;max-width:none}.no-print{display:none}}`; }
+async function bastPdf(t) {
+  try {
+    const m = await import('./bast-pdf.js'); await m.unduhBastPdf({ ...t, dari: namaCabang(t.dari), ke: namaCabang(t.ke) });
+  } catch (e) { toast('PDF BAST gagal dibuat: ' + (e.message || e)); }
+}
+function bastOpen(t) {
+  if (!t) return;
+  modal(`<style>${bastCss()}</style><div class="row spread no-print"><h2>BAST Transfer Stok</h2><button class="btn sm ghost" type="button" data-close="1">✕</button></div><div class="bast-preview">${bastHtml(t)}</div><div class="row no-print" style="justify-content:flex-end"><button class="btn" type="button" data-act="tf-bast-print">Print / Simpan PDF</button><button class="btn pri" type="button" data-act="tf-bast-pdf">Unduh PDF</button></div>`, 'wide');
+  window._amuBast = t;
+}
 async function tfOpen() {
   const tujuan = cabangList().filter(c => c.id !== cabAktif());
   if (!tujuan.length) { toast('Belum ada cabang lain. Tambahkan di Master Data → Cabang.'); return; }
@@ -146,9 +178,9 @@ async function tfOpen() {
     <h3>Riwayat transfer cabang ini</h3><div id="tf-riw" class="small muted">Memuat…</div>`, 'wide');
   try {
     const [a, b] = await Promise.all([getDocs(query(collection(db, 'transfer'), where('dari', '==', cabAktif()))), getDocs(query(collection(db, 'transfer'), where('ke', '==', cabAktif())))]);
-    const l = [...a.docs, ...b.docs].map(d => d.data()).sort((x, y) => y.tgl.localeCompare(x.tgl)).slice(0, 15);
+    tfRiwayat = [...a.docs, ...b.docs].map(d => ({ id: d.id, ...d.data() })).sort((x, y) => String(y.tgl || '').localeCompare(String(x.tgl || ''))).slice(0, 15);
     const el = document.getElementById('tf-riw'); if (!el) return;
-    el.innerHTML = l.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Tanggal</th><th>Part</th><th>Dari → Ke</th><th>Status</th></tr></thead><tbody>${l.map(t => `<tr><td class="small">${esc(t.tgl)}</td><td class="small">${(t.items || [{ nama: t.nama, qty: t.qty }]).map(x => esc(x.nama) + ' ×' + x.qty).join(', ')}</td><td class="small">${esc(namaCabang(t.dari))} → ${esc(namaCabang(t.ke))}</td><td>${t.status === 'diterima' || !t.status ? `<span class="pill p-good">Diterima</span>${t.penerima ? `<div class="small muted">${esc(t.penerima)}</div>` : ''}` : '<span class="pill p-warn">Dikirim</span>'}</td></tr>`).join('')}</tbody></table></div>` : 'Belum ada transfer.';
+    el.innerHTML = tfRiwayat.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Tanggal</th><th>Part</th><th>Dari → Ke</th><th>Status</th><th></th></tr></thead><tbody>${tfRiwayat.map((t, i) => `<tr><td class="small">${esc(t.tgl || '')}</td><td class="small">${(t.items || [{ nama: t.nama, qty: t.qty }]).map(x => esc(x.nama) + ' ×' + x.qty).join(', ')}</td><td class="small">${esc(namaCabang(t.dari))} → ${esc(namaCabang(t.ke))}</td><td>${t.status === 'diterima' || !t.status ? `<span class="pill p-good">Diterima</span>${t.penerima ? `<div class="small muted">${esc(t.penerima)}</div>` : ''}` : '<span class="pill p-warn">Dikirim</span>'}</td><td><button class="btn sm" type="button" data-act="tf-bast" data-i="${i}">BAST</button></td></tr>`).join('')}</tbody></table></div>` : 'Belum ada transfer.';
   } catch (e) { const el = document.getElementById('tf-riw'); if (el) el.textContent = 'Riwayat tidak bisa dimuat: ' + errMsg(e); }
 }
 function tfTambah() {
@@ -233,6 +265,9 @@ Object.assign(actions, {
   'tf-tambah': tfTambah,
   'tf-hapus': el => { tfBaris.splice(+el.dataset.i, 1); tfList(); },
   'tf-terima': tfTerima,
+  'tf-bast': el => bastOpen(tfRiwayat[+el.dataset.i]),
+  'tf-bast-print': () => window._amuBast && bastPrint(window._amuBast),
+  'tf-bast-pdf': () => window._amuBast && bastPdf(window._amuBast),
   'go-opname': () => go('opname')
 });
 inputHandlers.push(e => { if (e.target.id === 's-q') { st.stokQ = e.target.value; st.stokN = MAX_ROWS; renderSTbl(); } });
