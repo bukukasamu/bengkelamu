@@ -1,5 +1,5 @@
 // Menu Registrasi Servis: data konsumen & kendaraan, keluhan, jenis servis (Reguler/KSB/KSG), jasa, mekanik.
-import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber, konfirmasi } from './util.js';
+import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber, konfirmasi, modal } from './util.js';
 import { APP_NAME } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, mekanikById, isRole, namaPetugas } from './state.js';
 import { JENIS_SERVIS } from './config.js';
