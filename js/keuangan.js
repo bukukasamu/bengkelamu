@@ -38,9 +38,16 @@ async function ambilKasBulan(bulanList, cab = cabAktif()) {
   const s = await getDocs(query(collection(db, 'kas'), where('cabang', '==', cab), where('bulan', 'in', bulanList)));
   return s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.tgl.localeCompare(a.tgl));
 }
+async function ambilMutasiKas(bulanList, cab = cabAktif()) {
+  const s = await getDocs(query(collection(db, 'kasMutasi'), where('cabang', '==', cab)));
+  return s.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => bulanList.includes(x.bulan)).sort((a, b) => String(b.tgl || '').localeCompare(String(a.tgl || '')));
+}
+const deltaCashHari = list => list.reduce((a, x) => a + (+x.cashDelta || 0), 0);
+const bankMasuk = list => list.reduce((a, x) => a + (+x.bankDelta || 0), 0);
+const labelMutasi = x => x.jenis === 'SETOR_BANK' ? 'Setor cash ke bank' : x.jenis === 'TARIK_BANK' ? 'Tarik bank ke laci' : x.jenis === 'KLAIM_KSG' ? 'Klaim KSG masuk bank' : x.jenis;
 
 /* ---------- Tampilan utama ---------- */
-let kasDoc = null, kasList = [], keluarHari = [], keluarBulan = [];
+let kasDoc = null, kasList = [], keluarHari = [], keluarBulan = [], mutasiKasHari = [], mutasiKasBulan = [];
 async function renderKas() {
   const tabs = [['kas', 'Kas harian'], ['keluar', 'Pengeluaran']];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="keu-tab" data-t="${k}" aria-selected="${k === KU.tab}">${l}</button>`).join('')}</div><div id="keu-body">${loaderHTML('Memuat…')}</div></div>`;
@@ -53,16 +60,16 @@ async function renderKas() {
 /* ---------- Kas harian ---------- */
 async function muatKas() {
   const cab = cabAktif(), ym = KU.tgl.slice(0, 7);
-  const [s, list, kel] = await Promise.all([getDoc(doc(db, 'kas', kasId(cab, KU.tgl))), ambilKasBulan([blnSebelum(ym), ym], cab), ambilPengeluaran([ym], cab)]);
+  const [s, list, kel, mut] = await Promise.all([getDoc(doc(db, 'kas', kasId(cab, KU.tgl))), ambilKasBulan([blnSebelum(ym), ym], cab), ambilPengeluaran([ym], cab), ambilMutasiKas([blnSebelum(ym), ym], cab)]);
   kasDoc = s.exists() ? { id: s.id, ...s.data() } : null;
-  kasList = list; keluarHari = kel.filter(p => p.tgl === KU.tgl);
+  kasList = list; keluarHari = kel.filter(p => p.tgl === KU.tgl); mutasiKasBulan = mut; mutasiKasHari = mut.filter(p => p.tgl === KU.tgl);
 }
 // Penjualan cash hari itu dari nota yang sudah dimuat (dua bulan terakhir)
 function hitungKas() {
   const nota = trxIn(KU.tgl, KU.tgl, S.trx), sm = sums(nota);
   const keluarTunai = keluarHari.filter(tunai).reduce((a, p) => a + (+p.jumlah || 0), 0);
-  const awal = +kasDoc?.uangAwal || 0;
-  return { nota: nota.length, cash: sm.cash, transfer: sm.transfer, keluarTunai, keluarLain: keluarHari.filter(p => !tunai(p)).reduce((a, p) => a + (+p.jumlah || 0), 0), awal, harus: awal + sm.cash - keluarTunai };
+  const awal = +kasDoc?.uangAwal || 0, cashMutasi = deltaCashHari(mutasiKasHari);
+  return { nota: nota.length, cash: sm.cash, transfer: sm.transfer, keluarTunai, keluarLain: keluarHari.filter(p => !tunai(p)).reduce((a, p) => a + (+p.jumlah || 0), 0), cashMutasi, awal, harus: awal + sm.cash - keluarTunai + cashMutasi };
 }
 function saranAwal() {
   const lalu = kasList.find(k => k.tgl < KU.tgl && k.tutup);
@@ -91,7 +98,8 @@ function renderKasHarian() {
        ${baris('<b>Seharusnya di laci</b>', rp(kunci ? t.seharusnya : h.harus), { b: 1 })}
        ${kunci ? baris('Uang fisik dihitung', rp(t.uangFisik)) + baris('<b>Selisih</b>', (t.selisih > 0 ? '+' : '') + rp(t.selisih), { b: 1, color: t.selisih ? (t.selisih < 0 ? 'var(--bad)' : 'var(--warn)') : 'var(--good)' }) + baris('Disetor / diserahkan', rp(t.setor)) + baris('Sisa di laci (modal besok)', rp(t.sisa), { b: 1 }) : ''}
       </tbody></table></div>
-      <div class="small muted">Transfer masuk hari ini ${rp(kunci ? t.transfer : h.transfer)} (langsung ke rekening, tidak masuk laci)${(kunci ? t.pengeluaranLain : h.keluarLain) ? ` · pengeluaran non-tunai ${rp(kunci ? t.pengeluaranLain : h.keluarLain)}` : ''}.</div>
+      <div class="small muted">Transfer masuk dari penjualan hari ini ${rp(kunci ? t.transfer : h.transfer)} langsung ke rekening, tidak masuk laci.${h.cashMutasi ? ` Mutasi laci hari ini: ${h.cashMutasi > 0 ? 'masuk ' : 'keluar '}${rp(Math.abs(h.cashMutasi))}.` : ''}${(kunci ? t.pengeluaranLain : h.keluarLain) ? ` · pengeluaran non-tunai ${rp(kunci ? t.pengeluaranLain : h.keluarLain)}` : ''}</div>
+      <div class="panel" style="margin-top:8px"><div class="row spread"><b>Mutasi bank / laci</b>${!kunci ? '<span class="row"><button class="btn sm" type="button" data-act="bank-mutasi" data-m="setor">Setor ke bank</button><button class="btn sm" type="button" data-act="bank-mutasi" data-m="tarik">Tarik dari bank</button></span>' : ''}</div>${mutasiKasHari.length ? `<div class="small">${mutasiKasHari.map(x => `${esc(labelMutasi(x))}: <b>${rp(Math.abs(x.bankDelta || x.cashDelta || 0))}</b>`).join(' · ')}</div>` : '<div class="small muted">Belum ada mutasi manual atau klaim KSG hari ini.</div>'}</div>
       ${t?.catatan ? `<div class="note small">Catatan: ${esc(t.catatan)}</div>` : ''}
       ${kunci && isSuper() ? '<div class="row" style="justify-content:flex-end"><button class="btn sm" type="button" data-act="kas-bukaulang">🔓 Buka ulang kas</button></div>' : ''}
      </div>
@@ -204,6 +212,10 @@ views.kas = renderKas;
 views.klaim = renderKlaim;
 refreshers.kas = () => { if (KU.tab === 'kas' && kasDoc && !kasDoc.tutup && $('#kas-fisik')) { const f = $('#kas-fisik').value, s = $('#kas-setor').value, c = $('#kas-cat').value; renderKasHarian(); $('#kas-fisik').value = f; $('#kas-setor').value = s; $('#kas-cat').value = c; hitungTutup(); } };
 refreshers.klaim = () => {};
+function formMutasiBank(mode) {
+  const setor = mode === 'setor';
+  modal(`<h3>${setor ? 'Setor uang laci ke bank' : 'Tarik uang dari bank ke laci'}</h3><p class="small">${setor ? 'Uang fisik akan berkurang dari laci dan bertambah di bank.' : 'Uang bank akan berkurang dan uang fisik bertambah di laci.'}</p><label class="f" for="bm-jml">Jumlah<input id="bm-jml" type="number" min="1" step="1000" data-autofocus></label><label class="f" for="bm-ket">Keterangan<input id="bm-ket" placeholder="mis. Setoran kas harian"></label><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn pri" type="button" data-act="bank-mutasi-save" data-m="${setor ? 'setor' : 'tarik'}">Simpan</button></div>`);
+}
 Object.assign(actions, {
   'keu-tab': el => { KU.tab = el.dataset.t; renderKas(); },
   'kas-geser': el => { const d = new Date(KU.tgl + 'T00:00'); d.setDate(d.getDate() + +el.dataset.n); KU.tgl = dkey(d); renderKas(); },
@@ -223,6 +235,7 @@ Object.assign(actions, {
     el.disabled = true;
     try {
       await setDoc(doc(db, 'kas', kasDoc.id), { tutup: { uangAwal: h.awal, nota: h.nota, penjualanCash: h.cash, transfer: h.transfer, pengeluaranTunai: h.keluarTunai, pengeluaranLain: h.keluarLain, seharusnya: h.harus, uangFisik: fisik, selisih, setor, sisa: fisik - setor, catatan, oleh: namaPetugas(), olehId: idPetugas(), jam: stamp(new Date()).slice(11) } }, { merge: true });
+      if (setor) await setDoc(doc(db, 'kasMutasi', `${cabAktif()}_${KU.tgl}_SETOR`), { cabang: cabAktif(), tgl: KU.tgl, bulan: KU.tgl.slice(0, 7), jenis: 'SETOR_BANK', cashDelta: -setor, bankDelta: setor, jumlah: setor, oleh: namaPetugas(), jam: stamp(new Date()).slice(11) }, { merge: true });
       toast(selisih ? 'Kas ditutup, selisih ' + (selisih > 0 ? 'lebih ' : 'kurang ') + rp(Math.abs(selisih)) : 'Kas ditutup, uang pas'); renderKas();
     } catch (e) { toast(errMsg(e)); el.disabled = false; }
   },
@@ -232,6 +245,8 @@ Object.assign(actions, {
   },
   'keu-bln': el => { KU.bulan = geserBulan(KU.bulan, +el.dataset.n); renderKas(); },
   'keu-tambah': formKeluar,
+  'bank-mutasi': el => formMutasiBank(el.dataset.m),
+  'bank-mutasi-save': async el => { const jumlah = +$('#bm-jml').value || 0, ket = $('#bm-ket').value.trim(); if (!jumlah) return toast('Isi jumlah mutasi'); const setor = el.dataset.m === 'setor'; const tgl = KU.tgl, cab = cabAktif(); if (setor) { const k = await getDoc(doc(db, 'kas', kasId(cab, tgl))).catch(() => null); if (!k?.exists()) return toast('Buka kas terlebih dahulu'); if (k.data().tutup) return toast('Kas sudah ditutup'); } el.disabled = true; try { await addDoc(collection(db, 'kasMutasi'), { cabang: cab, tgl, bulan: tgl.slice(0, 7), jenis: setor ? 'SETOR_BANK' : 'TARIK_BANK', cashDelta: setor ? -jumlah : jumlah, bankDelta: setor ? jumlah : -jumlah, jumlah, ket, oleh: namaPetugas(), olehId: idPetugas(), jam: stamp(new Date()).slice(11) }); closeModal(); toast(setor ? 'Setoran ke bank dicatat' : 'Penarikan dari bank dicatat'); renderKas(); } catch (e) { toast(errMsg(e)); el.disabled = false; } },
   'keu-simpan': async el => {
     const tgl = $('#pk-tgl').value, jumlah = +$('#pk-jml').value || 0, ket = $('#pk-ket').value.trim(), err = $('#pk-err');
     const gagal = m => { err.hidden = false; err.textContent = m; };
@@ -283,7 +298,7 @@ Object.assign(actions, {
       const b = writeBatch(db);
       b.set(doc(db, 'klaim', k.id), { status: 'dibayar', diterima: +$('#kb-jml').value || 0, tglBayar: $('#kb-tgl').value, dicatatBayar: namaPetugas() }, { merge: true });
       (k.nota || []).forEach(no => b.update(doc(db, 'trx', no), { klaimStatus: 'dibayar' }));
-      await b.commit(); closeModal(); toast('Klaim ' + k.no + ' ditandai dibayar'); renderKlaim();
+      await b.commit(); await setDoc(doc(db, 'kasMutasi', `${cabAktif()}_${k.id}_KLAIM`), { cabang: cabAktif(), tgl: $('#kb-tgl').value, bulan: $('#kb-tgl').value.slice(0, 7), jenis: 'KLAIM_KSG', cashDelta: 0, bankDelta: +$('#kb-jml').value || 0, jumlah: +$('#kb-jml').value || 0, ket: 'Klaim KSG ' + k.no, oleh: namaPetugas(), olehId: idPetugas(), jam: stamp(new Date()).slice(11) }, { merge: true }); closeModal(); toast('Klaim ' + k.no + ' ditandai dibayar dan masuk mutasi bank'); renderKlaim();
     } catch (e) { toast(errMsg(e)); el.disabled = false; }
   }
 });
