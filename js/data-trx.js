@@ -6,7 +6,7 @@ import { st } from './state.js';
 import { cabAktif } from './cabang.js';
 
 // Nota yang pembatalannya sudah disetujui super admin tidak dihitung di laporan mana pun
-export const sah = t => !(t.batal && t.batal.status === 'disetujui');
+export const sah = t => !(t.batal && t.batal.status === 'disetujui') && !(t.retur && t.retur.status === 'disetujui');
 export const bulanAntara = (from, to) => { const out = [], akhir = to.slice(0, 7); let [y, m] = from.slice(0, 7).split('-').map(Number); while (out.length < 36) { const k = y + '-' + String(m).padStart(2, '0'); if (k > akhir) break; out.push(k); if (++m > 12) { m = 1; y++; } } return out; };
 
 export async function ambilTrx(from, to, { termasukBatal = false } = {}) {

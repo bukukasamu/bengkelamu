@@ -1,9 +1,15 @@
-# Aceh Mandiri Utama POS · versi 5.7.2
+# Aceh Mandiri Utama POS · versi 5.7.3
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.7.3 — Pembatalan pesanan dan retur setelah bayar
+- Pesanan part pribadi dapat dibatalkan sebelum pembayaran dengan alasan wajib.
+- Retur setelah pembayaran diajukan dari detail nota part dan tidak menghapus nota asli.
+- Super admin memeriksa dan menyetujui retur dengan catatan serta password.
+- Retur disetujui mengembalikan stok, mencatat mutasi stok, mengurangi cash/bank sesuai metode bayar, dan dikeluarkan dari omzet laporan.
 
 ## 5.7.2 — Memisahkan menu Pesanan Part dan Penjualan Kasir
 - Menu Kasir kembali menjadi **Penjualan Sparepart** dan hanya dapat diakses Kasir/admin.

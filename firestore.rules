@@ -129,6 +129,13 @@ service cloud.firestore {
       allow update: if isSuper() || (hasRole(['admin', 'sparepart', 'kasir']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang);
       allow delete: if isSuper();
     }
+    // Retur setelah pembayaran: diajukan Kasir/admin, disetujui hanya super admin.
+    match /returPart/{id} {
+      allow read: if hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper() || (hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang && request.resource.data.status == 'diajukan');
+      allow delete: if isSuper();
+    }
     match /wo/{id} {
       allow read: if isStaff() && bolehCabang(resource.data.cabang);
       allow create: if hasRole(['admin', 'registrasi']) && bolehCabang(request.resource.data.cabang);

@@ -1,9 +1,10 @@
 // Nota penjualan / servis: isi nota (dipakai layar, printer, dan PDF), cetak, unduh PDF, kirim via WhatsApp.
-import { $, esc, toast, modal, waLink, waNumber, publicUrl } from './util.js';
+import { $, esc, toast, modal, closeModal, waLink, waNumber, publicUrl, stamp, rp } from './util.js';
 import { S, st, actions, inputHandlers } from './state.js';
 import { APP_NAME, APP_SUB } from './config.js';
 import { cabangById, cabangOf, multiCabang } from './cabang.js';
 import { batalHTML, tombolBatal } from './kontrol.js';
+import { db, collection, addDoc } from './firebase.js';
 
 const n = x => Math.round(x || 0).toLocaleString('id-ID');
 
@@ -61,16 +62,31 @@ export const cekLink = nopol => publicUrl('cek', { nopol: nopol ? String(nopol).
 const waText = t => `Halo ${t.pelanggan && t.pelanggan !== 'Umum' ? t.pelanggan : 'Bapak/Ibu'}, terima kasih telah ${t.jenis === 'SERVIS' ? 'servis' : 'berbelanja'} di ${APP_NAME}. Berikut nota ${t.no}, total Rp ${n(t.total)}.` + (t.nopol ? `\nCek status & riwayat servis ${t.nopol}: ${cekLink(t.nopol)}` : '');
 
 let current = null;
+function tombolRetur(t) {
+  if (!t || t.jenis !== 'PART' || t.batal?.status === 'disetujui' || t.retur?.status === 'disetujui' || !(st.petugas?.super || st.role === 'kasir' || st.role === 'admin')) return '';
+  return `<button class="btn ghost" type="button" data-act="retur-ajukan" data-no="${esc(t.no)}">Ajukan retur</button>`;
+}
 export function showNota(t) {
   if (!t) { toast('Belum ada nota untuk dicetak'); return; }
   current = t;
   import('./nota-pdf.js').then(m => m.preloadPdf()).catch(() => {});   // siapkan pembuat PDF lebih awal
   modal(`<div class="row spread"><h2>Nota ${esc(t.no)}</h2>${t.batal?.status === 'disetujui' ? '<span class="pill p-bad">Dibatalkan</span>' : '<span class="pill p-good">Tersimpan</span>'}</div>
-   ${batalHTML(t)}
+   ${batalHTML(t)}${t.retur?.status === 'diajukan' ? `<div class="note small">Retur diajukan: ${esc(t.retur.alasan || '')}. Menunggu persetujuan.</div>` : ''}${t.retur?.status === 'disetujui' ? `<div class="note small batal-on"><b>RETUR DISETUJUI</b> · ${esc(t.retur.catatanSuper || t.retur.alasan || '')}</div>` : ''}
    <div class="nota" id="nota-text">${esc(notaText(t))}</div>
    <label class="f" for="nota-hp"><span class="f-wa">No. WhatsApp konsumen<span class="small muted" id="nota-hp-ok"></span></span><input id="nota-hp" inputmode="tel" value="${esc(t.hp || '')}" placeholder="mis. 0812 xxxx xxxx"></label>
-   <div class="row" style="justify-content:flex-end">${tombolBatal(t)}<button class="btn" data-act="print" type="button">Cetak</button><button class="btn" data-act="nota-pdf" type="button">Unduh PDF</button><button class="btn wa-solid" data-act="nota-wa" type="button">Kirim PDF via WA</button><button class="btn pri" data-close="1" type="button">Tutup</button></div>`);
+   <div class="row" style="justify-content:flex-end">${tombolBatal(t)}${tombolRetur(t)}<button class="btn" data-act="print" type="button">Cetak</button><button class="btn" data-act="nota-pdf" type="button">Unduh PDF</button><button class="btn wa-solid" data-act="nota-wa" type="button">Kirim PDF via WA</button><button class="btn pri" data-close="1" type="button">Tutup</button></div>`);
   checkHp();
+}
+async function ajukanRetur(el) {
+  const t = S.trx.find(x => x.no === el.dataset.no) || st.lastNota;
+  if (!t || t.jenis !== 'PART') return toast('Retur hanya tersedia untuk penjualan part');
+  modal(`<h3>Ajukan retur nota ${esc(t.no)}</h3><p class="small">Nilai retur: <b>${rp(t.total)}</b>. Barang harus diterima dan diperiksa sebelum pengembalian dana disetujui.</p><label class="f" for="rt-alasan">Alasan retur (wajib)<textarea id="rt-alasan" rows=3 data-autofocus placeholder="mis. barang cacat / salah part dari pihak bengkel"></textarea></label><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn pri" type="button" data-act="retur-kirim" data-no="${esc(t.no)}">Kirim pengajuan retur</button></div>`);
+}
+async function kirimRetur(el) {
+  const t = S.trx.find(x => x.no === el.dataset.no) || st.lastNota, alasan = $('#rt-alasan')?.value.trim();
+  if (!alasan || alasan.length < 5) return toast('Isi alasan retur dengan jelas');
+  try { await addDoc(collection(db, 'returPart'), { no: t.no, cabang: cabangOf(t), trx: t.no, pelanggan: t.pelanggan || 'Umum', hp: t.hp || '', items: t.items || [], total: t.total || 0, cash: t.cash || 0, transfer: t.transfer || 0, metode: t.metode || 'Cash', alasan, status: 'diajukan', diajukanOleh: st.petugas?.nama || st.petugas?.email || '', tgl: stamp(new Date()) }); closeModal(); toast('Pengajuan retur ' + t.no + ' terkirim. Menunggu pemeriksaan dan persetujuan.'); }
+  catch (e) { toast(e.message || 'Pengajuan retur gagal'); }
 }
 const checkHp = () => { const ok = $('#nota-hp-ok'); if (ok) ok.textContent = waNumber($('#nota-hp')?.value) ? '✓ nomor valid' : ''; };
 
@@ -106,5 +122,7 @@ async function sendWa() {
 actions['print'] = printNota;
 actions['nota-pdf'] = downloadPdf;
 actions['nota-wa'] = sendWa;
+actions['retur-ajukan'] = ajukanRetur;
+actions['retur-kirim'] = kirimRetur;
 actions['nota'] = el => showNota((st.lap.list || S.trx).find(t => t.no === el.dataset.no) || S.trx.find(t => t.no === el.dataset.no));
 inputHandlers.push(e => { if (e.target.id === 'nota-hp') checkHp(); });

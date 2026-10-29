@@ -9,7 +9,7 @@ import { pantauKey, logStatus } from './wo-common.js';
 
 /* ---------- Kartu stok ----------
    Setiap perubahan stok dicatat di koleksi mutasi: { tgl, cabang, kode, nama, qty (+ masuk / − keluar), jenis, ref, ket, petugas } */
-export const JENIS_MUTASI = { jual: 'Penjualan', servis: 'Servis', beli: 'Pembelian', 'transfer-keluar': 'Transfer keluar', 'transfer-masuk': 'Transfer masuk', opname: 'Stok opname', batal: 'Batal nota', awal: 'Stok awal', import: 'Import Excel' };
+export const JENIS_MUTASI = { jual: 'Penjualan', servis: 'Servis', beli: 'Pembelian', 'transfer-keluar': 'Transfer keluar', 'transfer-masuk': 'Transfer masuk', retur: 'Retur part', opname: 'Stok opname', batal: 'Batal nota', awal: 'Stok awal', import: 'Import Excel' };
 export const dataMutasi = (cabang, kode, nama, qty, jenis, ref = '', ket = '') => ({ tgl: stamp(new Date()), cabang, kode, nama, qty, jenis, ref, ket, petugas: namaPetugas() });
 // tx: transaksi atau batch Firestore
 export const catatMutasi = (tx, m) => tx.set(doc(collection(db, 'mutasi')), m);

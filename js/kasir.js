@@ -2,10 +2,11 @@
 // Sparepart membuat pesanan pribadi dan mencetak lembar cross-check; Kasir memeriksa lalu menerima pembayaran.
 import { $, esc, rp, stamp, toast, errMsg, konfirmasi, modal, closeModal } from './util.js';
 import { S, st, part, emptyCart, namaPetugas, idPetugas, views, refreshers, actions, inputHandlers, fkeys, isRole } from './state.js';
-import { db, doc, runTransaction, serverTimestamp, collection, addDoc, getDocs, query, where, updateDoc } from './firebase.js';
+import { db, doc, runTransaction, serverTimestamp, collection, addDoc, getDoc, getDocs, query, where, updateDoc } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { cabAktif, stokOf, stokField } from './cabang.js';
-import { catatMutasi, dataMutasi } from './kontrol.js';
+import { catatMutasi, dataMutasi, mintaCatatan } from './kontrol.js';
+import { mintaPassword } from './otorisasi.js';
 import { showNota } from './nota.js';
 import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } from './payment.js';
 import { dipesan } from './wo-common.js';
@@ -27,7 +28,7 @@ export function searchParts(q, n = 8) {
   return (exact ? [exact, ...hits.filter(p => p !== exact)] : hits).slice(0, n);
 }
 
-let pesananList = [];
+let pesananList = [], returList = [];
 async function muatPesanan() {
   try {
     const s = await getDocs(query(collection(db, 'pesananPart'), where('cabang', '==', cabAktif())));
@@ -35,10 +36,43 @@ async function muatPesanan() {
   } catch (e) { pesananList = []; console.warn('Pesanan part', e); }
   renderPesanan();
 }
+async function muatRetur() {
+  try {
+    const s = await getDocs(query(collection(db, 'returPart'), where('cabang', '==', cabAktif())));
+    returList = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => ['diajukan', 'disetujui', 'ditolak'].includes(x.status)).sort((a, b) => String(b.tgl || '').localeCompare(String(a.tgl || '')));
+  } catch (e) { returList = []; console.warn('Retur part', e); }
+  renderRetur();
+}
+function renderRetur() {
+  const el = $('#k-retur'); if (!el) return;
+  const pending = returList.filter(x => x.status === 'diajukan');
+  el.innerHTML = `<div class="panel" style="margin-top:12px"><h3>Retur setelah pembayaran</h3><p class="small muted">Periksa barang dan alasan retur. Stok serta kas/bank hanya berubah setelah retur disetujui.</p>${returList.length ? `<div class="tw"><table><thead><tr><th>Nota</th><th>Konsumen</th><th>Alasan</th><th>Status</th><th></th></tr></thead><tbody>${returList.slice(0, 20).map(o => `<tr><td class="mono small">${esc(o.no)}</td><td>${esc(o.pelanggan || 'Umum')}</td><td>${esc(o.alasan || '')}<br><span class="small muted">${esc(o.tgl || '')}</span></td><td>${orderLabel(o.status === 'diajukan' ? 'menunggu_pembayaran' : o.status)}${o.catatanSuper ? `<br><span class="small muted">${esc(o.catatanSuper)}</span>` : ''}</td><td>${o.status === 'diajukan' && st.petugas?.super ? `<button class="btn sm pri" type="button" data-act="retur-setujui" data-id="${esc(o.id)}">Setujui &amp; kembalikan dana</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Belum ada pengajuan retur.</div>'}</div>`;
+}
+async function setujuiRetur(o) {
+  if (!st.petugas?.super) return toast('Retur harus disetujui super admin');
+  const catatan = await mintaCatatan('Setujui retur nota ' + o.no, 'Pastikan barang sudah diterima dan memang layak diretur. Semua item pada nota ini akan dikembalikan.');
+  if (catatan === null) return;
+  if (!(await mintaPassword('Setujui retur nota ' + o.no, 'Stok dikembalikan dan dana dikurangi dari sumber pembayaran.'))) return;
+  try {
+    await runTransaction(db, async tx => {
+      const rr = doc(db, 'returPart', o.id), rd = await tx.get(rr), trr = doc(db, 'trx', o.no), td = await tx.get(trr);
+      if (!rd.exists() || rd.data().status !== 'diajukan') throw new Error('Retur sudah diproses atau tidak ditemukan');
+      if (!td.exists()) throw new Error('Nota asli tidak ditemukan');
+      const items = rd.data().items || [], refs = items.map(x => doc(db, 'parts', x.kode)), ps = await Promise.all(refs.map(x => tx.get(x))), cab = rd.data().cabang;
+      items.forEach((x, i) => { if (!ps[i].exists()) throw new Error('Part ' + x.kode + ' tidak ditemukan'); tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) + (+x.qty || 0) }); catatMutasi(tx, dataMutasi(cab, x.kode, x.nama || ps[i].data().nama, +x.qty || 0, 'retur', 'RETUR ' + o.no, catatan)); });
+      tx.update(trr, { retur: { status: 'disetujui', returId: o.id, alasan: rd.data().alasan, catatanSuper: catatan, disetujuiOleh: namaPetugas(), tglSetuju: stamp(new Date()) } });
+      tx.update(rr, { status: 'disetujui', catatanSuper: catatan, disetujuiOleh: namaPetugas(), tglSetuju: stamp(new Date()) });
+      tx.set(doc(db, 'kasMutasi', 'RETUR_' + o.id), { cabang: cab, tgl: stamp(new Date()).slice(0, 10), bulan: stamp(new Date()).slice(0, 7), jenis: 'RETUR_PART', cashDelta: -(+rd.data().cash || 0), bankDelta: -(+rd.data().transfer || 0), jumlah: -(+rd.data().total || 0), ref: o.no, ket: 'Pengembalian dana retur part: ' + catatan, oleh: namaPetugas(), olehId: idPetugas() });
+    });
+    toast('Retur ' + o.no + ' disetujui, stok dikembalikan, dan pengembalian dana dicatat');
+    muatRetur();
+  } catch (e) { toast(errMsg(e)); }
+}
+
 function renderPesanan() {
   const el = $('#k-pesanan'); if (!el) return;
   if (bagianSparepart()) {
-    el.innerHTML = pesananList.length ? `<div class="tw"><table><thead><tr><th>Pesanan</th><th>Konsumen</th><th>Barang</th><th>Status</th><th></th></tr></thead><tbody>${pesananList.map(o => `<tr><td class="mono small">${esc(o.kode || o.id.slice(-6).toUpperCase())}</td><td>${esc(o.nama)}<br><span class="small muted">${esc(o.hp)}</span></td><td>${(o.items || []).reduce((a, x) => a + x.qty, 0)} pcs</td><td>${orderLabel(o.status)}${o.catatanKasir ? `<br><span class="small diff-bad">${esc(o.catatanKasir)}</span>` : ''}</td><td><button class="btn sm" type="button" data-act="pp-buka" data-id="${esc(o.id)}">Buka</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Belum ada pesanan pribadi yang dikembalikan atau menunggu pembayaran.</div>';
+    el.innerHTML = pesananList.length ? `<div class="tw"><table><thead><tr><th>Pesanan</th><th>Konsumen</th><th>Barang</th><th>Status</th><th></th></tr></thead><tbody>${pesananList.map(o => `<tr><td class="mono small">${esc(o.kode || o.id.slice(-6).toUpperCase())}</td><td>${esc(o.nama)}<br><span class="small muted">${esc(o.hp)}</span></td><td>${(o.items || []).reduce((a, x) => a + x.qty, 0)} pcs</td><td>${orderLabel(o.status)}${o.catatanKasir ? `<br><span class="small diff-bad">${esc(o.catatanKasir)}</span>` : ''}</td><td><button class="btn sm" type="button" data-act="pp-buka" data-id="${esc(o.id)}">Buka</button><br><button class="btn sm ghost" type="button" data-act="pp-batal" data-id="${esc(o.id)}">Batal beli</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Belum ada pesanan pribadi yang dikembalikan atau menunggu pembayaran.</div>';
   } else {
     el.innerHTML = pesananList.length ? `<div class="panel" style="margin:0"><h3>Pesanan dari Sparepart — periksa sebelum bayar</h3><div class="tw"><table><thead><tr><th>Pesanan</th><th>Konsumen</th><th>Barang</th><th>Total</th><th></th></tr></thead><tbody>${pesananList.map(o => `<tr><td class="mono small">${esc(o.kode || o.id.slice(-6).toUpperCase())}</td><td>${esc(o.nama)}<br><span class="small muted">${esc(o.hp)}</span></td><td>${(o.items || []).map(x => esc(x.nama || x.kode) + ' ×' + x.qty).join('<br>')}</td><td class="r num">${rp(o.total || 0)}</td><td><button class="btn sm pri" type="button" data-act="pp-pilih" data-id="${esc(o.id)}">Periksa &amp; bayar</button><br><button class="btn sm ghost" type="button" data-act="pp-kembali" data-id="${esc(o.id)}">Tidak sesuai</button></td></tr>`).join('')}</tbody></table></div></div>` : '<div class="small muted">Belum ada pesanan pribadi dari Sparepart.</div>';
   }
@@ -56,7 +90,7 @@ function renderKasir() {
    <div class="panel"><h3>${spare ? 'Input pesanan konsumen' : 'Cari part / pesanan'}</h3>
     <label class="f" for="k-q">Scan barcode / ketik kode, nama, atau tipe motor<input id="k-q" placeholder="mis. brake pad, 2DP, YML-SM08" autocomplete="off"></label>
     <div class="results" id="k-res"></div><p class="small muted" style="margin:0">Tekan Enter untuk menambahkan hasil teratas, seperti saat scan barcode.</p>
-    ${spare ? '<div id="k-pesanan" style="margin-top:12px"></div>' : '<div id="k-pesanan" style="margin-top:12px"></div>'}
+    <div id="k-pesanan" style="margin-top:12px"></div><div id="k-retur"></div>
    </div>
    <div class="panel"><div class="row spread"><h3>${spare ? 'Pesanan part pribadi' : 'Penjualan sparepart / pembayaran pesanan'}</h3><span class="small muted">${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
     <div class="form"><label class="f wide" for="k-pel">Nama pemesan / pelanggan<input id="k-pel" placeholder="Nama konsumen" value="${esc(c.pelanggan || '')}"></label><label class="f" for="k-hp">Nomor HP<input id="k-hp" inputmode="tel" placeholder="08xxxxxxxxxx" value="${esc(c.hp || '')}"></label></div>
@@ -67,7 +101,7 @@ function renderKasir() {
     <div id="k-tot"></div>
     <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cart-clear" type="button">Kosongkan</button><button class="btn pri" data-act="cart-save" type="button">${spare ? 'Simpan pesanan &amp; cetak cek [F2]' : 'Terima pembayaran &amp; cetak nota [F2]'}</button></div>
    </div></div>`;
-  renderKRes(); renderCart(); renderPesanan(); muatPesanan();
+  renderKRes(); renderCart(); renderPesanan(); muatPesanan(); muatRetur();
 }
 function renderKRes() { if (!$('#k-res')) return; const r = searchParts($('#k-q') ? $('#k-q').value : ''); $('#k-res').innerHTML = r.length ? r.map(p => `<button class="res" type="button" data-act="add" data-k="${esc(p.kode)}"><span><span class="nm">${esc(p.nama)}</span><br><span class="sub"><span class="mono">${esc(p.kode)}</span>${p.cocok ? ' · ' + esc(p.cocok) : ''}</span></span><span style="text-align:right"><span class="num">${rp(p.jual)}</span><br><span class="pill ${tersedia(p) <= 0 ? 'p-bad' : p.stok <= p.min ? 'p-warn' : 'p-good'}">stok ${p.stok}</span></span></button>`).join('') : `<div class="empty">${S.parts.length ? 'Part tidak ditemukan.' : 'Belum ada data part.'}</div>`; }
 const cartTotal = () => { const sub = st.cart.items.reduce((a, x) => a + x.qty * (part(x.kode)?.jual || 0), 0); return { sub, total: Math.max(0, sub - (st.cart.diskon || 0)) }; };
@@ -80,6 +114,15 @@ async function simpanPesanan() {
   const items = c.items.map(x => { const p = part(x.kode); return { kode: x.kode, nama: p?.nama || x.kode, qty: x.qty, harga: p?.jual || 0 }; }); const o = { cabang: cabAktif(), kode: c.pesananId ? (pesananList.find(x => x.id === c.pesananId)?.kode || '') : 'PP-' + stamp(new Date()).replace(/[^0-9]/g, '').slice(2, 14), nama: c.pelanggan.trim(), hp: c.hp.trim(), items, total, status: 'menunggu_pembayaran', dibuat: stamp(new Date()), dibuatOleh: namaPetugas(), dibuatId: idPetugas(), ...(c.pesananId ? { catatanKasir: '' } : {}) };
   try { const ref = c.pesananId ? (await updateDoc(doc(db, 'pesananPart', c.pesananId), o), { id: c.pesananId }) : await addDoc(collection(db, 'pesananPart'), o); closeModal(); st.cart = emptyCart(); renderKasir(); printPesanan({ ...o, id: ref.id || ref }); toast('Pesanan disimpan. Berikan lembar cek kepada konsumen.'); } catch (e) { toast(errMsg(e)); }
 }
+async function batalkanPesanan(o) {
+  modal(`<h3>Batalkan pesanan ${esc(o.kode || o.id)}</h3><p class="small">Pesanan ini belum dibayar. Pembatalan tidak membuat transaksi penjualan dan tidak mengubah kas.</p><label class="f" for="pp-batal-cat">Alasan pembatalan (wajib)<textarea id="pp-batal-cat" rows="3" data-autofocus placeholder="mis. konsumen batal membeli sebelum bayar"></textarea></label><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Kembali</button><button class="btn danger" type="button" data-act="pp-batal-ok" data-id="${esc(o.id)}">Batalkan pesanan</button></div>`);
+}
+async function batalPesananOk(el) {
+  const alasan = $('#pp-batal-cat')?.value.trim(); if (!alasan || alasan.length < 5) return toast('Isi alasan pembatalan dengan jelas');
+  try { await updateDoc(doc(db, 'pesananPart', el.dataset.id), { status: 'dibatalkan', alasanBatal: alasan, dibatalkanOleh: namaPetugas(), dibatalkan: stamp(new Date()) }); closeModal(); toast('Pesanan dibatalkan sebelum pembayaran'); muatPesanan(); }
+  catch (e) { toast(errMsg(e)); }
+}
+
 async function kembalikanPesanan(o) { modal(`<h3>Kembalikan pesanan ke Sparepart</h3><p class="small">${esc(o.nama)} · ${esc(o.kode || o.id)}</p><label class="f" for="pp-cat">Catatan ketidaksesuaian<textarea id="pp-cat" placeholder="Mis. jumlah salah / part tidak sesuai" data-autofocus></textarea></label><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn warn" type="button" data-act="pp-kembali-ok" data-id="${esc(o.id)}">Kembalikan</button></div>`); }
 async function kembaliOk(el) { const cat = $('#pp-cat')?.value.trim(); if (!cat) return toast('Isi alasan ketidaksesuaian'); try { await updateDoc(doc(db, 'pesananPart', el.dataset.id), { status: 'dikembalikan', catatanKasir: cat, dikembalikan: stamp(new Date()), dikembalikanOleh: namaPetugas() }); closeModal(); toast('Pesanan dikembalikan ke Sparepart'); muatPesanan(); } catch (e) { toast(errMsg(e)); } }
 async function saveSale() {
@@ -89,11 +132,12 @@ async function saveSale() {
 registerPay('k', { get: () => st.cart.pay, total: () => cartTotal().total, onChange: renderKTot });
 views.kasir = renderKasir;
 views.pesananPart = renderKasir;
-const refreshKasirPart = () => { st.cart.items = st.cart.items.filter(x => part(x.kode)); renderKRes(); renderCart(); renderPesanan(); };
+const refreshKasirPart = () => { st.cart.items = st.cart.items.filter(x => part(x.kode)); renderKRes(); renderCart(); renderPesanan(); renderRetur(); };
 refreshers.kasir = refreshKasirPart;
 refreshers.pesananPart = refreshKasirPart;
+
 fkeys.kasir = { baru: 'cart-clear', simpan: 'cart-save', cari: 'k-fokus' };
 fkeys.pesananPart = fkeys.kasir;
-Object.assign(actions, { 'add': el => addToCart(el.dataset.k), 'inc': el => addToCart(el.dataset.k), 'dec': el => { const it = st.cart.items.find(x => x.kode === el.dataset.k); it.qty--; if (!it.qty) st.cart.items = st.cart.items.filter(x => x !== it); renderCart(); }, 'rm': el => { st.cart.items = st.cart.items.filter(x => x.kode !== el.dataset.k); renderCart(); }, 'cart-clear': async () => { if (st.cart.items.length && !(await konfirmasi('Kosongkan keranjang?', 'Semua item akan dihapus.', { ya: 'Ya, kosongkan', bahaya: true }))) return; st.cart = emptyCart(); renderKasir(); }, 'cart-save': saveSale, 'k-fokus': () => { const q = $('#k-q'); if (q) { q.focus(); q.select(); } }, 'pp-pilih': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) pilihPesanan(o); }, 'pp-buka': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) pilihPesanan(o); }, 'pp-kembali': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) kembalikanPesanan(o); }, 'pp-kembali-ok': kembaliOk });
+Object.assign(actions, { 'add': el => addToCart(el.dataset.k), 'inc': el => addToCart(el.dataset.k), 'dec': el => { const it = st.cart.items.find(x => x.kode === el.dataset.k); it.qty--; if (!it.qty) st.cart.items = st.cart.items.filter(x => x !== it); renderCart(); }, 'rm': el => { st.cart.items = st.cart.items.filter(x => x.kode !== el.dataset.k); renderCart(); }, 'cart-clear': async () => { if (st.cart.items.length && !(await konfirmasi('Kosongkan keranjang?', 'Semua item akan dihapus.', { ya: 'Ya, kosongkan', bahaya: true }))) return; st.cart = emptyCart(); renderKasir(); }, 'cart-save': saveSale, 'k-fokus': () => { const q = $('#k-q'); if (q) { q.focus(); q.select(); } }, 'pp-pilih': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) pilihPesanan(o); }, 'pp-buka': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) pilihPesanan(o); }, 'pp-batal': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) batalkanPesanan(o); }, 'pp-batal-ok': batalPesananOk, 'pp-kembali': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) kembalikanPesanan(o); }, 'pp-kembali-ok': kembaliOk, 'retur-setujui': el => { const o = returList.find(x => x.id === el.dataset.id); if (o) setujuiRetur(o); } });
 inputHandlers.push(e => { const t = e.target; if (t.id === 'k-q') renderKRes(); if (t.id === 'k-pel') st.cart.pelanggan = t.value; if (t.id === 'k-hp') st.cart.hp = t.value; if (t.id === 'k-dis') { st.cart.diskon = +t.value || 0; renderKTot(); } });
 export function onSearchEnter(input) { const r = searchParts(input.value); if (r.length) { addToCart(r[0].kode); input.value = ''; renderKRes(); } }
