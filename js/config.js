@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '5.7.1';
+export const APP_VERSION = '5.7.2';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
@@ -33,7 +33,8 @@ export const MENUS = [
   { id: 'bayar', label: 'Pembayaran & Status Servis', group: 'Bengkel', roles: ['admin', 'kasir'] },
   { id: 'mekanik', label: 'Performa Mekanik', group: 'Bengkel', roles: ['admin', 'mekanik'] },
   { id: 'cekstok', label: 'Cek Stok', group: 'Sparepart', roles: ['admin', 'registrasi', 'kasir', 'sparepart'], baru: '5.0.0' },
-  { id: 'kasir', label: 'Penjualan / Pesanan Sparepart', group: 'Sparepart', roles: ['admin', 'sparepart', 'kasir'] },
+  { id: 'kasir', label: 'Penjualan Sparepart', group: 'Kasir', roles: ['admin', 'kasir'] },
+  { id: 'pesananPart', label: 'Pesanan Part Pribadi', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'stok', label: 'Stok Part', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'opname', label: 'Stok Opname', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'pembelian', label: 'Pembelian Stok', group: 'Sparepart', roles: ['admin', 'sparepart'] },

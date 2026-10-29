@@ -11,7 +11,10 @@ import { emptyPay, payFields, payTotals, payStatus, payRecord, registerPay } fro
 import { dipesan } from './wo-common.js';
 import { tawarkanCabangLain } from './cek-stok.js';
 
-const bagianSparepart = () => isRole('sparepart') && !isRole('admin');
+// Mode ditentukan oleh menu yang sedang dibuka, bukan hanya peran.
+// Dengan demikian admin dapat menguji kedua alur, sedangkan menu Pesanan Part
+// tidak pernah menampilkan atau menjalankan pembayaran.
+const bagianSparepart = () => st.view === 'pesananPart' || (isRole('sparepart') && !isRole('admin'));
 const tersedia = p => p.stok - dipesan(p.kode);
 const orderLabel = s => ({ menunggu_pembayaran: '<span class="pill p-warn">Menunggu Kasir</span>', dikembalikan: '<span class="pill p-bad">Dikembalikan ke Sparepart</span>', dibayar: '<span class="pill p-good">Sudah dibayar</span>' }[s] || `<span class="pill">${esc(s || '–')}</span>`);
 
@@ -84,7 +87,13 @@ async function saveSale() {
   try { const diskon = c.diskon || 0; const t = await runTransaction(db, async tx => { const cab = cabAktif(), cs = await tx.get(counterRef(cab)), refs = c.items.map(x => doc(db, 'parts', x.kode)), ps = await Promise.all(refs.map(r => tx.get(r))); const items = c.items.map((x, i) => { if (!ps[i].exists()) throw new Error('Part ' + x.kode + ' sudah dihapus'); const p = ps[i].data(); if (stokOf(p, cab) < x.qty) throw new Error('Stok ' + p.nama + ' tinggal ' + stokOf(p, cab)); return { kode: p.kode, nama: p.nama, qty: x.qty, harga: p.jual, beli: p.beli || 0 }; }); const total = Math.max(0, items.reduce((a, x) => a + x.qty * x.harga, 0) - diskon), pay = payStatus(c.pay, total); if (pay.err) throw new Error(pay.err); const { no, counter } = nextNumber(cs, 'PJ', cab), trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', hp: c.hp.trim() || '', nopol: '', items, jasa: [], diskon, total, ...payRecord(c.pay, total), kasir: namaPetugas(), kasirId: idPetugas(), pesananPartId: c.pesananId || '' }; tx.set(counterRef(cab), counter); items.forEach((x, i) => { tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }); catatMutasi(tx, dataMutasi(cab, x.kode, x.nama, -x.qty, 'jual', no)); }); tx.set(doc(db, 'trx', no), { ...trx, bulan: trx.tgl.slice(0, 7), dibuat: serverTimestamp() }); if (c.pesananId) tx.update(doc(db, 'pesananPart', c.pesananId), { status: 'dibayar', trx: no, dibayar: trx.tgl, dibayarOleh: namaPetugas() }); return trx; }); st.lastNota = t; st.cart = emptyCart(); renderKasir(); showNota(t); } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 registerPay('k', { get: () => st.cart.pay, total: () => cartTotal().total, onChange: renderKTot });
-views.kasir = renderKasir; refreshers.kasir = () => { st.cart.items = st.cart.items.filter(x => part(x.kode)); renderKRes(); renderCart(); renderPesanan(); }; fkeys.kasir = { baru: 'cart-clear', simpan: 'cart-save', cari: 'k-fokus' };
+views.kasir = renderKasir;
+views.pesananPart = renderKasir;
+const refreshKasirPart = () => { st.cart.items = st.cart.items.filter(x => part(x.kode)); renderKRes(); renderCart(); renderPesanan(); };
+refreshers.kasir = refreshKasirPart;
+refreshers.pesananPart = refreshKasirPart;
+fkeys.kasir = { baru: 'cart-clear', simpan: 'cart-save', cari: 'k-fokus' };
+fkeys.pesananPart = fkeys.kasir;
 Object.assign(actions, { 'add': el => addToCart(el.dataset.k), 'inc': el => addToCart(el.dataset.k), 'dec': el => { const it = st.cart.items.find(x => x.kode === el.dataset.k); it.qty--; if (!it.qty) st.cart.items = st.cart.items.filter(x => x !== it); renderCart(); }, 'rm': el => { st.cart.items = st.cart.items.filter(x => x.kode !== el.dataset.k); renderCart(); }, 'cart-clear': async () => { if (st.cart.items.length && !(await konfirmasi('Kosongkan keranjang?', 'Semua item akan dihapus.', { ya: 'Ya, kosongkan', bahaya: true }))) return; st.cart = emptyCart(); renderKasir(); }, 'cart-save': saveSale, 'k-fokus': () => { const q = $('#k-q'); if (q) { q.focus(); q.select(); } }, 'pp-pilih': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) pilihPesanan(o); }, 'pp-buka': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) pilihPesanan(o); }, 'pp-kembali': el => { const o = pesananList.find(x => x.id === el.dataset.id); if (o) kembalikanPesanan(o); }, 'pp-kembali-ok': kembaliOk });
 inputHandlers.push(e => { const t = e.target; if (t.id === 'k-q') renderKRes(); if (t.id === 'k-pel') st.cart.pelanggan = t.value; if (t.id === 'k-hp') st.cart.hp = t.value; if (t.id === 'k-dis') { st.cart.diskon = +t.value || 0; renderKTot(); } });
 export function onSearchEnter(input) { const r = searchParts(input.value); if (r.length) { addToCart(r[0].kode); input.value = ''; renderKRes(); } }
