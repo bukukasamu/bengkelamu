@@ -122,6 +122,13 @@ service cloud.firestore {
             || (request.resource.data.batal.status == 'diminta' && (!('batal' in resource.data) || resource.data.batal.status == 'ditolak'))));
       allow delete: if isSuper();   // nota tidak bisa dihapus, kecuali "hapus semua data" oleh super admin
     }
+    // Pesanan part pribadi: dibuat Sparepart, diperiksa/dibayar atau dikembalikan oleh Kasir.
+    match /pesananPart/{id} {
+      allow read: if isStaff() && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'sparepart']) && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper() || (hasRole(['admin', 'sparepart', 'kasir']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang);
+      allow delete: if isSuper();
+    }
     match /wo/{id} {
       allow read: if isStaff() && bolehCabang(resource.data.cabang);
       allow create: if hasRole(['admin', 'registrasi']) && bolehCabang(request.resource.data.cabang);
@@ -184,6 +191,13 @@ service cloud.firestore {
       allow create: if isSuper() || hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang) && id.split('_')[0] == request.resource.data.cabang && !('tutup' in request.resource.data);
       allow update: if isSuper() || (hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang)
         && request.resource.data.cabang == resource.data.cabang && !('tutup' in resource.data));
+      allow delete: if isSuper();
+    }
+    // Ledger perpindahan uang antara laci dan bank serta pembayaran klaim KSG.
+    match /kasMutasi/{id} {
+      allow read: if hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper() || (hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang);
       allow delete: if isSuper();
     }
     // Klaim KSG ke main dealer (nota terkait diberi klaimStatus / klaimId / klaimNo)

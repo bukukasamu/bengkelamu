@@ -1,9 +1,21 @@
-# Aceh Mandiri Utama POS · versi 5.6.4
+# Aceh Mandiri Utama POS · versi 5.7.1
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.7.1 — Koreksi perhitungan saldo laci setelah mutasi
+- Setoran atau penarikan bank yang dilakukan sebelum tutup kas sekarang ikut memengaruhi saldo laci yang diharapkan.
+- Pembayaran servis, pembelian part pribadi, pengeluaran tunai, dan mutasi bank ditampilkan dengan alur kas yang konsisten.
+
+## 5.7.0 — Pesanan part pribadi, kas-bank, dan klaim KSG
+- Bagian Sparepart dapat membuat pesanan part pribadi dengan nama pemesan dan nomor HP.
+- Pesanan dapat dicetak untuk cross-check konsumen sebelum pembayaran.
+- Kasir melihat pesanan menunggu pembayaran, memeriksa barang, menerima cash/transfer, atau mengembalikan pesanan ke Sparepart dengan alasan.
+- Pembayaran servis dan part tercatat otomatis: cash ke laci, transfer ke rekening yang dipilih.
+- Setor ke bank, tarik dari bank, dan pembayaran klaim KSG dicatat sebagai mutasi laci-bank.
+- Panduan diperluas dengan alur pesanan, peringatan barang tidak dapat dikembalikan setelah bayar, kas-bank, pengeluaran, klaim KSG, dan troubleshooting.
 
 ## 5.6.4 — Penyempurnaan tabel rincian jasa
 - Kolom rincian jasa dirapikan menjadi jasa, nominal, dan status.
