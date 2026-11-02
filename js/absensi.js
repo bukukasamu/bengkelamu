@@ -160,6 +160,10 @@ const lokasiSekarang = () => new Promise(res => {
   if (!navigator.geolocation) return res(null);
   navigator.geolocation.getCurrentPosition(p => res({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), akurasi: Math.round(p.coords.accuracy) }), () => res(null), { enableHighAccuracy: true, timeout: 9000, maximumAge: 30000 });
 });
+const panduanLokasi = () => {
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  modal(`<h3>Aktifkan lokasi absensi</h3><p class="small">Aplikasi tidak dapat mengubah izin GPS secara otomatis. Aktifkan izin satu kali, lalu kembali ke halaman absensi dan tekan <b>Coba lagi</b>.</p><ol class="small" style="padding-left:20px;margin-bottom:8px">${ios ? '<li>Buka <b>Pengaturan iPhone → Privasi & Keamanan → Layanan Lokasi</b>, lalu aktifkan.</li><li>Pilih <b>Safari</b> (atau Chrome), pilih <b>Saat Menggunakan App</b>, dan aktifkan <b>Lokasi Presisi</b>.</li><li>Kembali ke halaman absensi. Tidak perlu scan ulang jika dialog ini masih terbuka.</li>' : '<li>Aktifkan Lokasi pada perangkat.</li><li>Pada izin situs ini pilih <b>Izinkan saat menggunakan situs</b>.</li><li>Kembali ke halaman absensi dan tekan <b>Coba lagi</b>.</li>'}</ol><div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-close="1">Mengerti</button></div>`);
+};
 
 export async function mulaiAbsen(v) {
   const k = uraiKode(v), kunci = kunciSaya();
@@ -178,22 +182,23 @@ export async function mulaiAbsen(v) {
   let ada = null; try { const s = await getDoc(doc(db, 'absen', id)); ada = s.exists() ? s.data() : null; } catch (e) { /* belum ada */ }
   if (ada?.manual) { toast('Hari ini sudah dicatat super admin: ' + (STATUS_MANUAL[ada.manual] || ada.manual)); return; }
   const jenis = ada?.masuk ? 'pulang' : 'masuk';
-  const lokasi = lokasiSekarang();
+  let lokasi = lokasiSekarang();
   modal(`<h3>Absen ${jenis} · ${esc(namaCabang(k.cab))}</h3>
     ${ada?.pulang ? `<div class="note small">Anda sudah absen pulang ${esc(jamWIB(waktuScan(ada.pulang)))}. Absen lagi akan mengganti jam pulang.</div>` : ''}
     <video id="ab-selfie" playsinline muted style="width:100%;max-width:320px;align-self:center;border-radius:12px;background:#000;aspect-ratio:3/4;object-fit:cover;transform:scaleX(-1)"></video>
     <p class="small muted" style="margin:0">Pastikan wajah terlihat jelas dan lokasi (GPS) aktif. Foto diambil langsung dari kamera (tidak bisa dari galeri) dan hanya bisa dilihat Anda &amp; super admin.</p>
-    <div class="err" id="ab-err" hidden></div>
+    <div class="err" id="ab-err" hidden></div><div class="row" style="justify-content:flex-start"><button class="btn sm ghost" type="button" id="ab-retry-lokasi" hidden>Coba lagi</button><button class="btn sm ghost" type="button" id="ab-panduan-lokasi">Panduan izin lokasi</button></div>
     <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn pri" type="button" id="ab-ok" disabled>📸 Ambil foto &amp; absen ${jenis}</button></div>`);
   awasiModal();
-  const video = $('#ab-selfie'), ok = $('#ab-ok'), err = $('#ab-err');
+  const video = $('#ab-selfie'), ok = $('#ab-ok'), err = $('#ab-err'), retryLokasi = $('#ab-retry-lokasi'), panduan = $('#ab-panduan-lokasi');
+  panduan.onclick = panduanLokasi;
   try { await bukaKamera(video, true); ok.disabled = false; }
   catch (e) { err.hidden = false; err.textContent = 'Kamera depan tidak bisa dibuka. Izinkan akses kamera untuk situs ini lalu scan ulang.'; return; }
   ok.onclick = async () => {
     ok.disabled = true; ok.textContent = 'Menyimpan…';
     const foto = ambilFoto(video); stopKamera();
     const loc = await Promise.race([lokasi, new Promise(r => setTimeout(() => r(null), 8000))]);
-    if (!loc) { ok.hidden = true; err.hidden = false; err.textContent = 'Lokasi (GPS) tidak terbaca. Aktifkan lokasi dan izinkan untuk situs ini, lalu scan ulang QR.'; return; }
+    if (!loc) { ok.disabled = false; ok.textContent = 'Coba lagi setelah lokasi aktif'; retryLokasi.hidden = false; err.hidden = false; err.textContent = 'Lokasi belum terbaca. Aktifkan izin lokasi, lalu tekan Coba lagi. Tidak perlu scan QR ulang selama dialog ini masih terbuka.'; return; }
     const scan = { ts: serverTimestamp(), klien: new Date().toISOString(), kode: k.kode, perangkat: hp, ...(loc || {}) };
     try {
       const b = writeBatch(db);
@@ -207,6 +212,13 @@ export async function mulaiAbsen(v) {
       ok.hidden = true; err.hidden = false;
       err.textContent = e.code === 'permission-denied' ? 'Absen ditolak: kode QR sudah kedaluwarsa, HP tidak terdaftar, atau tanggal/jam HP tidak otomatis. Scan ulang QR di layar bengkel.' : errMsg(e);
     }
+  };
+  retryLokasi.onclick = async () => {
+    retryLokasi.disabled = true; retryLokasi.textContent = 'Mencari lokasi…'; err.hidden = true; lokasi = lokasiSekarang();
+    const loc = await Promise.race([lokasi, new Promise(r => setTimeout(() => r(null), 10000))]);
+    retryLokasi.disabled = false; retryLokasi.textContent = 'Coba lagi';
+    if (loc) { retryLokasi.hidden = true; err.hidden = true; ok.disabled = false; ok.textContent = `📸 Ambil foto & absen ${jenis}`; }
+    else { err.hidden = false; err.textContent = 'Lokasi masih belum terbaca. Buka Panduan izin lokasi, ubah izin perangkat, lalu tekan Coba lagi.'; }
   };
 }
 

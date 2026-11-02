@@ -299,7 +299,7 @@ function renderStaff() {
 /* ---------- Logo (hanya super admin) ---------- */
 let logoDraft = null;
 /* ---------- Hak akses menu per peran (super admin) ---------- */
-const PERAN_AKSES = ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'];
+const PERAN_AKSES = ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa'];
 function renderAkses() {
   const akses = S.akses || {}, menu = MENUS.filter(m => !m.superOnly && !m.selalu && m.roles.some(r => PERAN_AKSES.includes(r)));
   const boleh = (r, id) => !Array.isArray(akses[r]) || akses[r].includes(id) || !(akses._menu || MENUS.filter(x => !x.baru).map(x => x.id)).includes(id);
@@ -408,7 +408,8 @@ const idBaru = () => Date.now().toString(36) + Math.random().toString(36).slice(
 function contohPh() {
   return { insentif: [
     { id: idBaru(), nama: 'INSENTIF SPAREPART', sumber: 'part', peran: ['kasir', 'sparepart'], tingkat: [{ min: 7000000, persen: 2 }], aktif: true },
-    { id: idBaru(), nama: 'INSENTIF JASA SERVIS', sumber: 'jasa', peran: ['mekanik'], tingkat: [{ min: 7000000, persen: 2 }], aktif: true }],
+    { id: idBaru(), nama: 'INSENTIF JASA SERVIS', sumber: 'jasa', peran: ['mekanik'], tingkat: [{ min: 7000000, persen: 2 }], aktif: true },
+    { id: idBaru(), nama: 'INSENTIF SA CABANG', sumber: 'sa', peran: ['sa'], dasar: ['cabang'], tingkat: [{ min: 0, persen: 0 }], aktif: true }],
     potongan: [{ id: idBaru(), nama: 'BPJS KESEHATAN', jumlah: 0, peran: PERAN.map(([k]) => k), aktif: true }], contoh: true };
 }
 const cekOrang = (pfx, sel) => phGaji?.length ? `<div class="small muted">Atau khusus karyawan tertentu — bila ada yang dicentang, item <b>hanya</b> berlaku untuk mereka:</div><div class="ph-orang">${phGaji.map((g, k) => `<label class="chk"><input type="checkbox" id="${pfx}-${k}" ${sel.includes(g.kunci) ? 'checked' : ''}>${esc(g.nama)} <span class="muted small">(${esc((ROLES[g.peran] || g.peran).split(' /')[0])})</span></label>`).join('')}</div>` : '';
@@ -426,7 +427,7 @@ async function renderInsentif() {
   if (!phGaji) { $('#ms-body').innerHTML = loaderHTML('Memuat karyawan…'); try { await muatGaji(); } catch (e) { phGaji = []; } if (st.masterTab !== 'insentif') return; }
   if (!phDraft) { const c = cfgPenghasilan(); phDraft = c.insentif.length || c.potongan.length ? JSON.parse(JSON.stringify({ insentif: c.insentif, potongan: c.potongan })) : contohPh(); }
   const d = phDraft;
-  $('#ms-body').innerHTML = intro('Penghasilan karyawan per bulan = gaji pokok + insentif − potongan. Setiap item bisa berlaku per <b>peran</b> atau khusus <b>karyawan tertentu</b> (pola tiap orang boleh berbeda). Insentif dihitung dari <b>penjualan pribadi</b> (mekanik: servis yang dikerjakan; kasir/admin: nota yang dibayar di dia; registrasi: servis yang didaftarkan; sparepart: servis yang order part-nya dia input). Bila target tercapai, persen dikalikan <b>seluruh</b> penjualan; tingkat tertinggi yang tercapai yang dipakai. Karyawan melihat hasilnya di menu <b>Penghasilan</b>.') + `
+  $('#ms-body').innerHTML = intro('Penghasilan karyawan per bulan = gaji pokok + insentif − potongan. Setiap item bisa berlaku per <b>peran</b> atau khusus <b>karyawan tertentu</b> (pola tiap orang boleh berbeda). Insentif dihitung dari <b>penjualan pribadi</b> (mekanik: servis yang dikerjakan; kasir/admin: nota yang dibayar di dia; registrasi: servis yang didaftarkan; sparepart: servis yang order part-nya dia input; SA: total penjualan cabang (part + jasa + biaya lainnya). Bila target tercapai, persen dikalikan <b>seluruh</b> penjualan; tingkat tertinggi yang tercapai yang dipakai. Karyawan melihat hasilnya di menu <b>Penghasilan</b>.') + `
    ${d.contoh ? '<div class="note small">Contoh awal (belum tersimpan). Ubah sesuai kebijakan, lalu tekan <b>Simpan aturan</b>.</div>' : ''}
    <div id="ph-form">
    <div class="row spread"><h3>Insentif penjualan</h3><button class="btn sm" type="button" data-act="in-add">+ Item insentif</button></div>

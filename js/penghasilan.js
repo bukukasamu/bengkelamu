@@ -22,6 +22,7 @@ export const SUMBER = {
   part: 'Penjualan sparepart',
   jasa: 'Jasa servis (termasuk klaim KSG)',
   biaya: 'Biaya lain (cuci, las, dll.)',
+  sa: 'Total penjualan cabang SA (part + jasa + biaya)',
   omzet: 'Total nota'
 };
 export const cfgPenghasilan = () => ({ insentif: [], potongan: [], ...(S.aturan || S.settings.penghasilan || {}) });
@@ -34,9 +35,10 @@ export const DASAR = {
   mekanik: 'Servis yang ia kerjakan (mekanik)',
   registrasi: 'Servis yang ia daftarkan',
   order: 'Servis yang order sparepart-nya ia input',
-  cabang: 'Semua nota di cabangnya'
+  cabang: 'Semua nota di cabangnya (basis dapat dipilih)',
+  sa: 'Total penjualan cabang SA'
 };
-const DASAR_PERAN = { mekanik: ['mekanik'], registrasi: ['registrasi'], sparepart: ['order'], kasir: ['kasir'], admin: ['kasir'] };
+const DASAR_PERAN = { mekanik: ['mekanik'], registrasi: ['registrasi'], sparepart: ['order'], kasir: ['kasir'], admin: ['kasir'], sa: ['cabang'] };
 export function trxPribadi(list, org, dasar) {
   const pakai = dasar && dasar.length ? dasar : (DASAR_PERAN[org.peran] || ['kasir']);
   const sama = (id, nama, idT, namaT) => (id && idT ? id === idT : !!nama && String(nama).toUpperCase() === String(namaT || '').toUpperCase());
@@ -50,6 +52,7 @@ export function trxPribadi(list, org, dasar) {
   return list.filter(t => pakai.some(k => cocok[k]?.(t)));
 }
 export function nilaiSumber(list, sumber) {
+  if (sumber === 'sa') return list.reduce((a, t) => a + (t.items || []).reduce((b, x) => b + x.qty * x.harga, 0) + (t.jasa || []).reduce((b, j) => b + (+j.harga || 0), 0) + (t.biaya || []).reduce((b, x) => b + (+x.jumlah || 0), 0), 0);
   return list.reduce((a, t) => a + (
     sumber === 'part' ? (t.items || []).reduce((b, x) => b + x.qty * x.harga, 0)
     : sumber === 'jasa' ? (t.jasa || []).reduce((b, j) => b + (+j.harga || 0), 0) + (t.jasaKlaim || 0)

@@ -63,7 +63,7 @@ const waText = t => `Halo ${t.pelanggan && t.pelanggan !== 'Umum' ? t.pelanggan 
 
 let current = null;
 function tombolRetur(t) {
-  if (!t || t.jenis !== 'PART' || t.batal?.status === 'disetujui' || t.retur?.status === 'disetujui' || !(st.petugas?.super || st.role === 'kasir' || st.role === 'admin')) return '';
+  if (!t || t.jenis !== 'PART' || t.batal?.status === 'disetujui' || !(st.petugas?.super || st.role === 'kasir' || st.role === 'admin')) return '';
   return `<button class="btn ghost" type="button" data-act="retur-ajukan" data-no="${esc(t.no)}">Ajukan retur</button>`;
 }
 export function showNota(t) {
@@ -80,12 +80,17 @@ export function showNota(t) {
 async function ajukanRetur(el) {
   const t = S.trx.find(x => x.no === el.dataset.no) || st.lastNota;
   if (!t || t.jenis !== 'PART') return toast('Retur hanya tersedia untuk penjualan part');
-  modal(`<h3>Ajukan retur nota ${esc(t.no)}</h3><p class="small">Nilai retur: <b>${rp(t.total)}</b>. Barang harus diterima dan diperiksa sebelum pengembalian dana disetujui.</p><label class="f" for="rt-alasan">Alasan retur (wajib)<textarea id="rt-alasan" rows=3 data-autofocus placeholder="mis. barang cacat / salah part dari pihak bengkel"></textarea></label><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn pri" type="button" data-act="retur-kirim" data-no="${esc(t.no)}">Kirim pengajuan retur</button></div>`);
+  const returned = (t.retur?.status === 'disetujui' ? (t.retur.items || []) : []).reduce((m, x) => (m[x.kode] = (m[x.kode] || 0) + (+x.qty || 0), m), {}), rows = (t.items || []).map((x, i) => { const available = Math.max(0, (+x.qty || 0) - (returned[x.kode] || 0)); return `<tr><td><input type="checkbox" id="rt-c-${i}" data-rt-item="1" data-idx="${i}" data-kode="${esc(x.kode)}" data-nama="${esc(x.nama || x.kode)}" data-harga="${+x.harga || 0}" ${available ? '' : 'disabled'}></td><td>${esc(x.nama || x.kode)}<br><span class="small muted mono">${esc(x.kode)}</span></td><td>${x.qty}</td><td><input class="num" type="number" min="1" max="${available}" value="1" data-rt-qty="${i}" disabled></td><td class="r num">${rp(x.harga || 0)}${available < x.qty ? `<br><span class="small muted">tersisa ${available}</span>` : ''}</td></tr>`; }).join('');
+  modal(`<h3>Ajukan retur sebagian — nota ${esc(t.no)}</h3><p class="small">Centang hanya part yang bermasalah dan isi jumlah yang diretur. Barang harus diterima dan diperiksa sebelum pengembalian dana disetujui.</p><div class="tw"><table><thead><tr><th></th><th>Part</th><th>Terjual</th><th>Retur</th><th>Harga/unit</th></tr></thead><tbody>${rows}</tbody></table></div><label class="f" for="rt-alasan">Alasan retur (wajib)<textarea id="rt-alasan" rows="3" data-autofocus placeholder="mis. satu brake pad cacat / salah part dari pihak bengkel"></textarea></label><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn pri" type="button" data-act="retur-kirim" data-no="${esc(t.no)}">Kirim pengajuan retur</button></div>`);
+  document.querySelectorAll('[data-rt-item]').forEach(c => c.addEventListener('change', () => { const q = document.querySelector(`[data-rt-qty="${c.dataset.idx}"]`); if (q) q.disabled = !c.checked; }));
 }
 async function kirimRetur(el) {
   const t = S.trx.find(x => x.no === el.dataset.no) || st.lastNota, alasan = $('#rt-alasan')?.value.trim();
+  const items = [...document.querySelectorAll('[data-rt-item]:checked')].map(c => { const i = c.closest('tr'), q = +i.querySelector('[data-rt-qty]')?.value || 0; return { kode: c.dataset.kode, nama: c.dataset.nama, qty: q, harga: +c.dataset.harga || 0 }; }).filter(x => x.qty > 0);
+  if (!items.length) return toast('Pilih minimal satu part untuk retur');
   if (!alasan || alasan.length < 5) return toast('Isi alasan retur dengan jelas');
-  try { await addDoc(collection(db, 'returPart'), { no: t.no, cabang: cabangOf(t), trx: t.no, pelanggan: t.pelanggan || 'Umum', hp: t.hp || '', items: t.items || [], total: t.total || 0, cash: t.cash || 0, transfer: t.transfer || 0, metode: t.metode || 'Cash', alasan, status: 'diajukan', diajukanOleh: st.petugas?.nama || st.petugas?.email || '', tgl: stamp(new Date()) }); closeModal(); toast('Pengajuan retur ' + t.no + ' terkirim. Menunggu pemeriksaan dan persetujuan.'); }
+  const total = items.reduce((a, x) => a + x.qty * x.harga, 0), paid = (+t.bayar || +t.total || 0), cashRefund = t.transfer ? Math.round(total * ((+t.cash || 0) / Math.max(1, paid))) : total;
+  try { await addDoc(collection(db, 'returPart'), { no: t.no, cabang: cabangOf(t), trx: t.no, pelanggan: t.pelanggan || 'Umum', hp: t.hp || '', items, total, cash: cashRefund, transfer: Math.max(0, total - cashRefund), metode: t.metode || 'Cash', alasan, status: 'diajukan', diajukanOleh: st.petugas?.nama || st.petugas?.email || '', tgl: stamp(new Date()) }); closeModal(); toast('Pengajuan retur sebagian ' + t.no + ' terkirim. Menunggu pemeriksaan dan persetujuan.'); }
   catch (e) { toast(e.message || 'Pengajuan retur gagal'); }
 }
 const checkHp = () => { const ok = $('#nota-hp-ok'); if (ok) ok.textContent = waNumber($('#nota-hp')?.value) ? '✓ nomor valid' : ''; };

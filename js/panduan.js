@@ -127,7 +127,7 @@ const P = {
 
 let pilih = null;
 let queryCari = '';
-const bolehLihat = () => st.petugas?.super ? Object.keys(P) : st.role === 'admin' ? ['umum', 'registrasi', 'kasir', 'mekanik', 'sparepart', 'admin', 'troubleshooting'] : [st.role, 'umum', 'troubleshooting'];
+const bolehLihat = () => st.petugas?.super ? Object.keys(P) : st.role === 'admin' ? ['umum', 'registrasi', 'kasir', 'mekanik', 'sa', 'sparepart', 'admin', 'troubleshooting'] : [st.role, 'umum', 'troubleshooting'];
 const bersih = x => String(x || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').toLowerCase();
 
 function render() {

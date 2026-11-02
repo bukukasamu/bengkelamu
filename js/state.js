@@ -17,7 +17,7 @@ export const mekanikAktif = () => S.mekanik.filter(m => m.aktif !== false).sort(
 export const mekanikById = id => S.mekanik.find(m => m.id === id);
 
 /* ---- State tampilan ---- */
-export const emptyCart = () => ({ items: [], pelanggan: '', hp: '', pesananId: '', diskon: 0, pay: { cash: 0, transfer: 0, rekeningId: '', ref: '' } });
+export const emptyCart = () => ({ items: [], pelanggan: '', hp: '', pesananId: '', diskon: 0, addPrice: 0, pay: { cash: 0, transfer: 0, rekeningId: '', ref: '' } });
 export const st = {
   view: 'beranda', loaded: false, petugas: null, role: null, saving: false, lastNota: null,
   cart: emptyCart(),
@@ -48,7 +48,7 @@ export const isRole = (...r) => r.includes(st.role);
 
 // Kotak ringkasan di Beranda per peran (bisa diatur super admin di Hak Akses Menu; tanpa pengaturan = bawaan)
 export const KOTAK_BERANDA = [['omzet', 'Omzet hari ini & grafik omzet 7 hari (Rp)'], ['part', 'Part terjual hari ini (pcs)'], ['partRp', 'Nilai part terjual (Rp)'], ['motor', 'Motor masuk, antrian & status mekanik'], ['stok', 'Stok menipis & perlu dipesan']];
-export const KOTAK_BAWAAN = { admin: ['omzet', 'part', 'partRp', 'motor', 'stok'], kasir: ['omzet', 'part', 'partRp', 'motor'], sparepart: ['part', 'stok'], registrasi: ['motor'], mekanik: [] };
+export const KOTAK_BAWAAN = { admin: ['omzet', 'part', 'partRp', 'motor', 'stok'], kasir: ['omzet', 'part', 'partRp', 'motor'], sparepart: ['part', 'stok'], registrasi: ['motor'], mekanik: [], sa: ['omzet', 'part', 'partRp', 'motor'] };
 export const bolehKotak = id => !!st.petugas?.super || (S.akses?._beranda?.[st.role] || KOTAK_BAWAAN[st.role] || []).includes(id);
 
 // Kotak filter yang bisa disembunyikan (tersembunyi bawaan supaya tidak makan tempat)

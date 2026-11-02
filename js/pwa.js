@@ -33,13 +33,15 @@ export async function updateAplikasi(btn) {
     if (!swReg) { location.reload(); return; }
     const reload = () => { if (!updateReloading) { updateReloading = true; location.reload(); } };
     navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true });
-    if (swReg.waiting) { swReg.waiting.postMessage({ type: 'SKIP_WAITING' }); return; }
+    // Meminta browser melewati HTTP cache ketika memeriksa sw.js.
+    await fetch('./sw.js?update=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' }).catch(() => {});
+    if (swReg.waiting) { swReg.waiting.postMessage({ type: 'SKIP_WAITING' }); setTimeout(reload, 2500); return; }
     await swReg.update();
-    if (swReg.waiting) swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    if (swReg.waiting) { swReg.waiting.postMessage({ type: 'SKIP_WAITING' }); setTimeout(reload, 2500); }
     else { if (btn) { btn.disabled = false; btn.textContent = '✓ Versi terbaru'; setTimeout(() => { btn.textContent = 'Update aplikasi'; }, 3000); } window.dispatchEvent(new CustomEvent('amu-update-ok')); }
   } catch (e) { console.warn('Update aplikasi gagal', e); if (btn) { btn.disabled = false; btn.textContent = 'Update aplikasi'; } window.dispatchEvent(new CustomEvent('amu-update-fail')); }
 }
 
 if (window.navigator && 'serviceWorker' in window.navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(e => console.warn('Service worker gagal', e)));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(e => console.warn('Service worker gagal', e)));
 }

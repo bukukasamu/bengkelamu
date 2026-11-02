@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '5.7.3';
+export const APP_VERSION = '5.7.6';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
@@ -18,40 +18,41 @@ export const ROLES = {
   registrasi: 'Registrasi Servis',
   sparepart: 'Sparepart',
   kasir: 'Kasir',
-  mekanik: 'Mekanik'
+  mekanik: 'Mekanik',
+  sa: 'SA (Service Advisor)'
 };
 
 // Menu yang tampil di sidebar, dikelompokkan, beserta peran yang boleh membukanya.
 export const MENUS = [
-  { id: 'beranda', label: 'Beranda', group: 'Utama', roles: ['admin', 'registrasi', 'sparepart', 'kasir'] },
+  { id: 'beranda', label: 'Beranda', group: 'Utama', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'sa'] },
   { id: 'persetujuan', label: 'Persetujuan', group: 'Utama', roles: ['admin'] },   // admin biasa: hanya aktivasi layar absen
   { id: 'registrasi', label: 'Registrasi Servis', group: 'Bengkel', roles: ['admin', 'registrasi'] },
   { id: 'konsumen', label: 'Konsumen & Kendaraan', group: 'Bengkel', roles: ['admin', 'registrasi'] },
-  { id: 'riwayat', label: 'Riwayat Kendaraan', group: 'Bengkel', roles: ['admin', 'registrasi', 'kasir', 'sparepart'] },
+  { id: 'riwayat', label: 'Riwayat Kendaraan', group: 'Bengkel', roles: ['admin', 'registrasi', 'kasir', 'sparepart', 'sa'] },
   { id: 'pengingat', label: 'Pengingat Servis', group: 'Bengkel', roles: ['admin', 'registrasi', 'kasir'], baru: '4.7.0' },
   { id: 'order', label: 'Order Sparepart', group: 'Bengkel', roles: ['admin', 'sparepart'] },
   { id: 'bayar', label: 'Pembayaran & Status Servis', group: 'Bengkel', roles: ['admin', 'kasir'] },
-  { id: 'mekanik', label: 'Performa Mekanik', group: 'Bengkel', roles: ['admin', 'mekanik'] },
+  { id: 'mekanik', label: 'Performa Mekanik', group: 'Bengkel', roles: ['admin', 'mekanik', 'sa'] },
   { id: 'cekstok', label: 'Cek Stok', group: 'Sparepart', roles: ['admin', 'registrasi', 'kasir', 'sparepart'], baru: '5.0.0' },
   { id: 'kasir', label: 'Penjualan Sparepart', group: 'Kasir', roles: ['admin', 'kasir'] },
   { id: 'pesananPart', label: 'Pesanan Part Pribadi', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'stok', label: 'Stok Part', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'opname', label: 'Stok Opname', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'pembelian', label: 'Pembelian Stok', group: 'Sparepart', roles: ['admin', 'sparepart'] },
-  { id: 'laporan', label: 'Laporan Penjualan', group: 'Keuangan', roles: ['admin', 'kasir'] },
+  { id: 'laporan', label: 'Laporan Penjualan', group: 'Keuangan', roles: ['admin', 'kasir', 'sa'] },
   { id: 'kas', label: 'Kas & Pengeluaran', group: 'Keuangan', roles: ['admin', 'kasir'] },
   { id: 'klaim', label: 'Klaim KSG', group: 'Keuangan', roles: ['admin', 'kasir'] },
   { id: 'insight', label: 'Insight Konsumen', group: 'Keuangan', roles: ['admin'] },
   { id: 'backup', label: 'Backup Data', group: 'Pengaturan', roles: ['admin'], superOnly: true },
   { id: 'master', label: 'Master Data', group: 'Pengaturan', roles: ['admin'] },
-  { id: 'absensi', label: 'Absensi Saya', group: 'Akun Saya', superLabel: 'Absensi Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] },
+  { id: 'absensi', label: 'Absensi Saya', group: 'Akun Saya', superLabel: 'Absensi Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa'] },
   // Penghasilan pribadi dipisah dari laporan toko; admin melihat rekap semua karyawan
-  { id: 'penghasilan', label: 'Penghasilan Saya', group: 'Akun Saya', superLabel: 'Penghasilan Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'] },
+  { id: 'penghasilan', label: 'Penghasilan Saya', group: 'Akun Saya', superLabel: 'Penghasilan Karyawan', superGroup: 'Karyawan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa'] },
   // Panduan selalu bisa dibuka semua peran (tidak diatur di Hak Akses Menu)
-  { id: 'panduan', label: 'Panduan Penggunaan', group: 'Bantuan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik'], selalu: true }
+  { id: 'panduan', label: 'Panduan Penggunaan', group: 'Bantuan', roles: ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa'], selalu: true }
 ];
 // Halaman pertama setelah login
-export const HOME = { admin: 'beranda', registrasi: 'registrasi', sparepart: 'order', kasir: 'bayar', mekanik: 'mekanik' };
+export const HOME = { admin: 'beranda', registrasi: 'registrasi', sparepart: 'order', kasir: 'bayar', mekanik: 'mekanik', sa: 'mekanik' };
 
 // Jenis servis: KSG = Kartu Service Gratis (jasa tidak ditagih ke konsumen, diklaim ke main dealer)
 //               KSB = Kartu Service Berkala (servis berkala berbayar, dicatat nomor kartunya)

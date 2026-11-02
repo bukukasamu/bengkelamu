@@ -1,9 +1,26 @@
-# Aceh Mandiri Utama POS · versi 5.7.3
+# Aceh Mandiri Utama POS · versi 5.7.5
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.7.6 — Peran SA dan Add Price sparepart
+- Menambahkan peran SA (Service Advisor) sebagai pimpinan/head mekanik.
+- Basis insentif SA tersedia sebagai total penjualan cabang: sparepart + jasa servis + biaya lainnya; persentase/target tetap diatur Super Admin.
+- Menambahkan Add Price (%) di samping Diskon pada penjualan sparepart; harga transaksi menyimpan harga dasar dan nilai add price.
+
+## 5.7.5 — Update aplikasi dan bantuan GPS iPhone
+- Pemeriksaan Service Worker melewati HTTP cache saat tombol Update aplikasi ditekan.
+- Service Worker diberi waktu aktivasi dan halaman dimuat ulang otomatis setelah versi baru aktif.
+- Absensi menyediakan tombol Coba lagi ketika lokasi belum terbaca.
+- Absensi menyediakan Panduan izin lokasi di dalam dialog, termasuk langkah iPhone Safari/Chrome.
+
+## 5.7.4 — Retur sebagian per part
+- Saat mengajukan retur, pengguna memilih part yang bermasalah dan jumlah yang dikembalikan.
+- Sistem membatasi jumlah retur agar tidak melebihi jumlah terjual atau jumlah yang masih tersisa.
+- Stok, refund cash/transfer, laporan omzet, laba, kuantitas, dan rekening dihitung berdasarkan part yang benar-benar diretur.
+- Nota asli tetap tersimpan dan dapat menerima pengajuan retur untuk item yang masih tersisa.
 
 ## 5.7.3 — Pembatalan pesanan dan retur setelah bayar
 - Pesanan part pribadi dapat dibatalkan sebelum pembayaran dengan alasan wajib.

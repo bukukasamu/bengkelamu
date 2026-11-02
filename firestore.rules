@@ -4,7 +4,7 @@ service cloud.firestore {
 
     // ---------- Siapa pengguna ini ----------
     // Super admin: satu email, masuk dengan kata sandi. Petugas lain: akun PIN dengan dokumen staff/{email}
-    // berisi peran (admin | registrasi | sparepart | kasir | mekanik), cabang, loginId, dan (mekanik) mekanikId.
+    // berisi peran (admin | registrasi | sparepart | kasir | mekanik | sa), cabang, loginId, dan (mekanik) mekanikId.
     function signedIn() { return request.auth != null; }
     // Perangkat layar absen masuk secara anonim (tanpa email): tidak pernah dianggap super admin / karyawan
     function emailKu() { return request.auth.token.get('email', ''); }
