@@ -153,13 +153,20 @@ service cloud.firestore {
       allow read, create: if isSuper();
       allow update, delete: if false;
     }
-    // Chat internal: semua petugas boleh membaca dan mengirim. Pesan tidak boleh diubah/dihapus;
-    // unduhan transkrip dilakukan langsung oleh Super Admin dan tidak tersedia untuk peran lain.
+    // Chat internal. Akses Chat mengikuti centang Master Data → Hak Akses Menu.
+    // Super admin selalu boleh; percakapan pribadi hanya bisa dibaca pesertanya.
+    function chatDiizinkan() {
+      return isSuper() || (isStaff() && exists(/databases/$(database)/documents/pengaturan/akses)
+        && me().get('peran', '') in ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa', 'sales']
+        && get(/databases/$(database)/documents/pengaturan/akses).data.get(me().get('peran', ''), []).hasAny(['chat']));
+    }
     match /chat/{id} {
-      allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.olehEmail == emailKu()
+      allow read: if chatDiizinkan() && (isSuper() || resource.data.get('ruang', 'umum') == 'umum' || resource.data.get('participantEmails', []).hasAny([emailKu()]));
+      allow create: if chatDiizinkan() && request.resource.data.olehEmail == emailKu()
         && request.resource.data.teks is string && request.resource.data.teks.size() > 0
-        && request.resource.data.teks.size() <= 2000;
+        && request.resource.data.teks.size() <= 2000
+        && request.resource.data.ruang in ['umum', 'pribadi']
+        && (request.resource.data.ruang == 'umum' || request.resource.data.participantEmails.hasAny([emailKu()]));
       allow update, delete: if false;
     }
     // Kartu stok (mutasi keluar/masuk): hanya ditambah, tidak bisa diubah/dihapus

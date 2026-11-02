@@ -678,3 +678,6 @@ table.bernomor>tfoot>tr::before{content:'';display:table-cell}
 .chat-msg.mine{align-self:flex-end;border-radius:10px 10px 3px 10px;background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 28%,var(--line))}
 .chat-meta{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:.78rem}.chat-meta span{color:var(--muted);font-size:.72rem}.chat-text{white-space:pre-wrap;word-break:break-word;margin-top:3px}.chat-form{display:flex;gap:8px;margin-top:10px;align-items:flex-end}.chat-form textarea{flex:1;resize:vertical;min-height:44px}
 @media(max-width:600px){.chat-msg{max-width:94%}.chat-form{align-items:stretch;flex-direction:column}.chat-form .btn{width:100%}}
+
+/* Chat old/new school: teks tetap mengikuti kapitalisasi yang diketik pengguna. */
+.chat-toolbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}.chat-toolbar .f{min-width:210px}.chat-sound{padding-bottom:8px}.chat-body,.chat-form textarea,.chat-msg{font-family:"Trebuchet MS","Courier New",monospace;letter-spacing:.01em}.chat-text{text-transform:none;font-size:.96rem}.chat-form textarea{text-transform:none}

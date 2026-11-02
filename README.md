@@ -5,6 +5,14 @@ Copyright SRISP 2026
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
 
+## 5.10.0 — Chat pribadi, notifikasi suara, dan Excel rapi
+- Chat memiliki ruang Umum dan Pribadi.
+- Chat pribadi dapat dilakukan antarpetugas satu cabang atau lintas cabang.
+- Notifikasi suara tersedia untuk pesan masuk dan dapat dimatikan per perangkat.
+- Transkrip Super Admin berubah menjadi Excel dengan kolom terpisah, filter, dan garis kotak.
+- Tampilan Chat memakai gaya old/new school tanpa mengubah kapitalisasi tulisan pengguna.
+- Aturan Firestore membatasi chat pribadi hanya kepada peserta percakapan dan tetap mengikuti izin Chat.
+
 ## 5.9.1 — Hak akses Chat Internal
 - Chat Internal sekarang opt-in; akses per peran diberikan Super Admin melalui Master Data → Hak Akses Menu.
 - Sales, Mekanik, Registrasi, dan peran lain tidak melihat Chat sampai dicentang.
