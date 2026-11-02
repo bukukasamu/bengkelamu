@@ -5,6 +5,24 @@ Copyright SRISP 2026
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
 
+## 5.9.1 — Hak akses Chat Internal
+- Chat Internal sekarang opt-in; akses per peran diberikan Super Admin melalui Master Data → Hak Akses Menu.
+- Sales, Mekanik, Registrasi, dan peran lain tidak melihat Chat sampai dicentang.
+- Super Admin selalu dapat membuka Chat.
+
+## 5.9.0 — Chat internal dan transkrip Super Admin
+- Menambahkan menu Chat Internal untuk seluruh petugas.
+- Pesan tersimpan sebagai log chat yang tidak dapat diedit/dihapus.
+- Tombol unduh transkrip hanya tampil untuk Super Admin; aturan Firestore menolak perubahan pesan.
+
+## 5.8.0 — Sales, filter karyawan, dan Add Price per item
+- SA ditampilkan sebagai Service Advisor.
+- Menambahkan peran Sales dengan akses Absensi dan Penghasilan untuk uang hadir serta potongan, tanpa insentif penjualan bawaan.
+- Master Data → Insentif & Potongan menampilkan sumber terpisah: Part/sparepart, Jasa servis, dan Biaya lain.
+- Pilihan karyawan dirapikan dengan filter cabang/peran dan tombol pilih semua per peran.
+- Add Price penjualan part sekarang diatur per item pada keranjang, bukan global.
+- Bilah kiri diberi pemisah visual antar kelompok menu.
+
 ## 5.7.6 — Peran SA dan Add Price sparepart
 - Menambahkan peran SA (Service Advisor) sebagai pimpinan/head mekanik.
 - Basis insentif SA tersedia sebagai total penjualan cabang: sparepart + jasa servis + biaya lainnya; persentase/target tetap diatur Super Admin.

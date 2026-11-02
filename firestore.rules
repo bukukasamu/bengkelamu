@@ -4,7 +4,7 @@ service cloud.firestore {
 
     // ---------- Siapa pengguna ini ----------
     // Super admin: satu email, masuk dengan kata sandi. Petugas lain: akun PIN dengan dokumen staff/{email}
-    // berisi peran (admin | registrasi | sparepart | kasir | mekanik | sa), cabang, loginId, dan (mekanik) mekanikId.
+    // berisi peran (admin | registrasi | sparepart | kasir | mekanik | sa | sales), cabang, loginId, dan (mekanik) mekanikId.
     function signedIn() { return request.auth != null; }
     // Perangkat layar absen masuk secara anonim (tanpa email): tidak pernah dianggap super admin / karyawan
     function emailKu() { return request.auth.token.get('email', ''); }
@@ -151,6 +151,15 @@ service cloud.firestore {
     // Log aktivitas sensitif: hanya super admin yang boleh membaca dan menambah; tidak boleh diubah/dihapus.
     match /aktivitas/{id} {
       allow read, create: if isSuper();
+      allow update, delete: if false;
+    }
+    // Chat internal: semua petugas boleh membaca dan mengirim. Pesan tidak boleh diubah/dihapus;
+    // unduhan transkrip dilakukan langsung oleh Super Admin dan tidak tersedia untuk peran lain.
+    match /chat/{id} {
+      allow read: if isStaff();
+      allow create: if isStaff() && request.resource.data.olehEmail == emailKu()
+        && request.resource.data.teks is string && request.resource.data.teks.size() > 0
+        && request.resource.data.teks.size() <= 2000;
       allow update, delete: if false;
     }
     // Kartu stok (mutasi keluar/masuk): hanya ditambah, tidak bisa diubah/dihapus

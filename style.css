@@ -666,3 +666,15 @@ table.bernomor>tfoot>tr::before{content:'';display:table-cell}
 .wolist>.wo::before{content:counter(kartu);position:absolute;left:0;top:0;bottom:0;width:26px;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-variant-numeric:tabular-nums;color:var(--muted);border-right:1px solid var(--line);background:var(--panel-2);border-radius:inherit;border-top-right-radius:0;border-bottom-right-radius:0}
 .wolist>.wo[aria-current="true"]::before{color:var(--accent);font-weight:700}
 @media print{.wolist>.wo::before{background:none}}
+
+/* Pemisah kelompok sidebar: tetap satu latar, tetapi struktur Keuangan/Pengaturan mudah dibaca. */
+.sb-group{margin-top:10px;border-top:1px solid rgba(255,255,255,.18);padding-top:14px;background:rgba(255,255,255,.035)}
+.sb-group:first-child{margin-top:0;border-top:0}
+
+/* Chat internal */
+.chat-layout{max-width:980px}
+.chat-body{height:min(62vh,620px);min-height:320px;overflow:auto;padding:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.chat-msg{max-width:82%;align-self:flex-start;padding:9px 12px;border:1px solid var(--line);border-radius:10px 10px 10px 3px;background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.chat-msg.mine{align-self:flex-end;border-radius:10px 10px 3px 10px;background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 28%,var(--line))}
+.chat-meta{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:.78rem}.chat-meta span{color:var(--muted);font-size:.72rem}.chat-text{white-space:pre-wrap;word-break:break-word;margin-top:3px}.chat-form{display:flex;gap:8px;margin-top:10px;align-items:flex-end}.chat-form textarea{flex:1;resize:vertical;min-height:44px}
+@media(max-width:600px){.chat-msg{max-width:94%}.chat-form{align-items:stretch;flex-direction:column}.chat-form .btn{width:100%}}

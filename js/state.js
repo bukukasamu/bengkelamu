@@ -17,7 +17,7 @@ export const mekanikAktif = () => S.mekanik.filter(m => m.aktif !== false).sort(
 export const mekanikById = id => S.mekanik.find(m => m.id === id);
 
 /* ---- State tampilan ---- */
-export const emptyCart = () => ({ items: [], pelanggan: '', hp: '', pesananId: '', diskon: 0, addPrice: 0, pay: { cash: 0, transfer: 0, rekeningId: '', ref: '' } });
+export const emptyCart = () => ({ items: [], pelanggan: '', hp: '', pesananId: '', diskon: 0, pay: { cash: 0, transfer: 0, rekeningId: '', ref: '' } });
 export const st = {
   view: 'beranda', loaded: false, petugas: null, role: null, saving: false, lastNota: null,
   cart: emptyCart(),
@@ -38,7 +38,10 @@ export const menuGroup = m => (st.petugas?.super && m.superGroup) || m.group;
 export const can = menuId => {
   const m = MENUS.find(x => x.id === menuId); if (!m || !m.roles.includes(st.role) || (m.superOnly && !st.petugas?.super)) return false;
   if (st.petugas?.super || m.selalu) return true;
-  const a = S.akses?.[st.role]; if (!Array.isArray(a) || a.includes(menuId) || (menuId === 'konsumen' && a.includes('master'))) return true;
+  const a = S.akses?.[st.role];
+  // Chat bersifat opt-in: Sales, Mekanik, Registrasi, dan peran lain tidak melihatnya
+  // sampai Super Admin mencentang Chat pada Master Data → Hak Akses Menu.
+  if (menuId === 'chat') return Array.isArray(a) && a.includes('chat'); if (!Array.isArray(a) || a.includes(menuId) || (menuId === 'konsumen' && a.includes('master'))) return true;
   // Menu yang ditambahkan sesudah hak akses terakhir disimpan: ikut bawaan peran sampai super admin mengaturnya
   const dikenal = S.akses._menu || MENUS.filter(x => !x.baru).map(x => x.id);
   return !dikenal.includes(menuId);

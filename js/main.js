@@ -14,6 +14,7 @@ import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
 // Modul menu: cukup diimpor, masing-masing mendaftarkan tampilan & aksinya sendiri.
 import './beranda.js';
+import './chat.js';
 import './registrasi.js';
 import './pengingat.js';
 import './panduan.js';

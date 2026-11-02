@@ -5,6 +5,7 @@
 // Penjualan pribadi dihitung dari nota:
 //   mekanik    = servis yang dia kerjakan          kasir & admin = nota yang dia terima pembayarannya
 //   registrasi = servis yang dia daftarkan          sparepart     = servis yang order sparepartnya dia input
+//   sales      = absensi dan potongan saja (tidak memiliki basis insentif penjualan bawaan)
 // Insentif bertingkat: tingkat tertinggi yang tercapai, persennya dikalikan SELURUH nilai penjualan.
 import { $, esc, rp, dkey, stamp, toast, errMsg, modal } from './util.js';
 import { S, st, views, refreshers, actions, changeHandlers, isRole } from './state.js';
@@ -19,10 +20,10 @@ import { ambilTrx } from './data-trx.js';
 import { muatAturanAbsen, absenBulan, rekapAbsen } from './absensi.js';
 
 export const SUMBER = {
-  part: 'Penjualan sparepart',
-  jasa: 'Jasa servis (termasuk klaim KSG)',
-  biaya: 'Biaya lain (cuci, las, dll.)',
-  sa: 'Total penjualan cabang SA (part + jasa + biaya)',
+  part: 'Part / sparepart',
+  jasa: 'Jasa servis',
+  biaya: 'Biaya lain',
+  sa: 'Total cabang Service Advisor (part + jasa + biaya lain)',
   omzet: 'Total nota'
 };
 export const cfgPenghasilan = () => ({ insentif: [], potongan: [], ...(S.aturan || S.settings.penghasilan || {}) });
@@ -38,7 +39,7 @@ export const DASAR = {
   cabang: 'Semua nota di cabangnya (basis dapat dipilih)',
   sa: 'Total penjualan cabang SA'
 };
-const DASAR_PERAN = { mekanik: ['mekanik'], registrasi: ['registrasi'], sparepart: ['order'], kasir: ['kasir'], admin: ['kasir'], sa: ['cabang'] };
+const DASAR_PERAN = { mekanik: ['mekanik'], registrasi: ['registrasi'], sparepart: ['order'], kasir: ['kasir'], admin: ['kasir'], sa: ['cabang'], sales: [] };
 export function trxPribadi(list, org, dasar) {
   const pakai = dasar && dasar.length ? dasar : (DASAR_PERAN[org.peran] || ['kasir']);
   const sama = (id, nama, idT, namaT) => (id && idT ? id === idT : !!nama && String(nama).toUpperCase() === String(namaT || '').toUpperCase());
