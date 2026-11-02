@@ -307,7 +307,7 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
   if (t.tagName === 'INPUT' && NO_CAPS.has(t.type)) return;
-  if (t.dataset.nocaps != null || t.getAttribute('inputmode') === 'numeric') return;
+  if (t.dataset.nocaps != null || t.id === 'chat-text' || t.getAttribute('inputmode') === 'numeric') return;
   const up = t.value.toUpperCase(); if (up === t.value) return;
   const a = t.selectionStart, b = t.selectionEnd; t.value = up;
   try { t.setSelectionRange(a, b); } catch (err) {}
