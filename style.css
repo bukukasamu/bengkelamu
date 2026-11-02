@@ -681,3 +681,5 @@ table.bernomor>tfoot>tr::before{content:'';display:table-cell}
 
 /* Chat old/new school: teks tetap mengikuti kapitalisasi yang diketik pengguna. */
 .chat-toolbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}.chat-toolbar .f{min-width:210px}.chat-sound{padding-bottom:8px}.chat-body,.chat-form textarea,.chat-msg{font-family:"Trebuchet MS","Courier New",monospace;letter-spacing:.01em}.chat-text{text-transform:none;font-size:.96rem}.chat-form textarea{text-transform:none}
+
+.chat-body,.chat-body *,.chat-form textarea{ text-transform:none !important; font-variant:normal; }

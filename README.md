@@ -5,6 +5,13 @@ Copyright SRISP 2026
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
 
+## 5.12.0 — Model insentif per kategori
+- Sumber insentif baru hanya: Sparepart, Jasa servis, dan Biaya lain.
+- Insentif Service Advisor dipisah menjadi tiga item, masing-masing dapat memiliki persentase dan target sendiri.
+- Basis SA mengambil transaksi servis mekanik di cabang yang dipegang, per kategori.
+- Komisi jasa % mekanik diberi status cara lama dan tidak ditambahkan bila ada insentif Jasa servis aktif untuk mekanik.
+- Chat mempertahankan kapitalisasi teks pengguna dan menampilkan badge pesan belum dibaca.
+
 ## 5.10.0 — Chat pribadi, notifikasi suara, dan Excel rapi
 - Chat memiliki ruang Umum dan Pribadi.
 - Chat pribadi dapat dilakukan antarpetugas satu cabang atau lintas cabang.

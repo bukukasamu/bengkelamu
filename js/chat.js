@@ -1,6 +1,6 @@
 // Chat internal: ruang umum dan percakapan pribadi antarpetugas lintas cabang.
 import { $, esc, toast, errMsg, stamp } from './util.js';
-import { S, st, views, refreshers, actions, inputHandlers, changeHandlers } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, can } from './state.js';
 import { db, collection, addDoc, getDocs, onSnapshot, query, where, limit } from './firebase.js';
 import { cabAktif, namaCabang } from './cabang.js';
 import { loadLoginList } from './akun.js';
@@ -8,7 +8,7 @@ import { ROLES } from './config.js';
 import { loadXLSX, beriKotak, filterOtomatis } from './import-excel.js';
 
 let pesan = [], unsub = [], petugasList = [], ruang = 'umum', target = '', firstSnapshot = true;
-let suaraAktif = true;
+let suaraAktif = true, badgeUnsub = [], badgeDocs = new Map(), badgeStarted = false;
 const emailSaya = () => st.petugas?.email || '';
 const idSaya = () => st.petugas?.loginId || emailSaya();
 const waktu = x => String(x?.tgl || '');
@@ -21,6 +21,28 @@ function beep() {
   if (!suaraAktif || document.hidden) return;
   try { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; const c = new C(), o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = 740; g.gain.setValueAtTime(.001, c.currentTime); g.gain.exponentialRampToValueAtTime(.12, c.currentTime + .02); g.gain.exponentialRampToValueAtTime(.001, c.currentTime + .22); o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + .24); } catch (e) {}
 }
+
+function badgeKey() { return 'amu-chat-read-' + (emailSaya() || 'anon'); }
+function readAt() { try { return localStorage.getItem(badgeKey()) || ''; } catch (e) { return ''; } }
+function updateChatBadge() {
+  const b = document.querySelector('.sb-link[data-view="chat"]'); if (!b) return;
+  b.querySelector('.sb-badge')?.remove();
+  const n = [...badgeDocs.values()].filter(p => p.olehEmail !== emailSaya() && String(p.tgl || '') > readAt()).length;
+  if (n) b.insertAdjacentHTML('beforeend', ` <span class="sb-badge chat-unread-badge">${n > 99 ? '99+' : n}</span>`);
+}
+export function tandaiChatDibaca() { try { localStorage.setItem(badgeKey(), stamp(new Date())); } catch (e) {} badgeDocs = new Map([...badgeDocs].filter(([, p]) => p.olehEmail === emailSaya())); updateChatBadge(); }
+export function pantauChatBadge() {
+  badgeUnsub.forEach(f => f?.()); badgeUnsub = []; badgeDocs = new Map();
+  if (!st.petugas || !can('chat')) { updateChatBadge(); return; }
+  const terima = s => { s.docs.forEach(d => badgeDocs.set(d.id, { id: d.id, ...d.data() })); updateChatBadge(); };
+  try {
+    badgeUnsub.push(onSnapshot(query(collection(db, 'chat'), where('ruang', '==', 'umum'), limit(300)), terima, () => {}));
+    if (st.petugas.super) badgeUnsub.push(onSnapshot(query(collection(db, 'chat'), where('ruang', '==', 'pribadi'), limit(500)), terima, () => {}));
+    else badgeUnsub.push(onSnapshot(query(collection(db, 'chat'), where('ruang', '==', 'pribadi'), where('participantEmails', 'array-contains', emailSaya()), limit(500)), terima, () => {}));
+    badgeStarted = true;
+  } catch (e) { badgeStarted = false; }
+}
+
 function stopChat() { unsub.forEach(f => f?.()); unsub = []; }
 function terimaSnapshot(s) {
   const baru = s.docChanges().filter(c => c.type === 'added').map(c => ({ id: c.doc.id, ...c.doc.data() }));
@@ -76,8 +98,8 @@ async function unduhTranskrip() {
 }
 async function muatPetugas() { try { petugasList = await loadLoginList(); } catch (e) { petugasList = []; } }
 
-views.chat = async () => { await muatPetugas(); renderChat(); };
-refreshers.chat = renderChatBody;
+views.chat = async () => { await muatPetugas(); tandaiChatDibaca(); renderChat(); };
+refreshers.chat = () => { renderChatBody(); updateChatBadge(); };
 actions['chat-download'] = unduhTranskrip;
 inputHandlers.push(e => { const t = e.target; if (t.id === 'chat-text' && t.value.length > 2000) t.value = t.value.slice(0, 2000); if (t.id === 'chat-sound') suaraAktif = t.checked; });
 changeHandlers.push(e => { const t = e.target; if (t.id === 'chat-room') { ruang = t.value; target = ''; renderChat(); } if (t.id === 'chat-target') { target = t.value; renderChat(); } });
