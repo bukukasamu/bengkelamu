@@ -88,17 +88,17 @@ async function woPayModal() {
   if (!c.total) { toast('Tambahkan jasa atau part dulu'); renderServis(); return; }
   renderServis();
   modal(`<h2>Pembayaran ${esc(w.no)}</h2><p class="small muted" style="margin:0">${esc(w.nopol)} · ${esc(w.tipe)} · ${esc(w.nama || 'Umum')}</p>
-   <div class="totals"><span class="muted">Sparepart</span><span class="num">${rp(c.parts)}</span><span class="muted">Jasa</span><span class="num">${rp(c.jasaTagih)}</span><span class="muted">Diskon ditetapkan Register</span><span class="num">${rp(w.diskon || 0)}</span></div>
-   <div class="form"><label class="f" for="pay-bayar">Dibayar (Rp)<input id="pay-bayar" type="number" min="0" step="1000" class="num" data-autofocus value="${Math.ceil(Math.max(0, c.total - (w.diskon || 0)) / 10000) * 10000}"></label></div>
+   <div class="totals"><span class="muted">Sparepart</span><span class="num">${rp(c.p)}</span><span class="muted">Jasa</span><span class="num">${rp(c.j)}</span></div>
+   <div class="form"><label class="f" for="pay-dis">Diskon (Rp)<input id="pay-dis" type="number" min="0" step="1000" class="num" value="0"></label><label class="f" for="pay-bayar">Dibayar (Rp)<input id="pay-bayar" type="number" min="0" step="1000" class="num" data-autofocus value="${Math.ceil(c.total / 10000) * 10000}"></label></div>
    <div id="pay-tot"></div>
    <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn pri" type="button" data-act="wo-confirm">Bayar &amp; Cetak Nota</button></div>`);
-  const upd = () => { const d = +w.diskon || 0, b = +$('#pay-bayar').value || 0, t = Math.max(0, c.total - d); $('#pay-tot').innerHTML = `<div class="totals"><span style="font-weight:600">Total</span><span class="big num">${rp(t)}</span><span class="muted">Kembalian</span><span class="num" style="color:${b < t ? 'var(--bad)' : 'inherit'}">${b < t ? 'Kurang ' + rp(t - b) : rp(b - t)}</span></div>`; };
-  $('#pay-bayar').oninput = upd; upd();
+  const upd = () => { const d = +$('#pay-dis').value || 0, b = +$('#pay-bayar').value || 0, t = c.total - d; $('#pay-tot').innerHTML = `<div class="totals"><span style="font-weight:600">Total</span><span class="big num">${rp(t)}</span><span class="muted">Kembalian</span><span class="num" style="color:${b < t ? 'var(--bad)' : 'inherit'}">${b < t ? 'Kurang ' + rp(t - b) : rp(b - t)}</span></div>`; };
+  $('#pay-dis').oninput = upd; $('#pay-bayar').oninput = upd; upd();
 }
 
 async function woConfirm() {
   if (st.saving) return;
-  const w = st.woDraft, d = +w.diskon || 0, b = +$('#pay-bayar').value || 0;
+  const w = st.woDraft, d = +$('#pay-dis').value || 0, b = +$('#pay-bayar').value || 0;
   st.saving = true;
   try {
     const t = await runTransaction(db, async tx => {
@@ -111,8 +111,7 @@ async function woConfirm() {
         if (!ps[i].exists()) throw new Error('Part ' + x.kode + ' sudah dihapus');
         const p = ps[i].data();
         if (p.stok < x.qty) throw new Error('Stok ' + p.nama + ' tinggal ' + p.stok);
-        const addPrice = Math.max(0, Math.min(1000, +x.addPrice || 0)), harga = Math.round((p.jual || 0) * (1 + addPrice / 100));
-        return { kode: p.kode, nama: p.nama, qty: x.qty, harga, hargaDasar: p.jual, addPrice, beli: p.beli || 0 };
+        return { kode: p.kode, nama: p.nama, qty: x.qty, harga: p.jual, beli: p.beli || 0 };
       });
       const jasa = w.jasa.map(n => ({ nama: n, harga: JASA.find(x => x[0] === n)[1] }));
       const total = items.reduce((a, x) => a + x.qty * x.harga, 0) + jasa.reduce((a, x) => a + x.harga, 0) - d;

@@ -14,8 +14,6 @@ import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
 // Modul menu: cukup diimpor, masing-masing mendaftarkan tampilan & aksinya sendiri.
 import './beranda.js';
-import './chat.js';
-import { pantauChatBadge } from './chat.js';
 import './registrasi.js';
 import './pengingat.js';
 import './panduan.js';
@@ -186,7 +184,6 @@ onAuthStateChanged(auth, async u => {
   $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
   try { const ak = await getDoc(doc(db, 'pengaturan', 'akses')); S.akses = ak.exists() ? ak.data() : null; } catch (e) { S.akses = null; }
   renderSidebar();
-  pantauChatBadge();
   let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
   st.view = last && can(last) ? last : menuAwal();
   if (adaAbsenTertunda() && can('absensi') && !st.petugas.super) st.view = 'absensi';
@@ -227,7 +224,7 @@ function subscribe() {
   // Hak akses menu berubah (diatur super admin): perbarui menu tanpa perlu login ulang
   unsubs.push(onSnapshot(doc(db, 'pengaturan', 'akses'), s => {
     const baru = s.exists() ? s.data() : null; if (JSON.stringify(baru) === JSON.stringify(S.akses)) return;
-    S.akses = baru; renderSidebar(); pantauChatBadge(); segarkanBadge(); if (st.loaded && !can(st.view)) go(st.view); else document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === st.view) b.setAttribute('aria-current', 'page'); });
+    S.akses = baru; renderSidebar(); segarkanBadge(); if (st.loaded && !can(st.view)) go(st.view); else document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === st.view) b.setAttribute('aria-current', 'page'); });
   }, () => {}));
   if (st.role === 'admin') {
     // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
@@ -307,7 +304,7 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
   if (t.tagName === 'INPUT' && NO_CAPS.has(t.type)) return;
-  if (t.dataset.nocaps != null || t.id === 'chat-text' || t.getAttribute('inputmode') === 'numeric') return;
+  if (t.dataset.nocaps != null || t.getAttribute('inputmode') === 'numeric') return;
   const up = t.value.toUpperCase(); if (up === t.value) return;
   const a = t.selectionStart, b = t.selectionEnd; t.value = up;
   try { t.setSelectionRange(a, b); } catch (err) {}

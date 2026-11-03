@@ -209,7 +209,7 @@ function renderJasa() {
    <div class="tw"><table><thead><tr><th>Nama jasa</th><th class="r">Harga (Rp)</th><th>Aktif</th><th></th></tr></thead><tbody>
    ${list.map(j => `<tr><td><input class="inline-input" id="js-n-${j.id}" value="${esc(j.nama)}" aria-label="Nama jasa"></td><td><input class="inline-input num" type="number" min="0" step="1000" id="js-h-${j.id}" value="${j.harga}" style="text-align:right;width:120px" aria-label="Harga"></td><td><input type="checkbox" id="js-a-${j.id}" style="width:auto" ${j.aktif !== false ? 'checked' : ''} aria-label="Aktif"></td><td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="js-save" data-id="${j.id}">Simpan</button> <button class="btn sm ghost" type="button" data-act="js-del" data-id="${j.id}">Hapus</button></td></tr>`).join('')}
    <tr><td><input class="inline-input" id="js-n-new" placeholder="Jasa baru, mis. Servis Injeksi" aria-label="Nama jasa baru"></td><td><input class="inline-input num" type="number" min="0" step="1000" id="js-h-new" placeholder="0" style="text-align:right;width:120px" aria-label="Harga jasa baru"></td><td></td><td class="r"><button class="btn sm pri" type="button" data-act="js-add">Tambah</button></td></tr>
-   </tbody></table></div><p class="small muted" style="margin:6px 0 0">Gunakan salah satu: Komisi jasa % cara lama atau item Insentif dengan sumber Jasa servis. Jika keduanya diisi, sistem memprioritaskan item Insentif Jasa servis supaya tidak terjadi pembayaran ganda.</p>`;
+   </tbody></table></div>`;
 }
 
 /* ---------- Tarif KSG (dari main dealer) ---------- */
@@ -299,13 +299,13 @@ function renderStaff() {
 /* ---------- Logo (hanya super admin) ---------- */
 let logoDraft = null;
 /* ---------- Hak akses menu per peran (super admin) ---------- */
-const PERAN_AKSES = ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa', 'sales'];
+const PERAN_AKSES = ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa'];
 function renderAkses() {
-  const akses = S.akses || {}, menu = MENUS.filter(m => !m.superOnly && !m.selalu);
-  const boleh = (r, id) => !Array.isArray(akses[r]) || akses[r].includes(id) || !(akses._menu || []).includes(id);
-  $('#ms-body').innerHTML = intro('Centang menu yang boleh dibuka setiap peran. Semua menu ditampilkan agar Super Admin dapat memberikan atau mencabut akses secara bebas, termasuk Chat Internal. Menu yang tidak dicentang tidak tampil pada peran tersebut. Perubahan berlaku setelah disimpan.') + `
+  const akses = S.akses || {}, menu = MENUS.filter(m => !m.superOnly && !m.selalu && m.roles.some(r => PERAN_AKSES.includes(r)));
+  const boleh = (r, id) => !Array.isArray(akses[r]) || akses[r].includes(id) || !(akses._menu || MENUS.filter(x => !x.baru).map(x => x.id)).includes(id);
+  $('#ms-body').innerHTML = intro('Centang menu yang boleh dibuka setiap peran. Menu yang tidak dicentang hilang dari aplikasi karyawan dengan peran itu (berlaku langsung). Super admin selalu bisa membuka semua menu. Kotak abu-abu = menu itu memang bukan untuk peran tersebut.') + `
    <div class="tw"><table><thead><tr><th>Menu</th>${PERAN_AKSES.map(r => `<th class="r">${esc(ROLES[r])}<div class="row" style="justify-content:flex-end;gap:4px;margin-top:4px"><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="1" title="Centang semua">✓</button><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="0" title="Kosongkan">✕</button></div></th>`).join('')}</tr></thead><tbody>
-    ${menu.map(m => `<tr><td>${esc(m.label)}<div class="small muted">${esc(m.group)}</div></td>${PERAN_AKSES.map(r => `<td class="r"><input type="checkbox" class="ak-cek" data-r="${r}" data-m="${m.id}" ${boleh(r, m.id) ? 'checked' : ''} aria-label="${esc(m.label)} untuk ${esc(ROLES[r])}" style="width:auto"></td>`).join('')}</tr>`).join('')}
+    ${menu.map(m => `<tr><td>${esc(m.label)}<div class="small muted">${esc(m.group)}</div></td>${PERAN_AKSES.map(r => `<td class="r">${m.roles.includes(r) ? `<input type="checkbox" class="ak-cek" data-r="${r}" data-m="${m.id}" ${boleh(r, m.id) ? 'checked' : ''} aria-label="${esc(m.label)} untuk ${esc(ROLES[r])}" style="width:auto">` : '<span class="muted">–</span>'}</td>`).join('')}</tr>`).join('')}
    </tbody></table></div>
    <h3 style="margin-top:16px">Kotak ringkasan di Beranda</h3>
    <p class="small muted" style="margin:0 0 6px">Angka yang tampil di Beranda tiap peran (hanya untuk peran yang boleh membuka Beranda). Karyawan hanya melihat angka cabangnya sendiri.</p>
@@ -402,18 +402,17 @@ const cabangDariForm = () => cabangList(true).map((c, i) => ({ ...c, nama: ($('#
    Disimpan di penghasilan/aturan = { insentif: [{ id, nama, sumber, peran[], tingkat[{min, persen}], aktif }],
                                              potongan: [{ id, nama, jumlah, peran[], aktif }] }
    Gaji pokok & komisi: gaji/{kunci} (privat: karyawan ybs. + super admin). Semua perubahan wajib kata sandi super admin. */
-let phDraft = null, phGaji = null, phFilter = { cabang: '', peran: '' };
+let phDraft = null, phGaji = null;
 const PERAN = Object.entries(ROLES);
 const idBaru = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 function contohPh() {
   return { insentif: [
     { id: idBaru(), nama: 'INSENTIF SPAREPART', sumber: 'part', peran: ['kasir', 'sparepart'], tingkat: [{ min: 7000000, persen: 2 }], aktif: true },
     { id: idBaru(), nama: 'INSENTIF JASA SERVIS', sumber: 'jasa', peran: ['mekanik'], tingkat: [{ min: 7000000, persen: 2 }], aktif: true },
-    { id: idBaru(), nama: 'INSENTIF SERVICE ADVISOR - SPAREPART', sumber: 'part', peran: ['sa'], dasar: ['cabang'], tingkat: [{ min: 0, persen: 0 }], aktif: true }, { id: idBaru(), nama: 'INSENTIF SERVICE ADVISOR - JASA', sumber: 'jasa', peran: ['sa'], dasar: ['cabang'], tingkat: [{ min: 0, persen: 0 }], aktif: true }, { id: idBaru(), nama: 'INSENTIF SERVICE ADVISOR - BIAYA LAIN', sumber: 'biaya', peran: ['sa'], dasar: ['cabang'], tingkat: [{ min: 0, persen: 0 }], aktif: true }],
+    { id: idBaru(), nama: 'INSENTIF SA CABANG', sumber: 'sa', peran: ['sa'], dasar: ['cabang'], tingkat: [{ min: 0, persen: 0 }], aktif: true }],
     potongan: [{ id: idBaru(), nama: 'BPJS KESEHATAN', jumlah: 0, peran: PERAN.map(([k]) => k), aktif: true }], contoh: true };
 }
-const phVisible = () => (phGaji || []).map((g, k) => ({ ...g, _i: k })).filter(g => (!phFilter.cabang || (g.cabang || CABANG_UTAMA) === phFilter.cabang) && (!phFilter.peran || g.peran === phFilter.peran));
-const cekOrang = (pfx, sel) => phGaji?.length ? `<div class="small muted">Atau khusus karyawan tertentu — bila ada yang dicentang, item <b>hanya</b> berlaku untuk mereka:</div><div class="ph-orang-head">${['mekanik','sa','admin','registrasi','sparepart','kasir','sales'].map(r => `<button class="btn sm ghost" type="button" data-act="ph-pilih-role" data-pfx="${pfx}" data-role="${r}">${esc(ROLES[r])} semua</button>`).join('')}</div><div class="ph-orang">${phVisible().map(g => `<label class="chk" data-ph-role="${g.peran}" data-ph-cabang="${g.cabang || CABANG_UTAMA}"><input type="checkbox" id="${pfx}-${g._i}" data-ph-pfx="${pfx}" data-ph-role="${g.peran}" ${sel.includes(g.kunci) ? 'checked' : ''}>${esc(g.nama)} <span class="muted small">(${esc(ROLES[g.peran] || g.peran)}${g.cabang ? ' · ' + esc(namaCabang(g.cabang)) : ''})</span></label>`).join('') || '<span class="small muted">Tidak ada karyawan yang sesuai filter.</span>'}</div>` : '';
+const cekOrang = (pfx, sel) => phGaji?.length ? `<div class="small muted">Atau khusus karyawan tertentu — bila ada yang dicentang, item <b>hanya</b> berlaku untuk mereka:</div><div class="ph-orang">${phGaji.map((g, k) => `<label class="chk"><input type="checkbox" id="${pfx}-${k}" ${sel.includes(g.kunci) ? 'checked' : ''}>${esc(g.nama)} <span class="muted small">(${esc((ROLES[g.peran] || g.peran).split(' /')[0])})</span></label>`).join('')}</div>` : '';
 const cekPeran = (pfx, sel) => `<div class="ph-peran">${PERAN.map(([k, l]) => `<label class="chk"><input type="checkbox" id="${pfx}-${k}" ${sel.includes(k) ? 'checked' : ''}>${esc(l.split(' /')[0])}</label>`).join('')}</div>`;
 function kumpulPh() {
   if (!phDraft || !$('#ph-form')) return;
@@ -428,17 +427,16 @@ async function renderInsentif() {
   if (!phGaji) { $('#ms-body').innerHTML = loaderHTML('Memuat karyawan…'); try { await muatGaji(); } catch (e) { phGaji = []; } if (st.masterTab !== 'insentif') return; }
   if (!phDraft) { const c = cfgPenghasilan(); phDraft = c.insentif.length || c.potongan.length ? JSON.parse(JSON.stringify({ insentif: c.insentif, potongan: c.potongan })) : contohPh(); }
   const d = phDraft;
-  $('#ms-body').innerHTML = intro('Penghasilan karyawan per bulan = gaji pokok + insentif − potongan. Untuk membuat aturan, pilih <b>satu sumber</b> per item: Sparepart, Jasa servis, atau Biaya lain. Service Advisor dibuat sebagai tiga item terpisah agar persentasenya bisa berbeda; basisnya transaksi servis mekanik di cabang yang dipegang. Mekanik dapat memakai basis servis yang ia kerjakan. Bila target tercapai, persen dikalikan nilai sumber tersebut. <b>Komisi jasa % mekanik adalah cara lama</b>; bila insentif Jasa servis dibuat untuk mekanik, komisi lama otomatis tidak ditambahkan agar tidak double. Karyawan melihat hasilnya di menu <b>Penghasilan</b>.') + `
+  $('#ms-body').innerHTML = intro('Penghasilan karyawan per bulan = gaji pokok + insentif − potongan. Setiap item bisa berlaku per <b>peran</b> atau khusus <b>karyawan tertentu</b> (pola tiap orang boleh berbeda). Insentif dihitung dari <b>penjualan pribadi</b> (mekanik: servis yang dikerjakan; kasir/admin: nota yang dibayar di dia; registrasi: servis yang didaftarkan; sparepart: servis yang order part-nya dia input; SA: total penjualan cabang (part + jasa + biaya lainnya). Bila target tercapai, persen dikalikan <b>seluruh</b> penjualan; tingkat tertinggi yang tercapai yang dipakai. Karyawan melihat hasilnya di menu <b>Penghasilan</b>.') + `
    ${d.contoh ? '<div class="note small">Contoh awal (belum tersimpan). Ubah sesuai kebijakan, lalu tekan <b>Simpan aturan</b>.</div>' : ''}
    <div id="ph-form">
-   <div class="ph-filter panel"><b>Filter karyawan untuk pilihan khusus</b><div class="form"><label class="f">Cabang<select id="ph-cabang"><option value="">Semua cabang</option>${cabangList(true).map(c => `<option value="${esc(c.id)}" ${phFilter.cabang === c.id ? 'selected' : ''}>${esc(c.nama)}</option>`).join('')}</select></label><label class="f">Peran<select id="ph-peran"><option value="">Semua peran</option>${Object.entries(ROLES).map(([k,v]) => `<option value="${k}" ${phFilter.peran === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label></div><p class="small muted" style="margin:0">Pilih cabang/peran agar daftar lebih rapi. Tombol “... semua” memilih seluruh karyawan yang tampil dari peran tersebut.</p></div>
    <div class="row spread"><h3>Insentif penjualan</h3><button class="btn sm" type="button" data-act="in-add">+ Item insentif</button></div>
    ${d.insentif.map((it, i) => `<div class="ph-card">
      <div class="form"><label class="f wide-2" for="in-n-${i}">Nama insentif<input id="in-n-${i}" value="${esc(it.nama)}" placeholder="mis. INSENTIF SPAREPART"></label>
-      <label class="f" for="in-s-${i}">Sumber insentif<select id="in-s-${i}">${Object.entries(SUMBER).map(([k, l]) => `<option value="${k}" ${k === it.sumber ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+      <label class="f" for="in-s-${i}">Dihitung dari<select id="in-s-${i}">${Object.entries(SUMBER).map(([k, l]) => `<option value="${k}" ${k === it.sumber ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
       <label class="chk" style="align-self:end"><input type="checkbox" id="in-a-${i}" ${it.aktif !== false ? 'checked' : ''}>Aktif</label></div>
      <div class="small muted">Berlaku untuk peran:</div>${cekPeran('in-r-' + i, it.peran || [])}${cekOrang('in-o-' + i, it.orang || [])}
-     <div class="small muted">Basis pengambilan data (opsional)</div><div class="ph-peran">${Object.entries(DASAR).map(([k, l]) => `<label class="chk"><input type="checkbox" id="in-d-${i}-${k}" ${(it.dasar || []).includes(k) ? 'checked' : ''}>${esc(l)}</label>`).join('')}</div>
+     <div class="small muted">Penjualan pribadi dihitung dari nota yang… <span class="muted">(kosong = otomatis sesuai peran)</span></div><div class="ph-peran">${Object.entries(DASAR).map(([k, l]) => `<label class="chk"><input type="checkbox" id="in-d-${i}-${k}" ${(it.dasar || []).includes(k) ? 'checked' : ''}>${esc(l)}</label>`).join('')}</div>
      <div class="small muted">Tingkat target (bulanan):</div>
      <div class="ph-tingkat">${it.tingkat.map((t, j) => `<div class="row" style="gap:6px"><span class="small">Penjualan ≥ Rp</span><input id="tk-m-${i}-${j}" data-num value="${t.min || ''}" style="width:150px" aria-label="Target"><span class="small">→</span><input id="tk-p-${i}-${j}" type="number" data-raw step="0.1" min="0" value="${t.persen || ''}" style="width:80px" aria-label="Persen"><span class="small">%</span>${it.tingkat.length > 1 ? `<button class="btn sm ghost" type="button" data-act="tk-del" data-i="${i}" data-j="${j}" aria-label="Hapus tingkat">✕</button>` : ''}</div>`).join('')}</div>
      <div class="row spread"><button class="btn sm" type="button" data-act="tk-add" data-i="${i}">+ Tingkat</button><button class="btn sm ghost" type="button" data-act="in-del" data-i="${i}">Hapus item</button></div>
@@ -467,7 +465,7 @@ async function muatGaji() {
 async function renderGaji() {
   try { await muatGaji(); } catch (e) { const el = $('#ph-gaji'); if (el) el.innerHTML = `<div class="err">${esc(errMsg(e))}</div>`; return; }
   const el = $('#ph-gaji'); if (!el) return;
-  el.innerHTML = phGaji.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nama</th><th>Peran</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Gaji pokok / bulan (Rp)</th><th class="r">Komisi jasa % <span class="small muted">(mekanik, cara lama)</span></th></tr></thead><tbody>${phGaji.map((g, i) => `<tr><td>${esc(g.nama)}</td><td class="small">${esc(ROLES[g.peran] || g.peran)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(g.cabang))}</td>` : ''}<td class="r"><input class="inline-input num" id="gj-${i}" data-num value="${g.gaji || ''}" style="width:150px;text-align:right" aria-label="Gaji pokok ${esc(g.nama)}"></td><td class="r">${g.peran === 'mekanik' ? `<input class="inline-input num" id="gk-${i}" type="number" data-raw min="0" max="100" step="0.5" value="${g.komisi || ''}" style="width:80px;text-align:right" aria-label="Komisi ${esc(g.nama)}">` : ''}</td></tr>`).join('')}</tbody></table></div>
+  el.innerHTML = phGaji.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nama</th><th>Peran</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Gaji pokok / bulan (Rp)</th><th class="r">Komisi jasa % <span class="small muted">(mekanik)</span></th></tr></thead><tbody>${phGaji.map((g, i) => `<tr><td>${esc(g.nama)}</td><td class="small">${esc(ROLES[g.peran] || g.peran)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(g.cabang))}</td>` : ''}<td class="r"><input class="inline-input num" id="gj-${i}" data-num value="${g.gaji || ''}" style="width:150px;text-align:right" aria-label="Gaji pokok ${esc(g.nama)}"></td><td class="r">${g.peran === 'mekanik' ? `<input class="inline-input num" id="gk-${i}" type="number" data-raw min="0" max="100" step="0.5" value="${g.komisi || ''}" style="width:80px;text-align:right" aria-label="Komisi ${esc(g.nama)}">` : ''}</td></tr>`).join('')}</tbody></table></div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="gj-save">Simpan gaji pokok</button></div>` : '<div class="small muted">Belum ada karyawan.</div>';
 }
 
@@ -506,8 +504,6 @@ Object.assign(actions, {
     if (!nama) { toast('Isi nama cabang'); $('#cb-nama').focus(); return; }
     try { await simpanCabang([...cabangDariForm(), { id, nama, alamat: ($('#cb-alamat').value || '').trim(), telp: ($('#cb-telp').value || '').trim(), aktif: true }]); toast('Cabang ' + nama + ' ditambahkan'); setTimeout(renderCabang, 100); } catch (e) { toast(errMsg(e)); }
   },
-  'ph-filter': () => { kumpulPh(); phFilter.cabang = $('#ph-cabang')?.value || ''; phFilter.peran = $('#ph-peran')?.value || ''; renderInsentif(); },
-  'ph-pilih-role': el => { document.querySelectorAll(`input[data-ph-pfx="${el.dataset.pfx}"][data-ph-role="${el.dataset.role}"]`).forEach(x => { x.checked = true; }); },
   'in-add': () => { kumpulPh(); phDraft.insentif.push({ id: idBaru(), nama: '', sumber: 'part', peran: [], tingkat: [{ min: 0, persen: 0 }], aktif: true }); renderInsentif(); },
   'in-del': el => { kumpulPh(); phDraft.insentif.splice(+el.dataset.i, 1); renderInsentif(); },
   'tk-add': el => { kumpulPh(); const it = phDraft.insentif[+el.dataset.i], last = it.tingkat[it.tingkat.length - 1] || { min: 0, persen: 0 }; it.tingkat.push({ min: (last.min || 0) + 3000000, persen: (last.persen || 0) + 1 }); renderInsentif(); },
@@ -626,7 +622,7 @@ inputHandlers.push(e => {
   if (t.dataset.kf && kendEdit) kendEdit[t.dataset.kf] = t.value;
   if (['sf-pin', 'mm-p-new', 'pin-new'].includes(t.id)) t.value = t.value.replace(/\D/g, '').slice(0, 6);
 });
-changeHandlers.push(e => { if (e.target.id === 'ph-cabang' || e.target.id === 'ph-peran') { actions['ph-filter'](); return; }
+changeHandlers.push(e => {
   const t = e.target;
   if (t.id === 'fw-kab') { fWil = { kab: t.value, kec: '', kel: '' }; renderKend(); }
   if (t.id === 'fw-kec') { fWil.kec = t.value; fWil.kel = ''; renderKend(); }

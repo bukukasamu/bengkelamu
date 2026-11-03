@@ -17,7 +17,7 @@ export const mekanikAktif = () => S.mekanik.filter(m => m.aktif !== false).sort(
 export const mekanikById = id => S.mekanik.find(m => m.id === id);
 
 /* ---- State tampilan ---- */
-export const emptyCart = () => ({ items: [], pelanggan: '', hp: '', pesananId: '', diskon: 0, pay: { cash: 0, transfer: 0, rekeningId: '', ref: '' } });
+export const emptyCart = () => ({ items: [], pelanggan: '', hp: '', pesananId: '', diskon: 0, addPrice: 0, pay: { cash: 0, transfer: 0, rekeningId: '', ref: '' } });
 export const st = {
   view: 'beranda', loaded: false, petugas: null, role: null, saving: false, lastNota: null,
   cart: emptyCart(),
@@ -36,15 +36,12 @@ export const menuLabel = m => (st.petugas?.super && m.superLabel) || m.label;
 export const menuGroup = m => (st.petugas?.super && m.superGroup) || m.group;
 // Hak akses menu per peran bisa dibatasi super admin (pengaturan/akses); tanpa pengaturan = semua menu bawaan peran
 export const can = menuId => {
-  const m = MENUS.find(x => x.id === menuId); if (!m || (m.superOnly && !st.petugas?.super)) return false;
+  const m = MENUS.find(x => x.id === menuId); if (!m || !m.roles.includes(st.role) || (m.superOnly && !st.petugas?.super)) return false;
   if (st.petugas?.super || m.selalu) return true;
-  const a = S.akses?.[st.role];
-  // Jika Super Admin sudah menyimpan checklist, daftar tersebut menjadi sumber izin penuh.
-  // Ini memungkinkan menu diberikan ke peran lain walau bukan bawaan konfigurasi awal.
-  if (Array.isArray(a)) return a.includes(menuId) || (menuId === 'konsumen' && a.includes('master'));
-  if (!m.roles.includes(st.role)) return false;
-  if (menuId === 'chat') return false;
-  return true;
+  const a = S.akses?.[st.role]; if (!Array.isArray(a) || a.includes(menuId) || (menuId === 'konsumen' && a.includes('master'))) return true;
+  // Menu yang ditambahkan sesudah hak akses terakhir disimpan: ikut bawaan peran sampai super admin mengaturnya
+  const dikenal = S.akses._menu || MENUS.filter(x => !x.baru).map(x => x.id);
+  return !dikenal.includes(menuId);
 };
 export const menuAwal = () => can(HOME[st.role]) ? HOME[st.role] : (MENUS.find(m => can(m.id))?.id || HOME[st.role]);
 export const isRole = (...r) => r.includes(st.role);

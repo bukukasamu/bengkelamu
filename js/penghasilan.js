@@ -5,7 +5,6 @@
 // Penjualan pribadi dihitung dari nota:
 //   mekanik    = servis yang dia kerjakan          kasir & admin = nota yang dia terima pembayarannya
 //   registrasi = servis yang dia daftarkan          sparepart     = servis yang order sparepartnya dia input
-//   sales      = absensi dan potongan saja (tidak memiliki basis insentif penjualan bawaan)
 // Insentif bertingkat: tingkat tertinggi yang tercapai, persennya dikalikan SELURUH nilai penjualan.
 import { $, esc, rp, dkey, stamp, toast, errMsg, modal } from './util.js';
 import { S, st, views, refreshers, actions, changeHandlers, isRole } from './state.js';
@@ -19,14 +18,13 @@ import { loadXLSX } from './import-excel.js';
 import { ambilTrx } from './data-trx.js';
 import { muatAturanAbsen, absenBulan, rekapAbsen } from './absensi.js';
 
-// Pilihan sumber baru sengaja hanya tiga kategori. Nilai sa/omzet lama tetap dibaca
-// sebagai kompatibilitas data, tetapi tidak lagi muncul pada input aturan baru.
 export const SUMBER = {
-  part: 'Sparepart',
-  jasa: 'Jasa servis',
-  biaya: 'Biaya lain'
+  part: 'Penjualan sparepart',
+  jasa: 'Jasa servis (termasuk klaim KSG)',
+  biaya: 'Biaya lain (cuci, las, dll.)',
+  sa: 'Total penjualan cabang SA (part + jasa + biaya)',
+  omzet: 'Total nota'
 };
-export const labelSumber = s => SUMBER[s] || ({ sa: 'Total cabang Service Advisor (aturan lama)', omzet: 'Total nota (aturan lama)' }[s] || s);
 export const cfgPenghasilan = () => ({ insentif: [], potongan: [], ...(S.aturan || S.settings.penghasilan || {}) });
 
 /* ---------- Perhitungan ---------- */
@@ -38,9 +36,9 @@ export const DASAR = {
   registrasi: 'Servis yang ia daftarkan',
   order: 'Servis yang order sparepart-nya ia input',
   cabang: 'Semua nota di cabangnya (basis dapat dipilih)',
-  sa: 'Total penjualan cabang Service Advisor'
+  sa: 'Total penjualan cabang SA'
 };
-const DASAR_PERAN = { mekanik: ['mekanik'], registrasi: ['registrasi'], sparepart: ['order'], kasir: ['kasir'], admin: ['kasir'], sa: ['cabang'], sales: [] };
+const DASAR_PERAN = { mekanik: ['mekanik'], registrasi: ['registrasi'], sparepart: ['order'], kasir: ['kasir'], admin: ['kasir'], sa: ['cabang'] };
 export function trxPribadi(list, org, dasar) {
   const pakai = dasar && dasar.length ? dasar : (DASAR_PERAN[org.peran] || ['kasir']);
   const sama = (id, nama, idT, namaT) => (id && idT ? id === idT : !!nama && String(nama).toUpperCase() === String(namaT || '').toUpperCase());
@@ -70,20 +68,13 @@ const urutTingkat = item => [...(item.tingkat || [])].filter(t => t.persen > 0).
 export function hitung(org, list, cfg = cfgPenghasilan()) {
   const pribadi = trxPribadi(list, org);
   const insentif = cfg.insentif.filter(i => berlaku(i, org)).map(item => {
-    const dasarList = item.dasar?.length ? trxPribadi(list, org, item.dasar) : pribadi;
-    // SA menerima basis per kategori dari transaksi servis mekanik di cabangnya,
-    // bukan seluruh nota penjualan part pribadi.
-    const sumberList = org.peran === 'sa' && ['part', 'jasa', 'biaya'].includes(item.sumber)
-      ? dasarList.filter(t => t.jenis === 'SERVIS') : dasarList;
-    const nilai = nilaiSumber(sumberList, item.sumber), tk = urutTingkat(item);
+    const nilai = nilaiSumber(item.dasar?.length ? trxPribadi(list, org, item.dasar) : pribadi, item.sumber), tk = urutTingkat(item);
     const capai = [...tk].reverse().find(t => nilai >= t.min) || null;
     const berikut = tk.find(t => nilai < t.min) || null;
     return { item, nilai, capai, berikut, jumlah: capai ? Math.round(nilai * capai.persen / 100) : 0 };
   });
-  // Komisi jasa % adalah model lama. Bila mekanik sudah diberi insentif
-  // sumber Jasa servis, komisi lama tidak ditambahkan lagi agar tidak double.
-  const punyaInsentifJasa = cfg.insentif.some(i => i.aktif !== false && berlaku(i, org) && i.sumber === 'jasa' && (i.tingkat || []).some(t => +t.persen > 0));
-  const komisi = org.peran === 'mekanik' && org.komisi && !punyaInsentifJasa ? Math.round(nilaiSumber(pribadi, 'jasa') * org.komisi / 100) : 0;
+  // Komisi mekanik (% dari nilai jasa) dari data gaji privat, bila diisi super admin
+  const komisi = org.peran === 'mekanik' && org.komisi ? Math.round(nilaiSumber(pribadi, 'jasa') * org.komisi / 100) : 0;
   const potongan = cfg.potongan.filter(p => berlaku(p, org)).map(item => ({ item, jumlah: +item.jumlah || 0 }));
   // Absensi: uang hadir per hari & potongan terlambat (dari menu Absensi), bila datanya dimuat
   const ab = org.absen ? { hadir: org.absen.hadir, uangHadir: org.absen.uangHadir || 0, telat: org.absen.telat, potongTelat: org.absen.potongTelat || 0, cepat: org.absen.cepat, potongCepat: org.absen.potongCepat || 0, tanpaPulang: org.absen.tanpaPulang, tarifHadir: org.absen.tarifHadir, tarifTelat: org.absen.tarifTelat } : null;
@@ -181,7 +172,7 @@ function rincianHTML(h, judul, ym = PH.bulan, idx = -1) {
     const tk = urutTingkat(x.item), target = x.berikut?.min || x.capai?.min || 0;
     return `<div class="ph-item">
       <div class="row spread"><b>${esc(x.item.nama)}</b><span class="num ${x.jumlah ? 'ph-plus' : 'muted'}">${x.jumlah ? '+' + rp(x.jumlah) : rp(0)}</span></div>
-      <div class="small muted">${esc(labelSumber(x.item.sumber))} pribadi bulan ini: <b class="num" style="color:var(--ink)">${rp(x.nilai)}</b></div>
+      <div class="small muted">${esc(SUMBER[x.item.sumber] || x.item.sumber)} pribadi bulan ini: <b class="num" style="color:var(--ink)">${rp(x.nilai)}</b></div>
       ${tk.length ? bar(x.nilai, target) : ''}
       <div class="small">${x.capai ? `Tercapai ≥ ${rp(x.capai.min)} → <b>${x.capai.persen}%</b> × ${rp(x.nilai)}` : '<span class="muted">Belum mencapai target</span>'}${x.berikut ? ` · <span class="muted">kurang <b>${rp(x.berikut.min - x.nilai)}</b> lagi untuk ${x.berikut.persen}%</span>` : ''}</div>
       <div class="ph-tk">${tk.map(t => `<span class="${x.capai && t.min <= x.capai.min ? 'on' : ''}">≥ ${rp(t.min)} · ${t.persen}%</span>`).join('')}</div>
@@ -266,7 +257,7 @@ async function exportXlsx() {
     const akhir = ['total_insentif', 'total_potongan', 'penghasilan_bersih'], kol = [];
     rows.forEach(r => Object.keys(r).forEach(k => { if (!kol.includes(k) && !akhir.includes(k)) kol.push(k); }));
     const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows, { header: [...kol, ...akhir] }), 'Penghasilan ' + PH.bulan);
-    X.utils.book_append_sheet(wb, X.utils.json_to_sheet([...cfg.insentif.map(i => ({ jenis: 'Insentif', nama: i.nama, sumber: labelSumber(i.sumber), peran: (i.peran || []).map(r => ROLES[r]).join(', '), tingkat: urutTingkat(i).map(t => `>= ${t.min}: ${t.persen}%`).join('; '), aktif: i.aktif !== false ? 'ya' : 'tidak' })),
+    X.utils.book_append_sheet(wb, X.utils.json_to_sheet([...cfg.insentif.map(i => ({ jenis: 'Insentif', nama: i.nama, sumber: SUMBER[i.sumber], peran: (i.peran || []).map(r => ROLES[r]).join(', '), tingkat: urutTingkat(i).map(t => `>= ${t.min}: ${t.persen}%`).join('; '), aktif: i.aktif !== false ? 'ya' : 'tidak' })),
       ...cfg.potongan.map(p => ({ jenis: 'Potongan', nama: p.nama, sumber: '', peran: (p.peran || []).map(r => ROLES[r]).join(', '), tingkat: p.jumlah, aktif: p.aktif !== false ? 'ya' : 'tidak' }))]), 'Aturan');
     X.writeFile(wb, `penghasilan-karyawan-${PH.bulan}.xlsx`);
   } catch (e) { toast('Gagal export: ' + e.message); }
@@ -277,7 +268,7 @@ let slipAktif = null;
 export function slipData(h, ym = PH.bulan) {
   return {
     periode: namaBulan(ym), ym, nama: h.org.nama, peran: ROLES[h.org.peran] || h.org.peran, cabang: multiCabang() ? namaCabang(h.org.cabang) : '',
-    pendapatan: [['Gaji pokok', h.gaji, ''], ...h.insentif.map(x => [x.item.nama, x.jumlah, `${labelSumber(x.item.sumber)} ${rp(x.nilai)}${x.capai ? ' × ' + x.capai.persen + '%' : ' (target belum tercapai)'}`]), ...(h.komisi ? [['Komisi mekanik ' + h.org.komisi + '%', h.komisi, 'dari nilai jasa']] : []), ...(h.absen ? [['Uang hadir', h.absen.uangHadir, h.absen.hadir + ' hari hadir']] : [])],
+    pendapatan: [['Gaji pokok', h.gaji, ''], ...h.insentif.map(x => [x.item.nama, x.jumlah, `${SUMBER[x.item.sumber] || ''} ${rp(x.nilai)}${x.capai ? ' × ' + x.capai.persen + '%' : ' (target belum tercapai)'}`]), ...(h.komisi ? [['Komisi mekanik ' + h.org.komisi + '%', h.komisi, 'dari nilai jasa']] : []), ...(h.absen ? [['Uang hadir', h.absen.uangHadir, h.absen.hadir + ' hari hadir']] : [])],
     potongan: [...h.potongan.map(p => [p.item.nama, p.jumlah]), ...(h.absen?.potongTelat ? [['Terlambat ' + h.absen.telat + 'x', h.absen.potongTelat]] : []), ...(h.absen?.potongCepat ? [['Pulang cepat ' + h.absen.cepat + 'x', h.absen.potongCepat]] : [])],
     totalPendapatan: h.gaji + h.totIns, totalPotongan: h.totPot, bersih: h.bersih, nota: h.pribadi.length
   };
