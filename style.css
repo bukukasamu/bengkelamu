@@ -126,7 +126,7 @@ footer.foot{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 3
 .sb-brand b{display:block;font-family:var(--f-display);font-size:1.25rem;font-weight:700;letter-spacing:.02em;line-height:1.1}
 .sb-brand span{color:var(--hd-muted);font-size:.74rem;letter-spacing:.07em;text-transform:uppercase}
 #side-nav{display:flex;flex-direction:column;padding:8px 8px 16px;gap:1px;flex:1}
-.sb-group{color:var(--hd-muted);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;padding:12px 10px 4px}
+.sb-group{color:var(--hd-muted);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;padding:12px 10px 4px;position:sticky;top:0;z-index:2;background:var(--hd);box-shadow:0 -1px 0 rgba(255,255,255,.08)}
 .sb-link{display:block;width:100%;text-align:left;border:0;background:none;color:var(--on-hd);padding:8px 10px;border-radius:6px;cursor:pointer;font-family:var(--f-display);font-size:1.02rem;font-weight:500}
 .sb-link:hover{background:rgba(255,255,255,.08)}
 .sb-link[aria-current="page"]{background:rgba(255,255,255,.16);font-weight:700;box-shadow:inset 3px 0 0 var(--on-hd)}
