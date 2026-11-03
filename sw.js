@@ -4,7 +4,7 @@
 // - Pustaka dari CDN (Firebase, PDF, Excel, QR, font) bernomor versi tetap, jadi disimpan sekali lalu dipakai ulang.
 // - Data Firestore & login TIDAK lewat sini (ditangani Firebase sendiri).
 // Ganti VERSI setiap ada update besar supaya salinan lama dibersihkan.
-const VERSI = 'amu-5.13.1';
+const VERSI = 'amu-5.13.2';
 const INTI = [
   './',
   'index.html',
@@ -41,6 +41,7 @@ const INTI = [
   'js/beranda.js',
   'js/brand.js',
   'js/cabang.js',
+  'js/chat.js',
   'js/cari-kendaraan.js',
   'js/cari-pilihan.js',
   'js/cek.js',
@@ -112,7 +113,8 @@ function jaringanDulu(req) {
     const t = setTimeout(() => dariCache().then(r => { if (r && !selesai) { selesai = true; resolve(r); } }), 4000);
     fetch(req).then(res => {
       clearTimeout(t);
-      if (res && res.ok) { const salin = res.clone(); caches.open(VERSI).then(c => c.put(req, salin)); }
+      if (res && res.ok) { const salin = res.clone(); caches.open(VERSI).then(c => c.put(req, salin)); if (!selesai) { selesai = true; resolve(res); } return; }
+      if (req.mode === 'navigate') { dariCache().then(r => { if (!selesai) { selesai = true; resolve(r || res); } }); return; }
       if (!selesai) { selesai = true; resolve(res); }
     }).catch(() => {
       clearTimeout(t);

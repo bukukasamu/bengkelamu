@@ -98,7 +98,7 @@ function renderKasir() {
     <div class="form"><label class="f wide" for="k-pel">Nama pemesan / pelanggan<input id="k-pel" placeholder="Nama konsumen" value="${esc(c.pelanggan || '')}"></label><label class="f" for="k-hp">Nomor HP<input id="k-hp" inputmode="tel" placeholder="08xxxxxxxxxx" value="${esc(c.hp || '')}"></label></div>
     ${spare ? '<div class="note small">Setelah barang dan jumlah benar, simpan pesanan lalu cetak lembar ini untuk cross-check konsumen. Pesanan baru dibayar di menu Kasir setelah konsumen menyatakan sesuai.</div>' : ''}
     <div id="k-cart"></div>
-    ${spare ? '<div class="form"><label class="f" for="k-dis">Diskon total (Rp)<input id="k-dis" class="num" type="number" min="0" step="1000" value="${c.diskon || ''}"></label></div>' : '<p class="small muted">Harga, diskon, dan Add Price sudah ditetapkan oleh Sparepart. Kasir hanya menerima pembayaran.</p>'}
+    ${spare ? `<div class="form"><label class="f" for="k-dis">Diskon total (Rp)<input id="k-dis" class="num" type="number" min="0" step="1000" value="${c.diskon || ''}"></label></div>` : '<p class="small muted">Harga, diskon, dan Add Price sudah ditetapkan oleh Sparepart. Kasir hanya menerima pembayaran.</p>'}
     ${spare ? '' : payFields('k', c.pay)}
     <div id="k-tot"></div>
     <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cart-clear" type="button">Kosongkan</button><button class="btn pri" data-act="cart-save" type="button">${spare ? 'Simpan pesanan &amp; cetak cek [F2]' : 'Terima pembayaran &amp; cetak nota [F2]'}</button></div>
