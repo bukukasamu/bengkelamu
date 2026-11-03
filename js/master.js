@@ -301,11 +301,11 @@ let logoDraft = null;
 /* ---------- Hak akses menu per peran (super admin) ---------- */
 const PERAN_AKSES = ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa', 'sales'];
 function renderAkses() {
-  const akses = S.akses || {}, menu = MENUS.filter(m => !m.superOnly && !m.selalu && m.roles.some(r => PERAN_AKSES.includes(r)));
-  const boleh = (r, id) => id === 'chat' ? Array.isArray(akses[r]) && akses[r].includes(id) : (!Array.isArray(akses[r]) || akses[r].includes(id) || !(akses._menu || MENUS.filter(x => !x.baru).map(x => x.id)).includes(id));
-  $('#ms-body').innerHTML = intro('Centang menu yang boleh dibuka setiap peran. Menu yang tidak dicentang hilang dari aplikasi karyawan dengan peran itu (berlaku langsung). <b>Chat Internal bersifat opt-in</b>: centang Chat untuk memberikan akses kepada peran tersebut. Super admin selalu bisa membuka semua menu. Kotak abu-abu = menu itu memang bukan untuk peran tersebut.') + `
+  const akses = S.akses || {}, menu = MENUS.filter(m => !m.superOnly && !m.selalu);
+  const boleh = (r, id) => !Array.isArray(akses[r]) || akses[r].includes(id) || !(akses._menu || []).includes(id);
+  $('#ms-body').innerHTML = intro('Centang menu yang boleh dibuka setiap peran. Semua menu ditampilkan agar Super Admin dapat memberikan atau mencabut akses secara bebas, termasuk Chat Internal. Menu yang tidak dicentang tidak tampil pada peran tersebut. Perubahan berlaku setelah disimpan.') + `
    <div class="tw"><table><thead><tr><th>Menu</th>${PERAN_AKSES.map(r => `<th class="r">${esc(ROLES[r])}<div class="row" style="justify-content:flex-end;gap:4px;margin-top:4px"><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="1" title="Centang semua">✓</button><button class="btn sm ghost" type="button" data-act="ak-semua" data-r="${r}" data-v="0" title="Kosongkan">✕</button></div></th>`).join('')}</tr></thead><tbody>
-    ${menu.map(m => `<tr><td>${esc(m.label)}<div class="small muted">${esc(m.group)}</div></td>${PERAN_AKSES.map(r => `<td class="r">${m.roles.includes(r) ? `<input type="checkbox" class="ak-cek" data-r="${r}" data-m="${m.id}" ${boleh(r, m.id) ? 'checked' : ''} aria-label="${esc(m.label)} untuk ${esc(ROLES[r])}" style="width:auto">` : '<span class="muted">–</span>'}</td>`).join('')}</tr>`).join('')}
+    ${menu.map(m => `<tr><td>${esc(m.label)}<div class="small muted">${esc(m.group)}</div></td>${PERAN_AKSES.map(r => `<td class="r"><input type="checkbox" class="ak-cek" data-r="${r}" data-m="${m.id}" ${boleh(r, m.id) ? 'checked' : ''} aria-label="${esc(m.label)} untuk ${esc(ROLES[r])}" style="width:auto"></td>`).join('')}</tr>`).join('')}
    </tbody></table></div>
    <h3 style="margin-top:16px">Kotak ringkasan di Beranda</h3>
    <p class="small muted" style="margin:0 0 6px">Angka yang tampil di Beranda tiap peran (hanya untuk peran yang boleh membuka Beranda). Karyawan hanya melihat angka cabangnya sendiri.</p>

@@ -1,7 +1,7 @@
 // Menu Order Sparepart: bagian sparepart memilih part untuk motor yang sudah diregistrasi,
 // sesuai permintaan mekanik. Stok dipotong saat kasir menerima pembayaran.
 import { $, esc, rp, clone, toast, errMsg, modal, stamp, konfirmasi } from './util.js';
-import { S, st, part, views, refreshers, actions, inputHandlers, fkeys, partPicker, pickedKode, namaPetugas, idPetugas } from './state.js';
+import { S, st, part, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, partPicker, pickedKode, namaPetugas, idPetugas } from './state.js';
 import { tawarkanCabangLain } from './cek-stok.js';
 import { AKTIF, woCard, woHeader, woCalc, partsTable, updateWo, findWo, dipesan, syncPantau } from './wo-common.js';
 
@@ -85,4 +85,5 @@ Object.assign(actions, {
   'ord-reset': () => { const o = findWo(st.orderNo); if (o) { st.orderDraft = clone({ ...o, parts: o.parts || [] }); renderDetail(); } },
   'ord-save': save
 });
-inputHandlers.push(e => { if (e.target.id === 'o-cat' && st.orderDraft) { st.orderDraft.catatanPart = e.target.value; segarkanStatus(); } });
+inputHandlers.push(e => { const t = e.target; if (t.id === 'o-cat' && st.orderDraft) { st.orderDraft.catatanPart = t.value; segarkanStatus(); } });
+changeHandlers.push(e => { const t = e.target; if (t.classList.contains('ord-add-price') && st.orderDraft?.parts?.[+t.dataset.i]) { st.orderDraft.parts[+t.dataset.i].addPrice = Math.max(0, Math.min(1000, +t.value || 0)); renderDetail(); } });
