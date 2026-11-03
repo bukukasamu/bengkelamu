@@ -14,6 +14,8 @@ import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
 // Modul menu: cukup diimpor, masing-masing mendaftarkan tampilan & aksinya sendiri.
 import './beranda.js';
+import './chat.js';
+import { pantauChatBadge } from './chat.js';
 import './registrasi.js';
 import './pengingat.js';
 import './panduan.js';
@@ -184,6 +186,7 @@ onAuthStateChanged(auth, async u => {
   $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
   try { const ak = await getDoc(doc(db, 'pengaturan', 'akses')); S.akses = ak.exists() ? ak.data() : null; } catch (e) { S.akses = null; }
   renderSidebar();
+  pantauChatBadge();
   let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
   st.view = last && can(last) ? last : menuAwal();
   if (adaAbsenTertunda() && can('absensi') && !st.petugas.super) st.view = 'absensi';
@@ -203,10 +206,18 @@ function subscribe() {
   need = ['parts', 'trx', 'wo', 'jasa', 'mekanik', 'settings', 'aturan'];
   if (st.role !== 'admin') need.push('woAktif');
   if (can('pembelian')) need.push('pembelian');
+  let bootstrapFallback = null;
+  const selesaiBootstrap = (parsial = false) => {
+    if (st.loaded) return;
+    st.loaded = true;
+    if (parsial) console.warn('AMU POS dibuka dengan data parsial; sumber yang belum siap:', need.filter(n => !ready[n]));
+    seedMaster(); go(st.view); cekAbsenTertunda(); pasangPenjaga();
+  };
   const mark = k => {
     ready[k] = true;
-    if (need.every(n => ready[n])) { if (!st.loaded) { st.loaded = true; seedMaster(); go(st.view); cekAbsenTertunda(); pasangPenjaga(); } else refresh(); }
+    if (need.every(n => ready[n])) { clearTimeout(bootstrapFallback); if (!st.loaded) selesaiBootstrap(); else refresh(); }
   };
+  bootstrapFallback = setTimeout(() => selesaiBootstrap(true), 15000);
   const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, e => fail(e, k)));
   // Master relatif jarang berubah: baca sekali per sesi, bukan listener realtime global.
   const once = (q, k, fn) => getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => fail(e, k));
@@ -224,7 +235,7 @@ function subscribe() {
   // Hak akses menu berubah (diatur super admin): perbarui menu tanpa perlu login ulang
   unsubs.push(onSnapshot(doc(db, 'pengaturan', 'akses'), s => {
     const baru = s.exists() ? s.data() : null; if (JSON.stringify(baru) === JSON.stringify(S.akses)) return;
-    S.akses = baru; renderSidebar(); segarkanBadge(); if (st.loaded && !can(st.view)) go(st.view); else document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === st.view) b.setAttribute('aria-current', 'page'); });
+    S.akses = baru; renderSidebar(); pantauChatBadge(); segarkanBadge(); if (st.loaded && !can(st.view)) go(st.view); else document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === st.view) b.setAttribute('aria-current', 'page'); });
   }, () => {}));
   if (st.role === 'admin') {
     // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
@@ -304,7 +315,7 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
   if (t.tagName === 'INPUT' && NO_CAPS.has(t.type)) return;
-  if (t.dataset.nocaps != null || t.getAttribute('inputmode') === 'numeric') return;
+  if (t.dataset.nocaps != null || t.id === 'chat-text' || t.getAttribute('inputmode') === 'numeric') return;
   const up = t.value.toUpperCase(); if (up === t.value) return;
   const a = t.selectionStart, b = t.selectionEnd; t.value = up;
   try { t.setSelectionRange(a, b); } catch (err) {}
