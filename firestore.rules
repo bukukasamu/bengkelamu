@@ -4,7 +4,7 @@ service cloud.firestore {
 
     // ---------- Siapa pengguna ini ----------
     // Super admin: satu email, masuk dengan kata sandi. Petugas lain: akun PIN dengan dokumen staff/{email}
-    // berisi peran (admin | registrasi | sparepart | kasir | mekanik | sa | sales), cabang, loginId, dan (mekanik) mekanikId.
+    // berisi peran (admin | registrasi | sparepart | kasir | mekanik | sa), cabang, loginId, dan (mekanik) mekanikId.
     function signedIn() { return request.auth != null; }
     // Perangkat layar absen masuk secara anonim (tanpa email): tidak pernah dianggap super admin / karyawan
     function emailKu() { return request.auth.token.get('email', ''); }
@@ -151,22 +151,6 @@ service cloud.firestore {
     // Log aktivitas sensitif: hanya super admin yang boleh membaca dan menambah; tidak boleh diubah/dihapus.
     match /aktivitas/{id} {
       allow read, create: if isSuper();
-      allow update, delete: if false;
-    }
-    // Chat internal. Akses Chat mengikuti centang Master Data → Hak Akses Menu.
-    // Super admin selalu boleh; percakapan pribadi hanya bisa dibaca pesertanya.
-    function chatDiizinkan() {
-      return isSuper() || (isStaff() && exists(/databases/$(database)/documents/pengaturan/akses)
-        && me().get('peran', '') in ['admin', 'registrasi', 'sparepart', 'kasir', 'mekanik', 'sa', 'sales']
-        && get(/databases/$(database)/documents/pengaturan/akses).data.get(me().get('peran', ''), []).hasAny(['chat']));
-    }
-    match /chat/{id} {
-      allow read: if chatDiizinkan() && (isSuper() || resource.data.get('ruang', 'umum') == 'umum' || resource.data.get('participantEmails', []).hasAny([emailKu()]));
-      allow create: if chatDiizinkan() && request.resource.data.olehEmail == emailKu()
-        && request.resource.data.teks is string && request.resource.data.teks.size() > 0
-        && request.resource.data.teks.size() <= 2000
-        && request.resource.data.ruang in ['umum', 'pribadi']
-        && (request.resource.data.ruang == 'umum' || request.resource.data.participantEmails.hasAny([emailKu()]));
       allow update, delete: if false;
     }
     // Kartu stok (mutasi keluar/masuk): hanya ditambah, tidak bisa diubah/dihapus
