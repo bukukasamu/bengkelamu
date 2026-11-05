@@ -98,7 +98,7 @@ async function renderMekanik() {
    </div>
    <div class="tiles t5">
     <button class="tile click" type="button" data-act="mk-unit"><span class="lbl">Motor selesai</span><span class="val">${h.unit}</span><span class="sub">${p.label}${h.ksg ? ' · ' + h.ksg + ' KSG' : ''} · klik untuk detail</span></button>
-    <button class="tile click" type="button" data-act="mk-detail" data-cat="total"><span class="lbl">Total nilai pekerjaan</span><span class="val">${rpM(h.total)}</span><span class="sub">part + jasa + jasa KSG + biaya lain</span></button>
+    <button class="tile click" type="button" data-act="mk-detail" data-cat="total"><span class="lbl">Nilai pekerjaan selesai</span><span class="val">${rpM(h.total)}</span><span class="sub">${h.unit} motor · part + jasa + jasa KSG + biaya lain</span></button>
     <div class="tile"><span class="lbl">Rata-rata dikerjakan</span><span class="val">${h.nWaktu ? fmtDur(h.rata) : '–'}</span><span class="sub">${h.nWaktu} motor tercatat</span></div>
     ${isRole('mekanik') || st.petugas?.super ? `<button class="tile click" type="button" data-act="go-penghasilan"><span class="lbl">${isRole('mekanik') ? 'Penghasilan saya' : 'Penghasilan mekanik'}</span><span class="val" style="font-size:1.05rem">Lihat gaji, insentif &amp; target ›</span><span class="sub">menu Penghasilan</span></button>` : ''}
    </div>

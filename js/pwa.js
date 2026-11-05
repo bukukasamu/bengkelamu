@@ -28,17 +28,15 @@ window.addEventListener('appinstalled', () => { tawaran = null; perbarui(); });
 export async function updateAplikasi(btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Memeriksa versi…'; }
   try {
-    if (!('serviceWorker' in navigator)) { location.reload(); return; }
-    swReg = swReg || await navigator.serviceWorker.getRegistration('./') || await navigator.serviceWorker.getRegistration();
-    if (!swReg) { location.reload(); return; }
-    const reload = () => { if (!updateReloading) { updateReloading = true; location.reload(); } };
-    navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true });
-    // Meminta browser melewati HTTP cache ketika memeriksa sw.js.
-    await fetch('./sw.js?update=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' }).catch(() => {});
-    if (swReg.waiting) { swReg.waiting.postMessage({ type: 'SKIP_WAITING' }); setTimeout(reload, 2500); return; }
-    await swReg.update();
-    if (swReg.waiting) { swReg.waiting.postMessage({ type: 'SKIP_WAITING' }); setTimeout(reload, 2500); }
-    else { if (btn) { btn.disabled = false; btn.textContent = '✓ Versi terbaru'; setTimeout(() => { btn.textContent = 'Update aplikasi'; }, 3000); } window.dispatchEvent(new CustomEvent('amu-update-ok')); }
+    const reload = () => { if (!updateReloading) { updateReloading = true; const u = new URL(location.href); u.searchParams.set('amu_update', Date.now()); location.replace(u.toString()); } };
+    if (!('serviceWorker' in navigator)) { reload(); return; }
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const r of regs) { try { await r.unregister(); } catch (e) {} }
+    if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.filter(k => /^amu-/i.test(k) || /workbox|precache/i.test(k)).map(k => caches.delete(k))); }
+    await fetch('./sw.js?amu_update=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' }).catch(() => {});
+    swReg = await navigator.serviceWorker.register('./sw.js?amu_update=' + Date.now(), { updateViaCache: 'none' });
+    await swReg.update().catch(() => {});
+    reload();
   } catch (e) { console.warn('Update aplikasi gagal', e); if (btn) { btn.disabled = false; btn.textContent = 'Update aplikasi'; } window.dispatchEvent(new CustomEvent('amu-update-fail')); }
 }
 

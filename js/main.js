@@ -9,6 +9,7 @@ import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.j
 import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
 import { showNota } from './nota.js';
 import { pasangTombol, updateAplikasi } from './pwa.js';
+import { temaAktif, terapkanTema } from './tema.js';
 import { CABANG_UTAMA, cabangList, cabangById, namaCabang, multiCabang, cabAktif, diCabang, stokOf, stokTotal, watchCabang, loadCabang } from './cabang.js';
 import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
@@ -65,6 +66,9 @@ try { if (localStorage.getItem('amu-sb-hidden')) document.body.classList.add('sb
 $('#sb-toggle').addEventListener('click', toggleSidebar);
 $('#sb-backdrop').addEventListener('click', toggleSidebar);
 ['#update-app', '#update-app-login'].forEach(sel => { const b = $(sel); b?.addEventListener('click', () => updateAplikasi(b)); });
+function refreshTombolTema() { document.querySelectorAll('[data-theme-toggle]').forEach(b => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); b.textContent = gelap ? '☀ Mode terang' : '☾ Mode gelap'; b.setAttribute('aria-pressed', gelap ? 'true' : 'false'); }); }
+document.querySelectorAll('[data-theme-toggle]').forEach(b => b.addEventListener('click', () => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); terapkanTema(gelap ? 'segar' : 'gelap'); refreshTombolTema(); }));
+refreshTombolTema();
 window.addEventListener('amu-update-ok', () => toast('Aplikasi sudah menggunakan versi terbaru'));
 window.addEventListener('amu-update-fail', () => toast('Update gagal. Periksa koneksi internet lalu coba lagi.'));
 $('#side-nav').addEventListener('click', e => { const b = e.target.closest('.sb-link'); if (b) go(b.dataset.view); });
@@ -221,7 +225,7 @@ function subscribe() {
   const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, e => fail(e, k)));
   // Master relatif jarang berubah: baca sekali per sesi, bukan listener realtime global.
   const once = (q, k, fn) => getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => fail(e, k));
-  const perluParts = can('registrasi') || can('kasir') || can('stok') || can('order') || can('pembelian');
+  const perluParts = can('registrasi') || can('kasir') || can('stok') || can('cekstok') || can('order') || can('pembelian');
   const perluJasa = can('registrasi') || can('bayar');
   // Mekanik hanya membutuhkan pembacaan master untuk Cek Stok; one-time fetch membuat login lebih ringan.
   // Kasir/Sparepart/Registrasi tetap realtime agar perubahan master langsung terlihat pada alur transaksi.
