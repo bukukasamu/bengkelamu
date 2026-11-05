@@ -5,14 +5,17 @@ import { MENUS, HOME, KAT, DEFAULT_TIPE } from './config.js';
 /* ---- Data dari Firestore (diisi oleh main.js) ---- */
 // trx/wo/mekanik/pembelian = cabang yang sedang dibuka; trxSemua/woSemua/mekanikSemua = semua cabang
 export const S = { parts: [], map: new Map(), trx: [], wo: [], jasa: [], mekanik: [], settings: {}, pembelian: [], trxSemua: [], woSemua: [], mekanikSemua: [] };
+// Kode part dari Excel/WO kadang membawa spasi non-breaking atau karakter zero-width.
+// Tampilan dapat terlihat sama, tetapi pencocokan string biasa tetap gagal.
+export const normalKode = k => String(k ?? '').normalize('NFKC').replace(/[\s\u200B-\u200D\uFEFF]/g, '').toUpperCase();
 export const part = k => {
-  const key = String(k || '').trim();
-  return S.map.get(key) || S.map.get(key.toUpperCase()) || S.parts.find(p => String(p.kode || '').trim().toUpperCase() === key.toUpperCase());
+  const key = normalKode(k);
+  return S.map.get(key) || S.map.get(String(k || '').trim()) || S.parts.find(p => normalKode(p.kode) === key);
 };
 export const hargaJualPart = p => Math.round((+p?.jual || 0) * (1 + Math.max(0, Math.min(1000, +p?.addPrice || 0)) / 100));
 export function setParts(list) {
   S.parts = list.sort((a, b) => a.kode.localeCompare(b.kode));
-  S.map = new Map(S.parts.map(p => [p.kode, p]));
+  S.map = new Map(S.parts.flatMap(p => [[p.kode, p], [normalKode(p.kode), p]]));
 }
 export const kategoriList = () => [...new Set([...KAT, ...S.parts.map(p => p.kategori).filter(Boolean)])].sort((a, b) => a.localeCompare(b));
 export const tipeList = () => (S.settings.tipe && S.settings.tipe.length ? S.settings.tipe : DEFAULT_TIPE);
