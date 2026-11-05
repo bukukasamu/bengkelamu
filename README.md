@@ -1,9 +1,14 @@
-# Aceh Mandiri Utama POS · versi 5.19.0
+# Aceh Mandiri Utama POS · versi 5.19.1
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.19.1 — Perbaikan tampilan di browser lama
+- Chrome 109 ke bawah (Windows 7) tidak mendukung `color-mix()`: latar login, tombol utama, sidebar, dan topbar menjadi transparan (tulisan putih tidak terlihat, tombol Masuk hilang).
+- Semua `color-mix()` diganti `rgba(var(--gX-rgb), a)` dengan token RGB per tema (`--g1-rgb..--g4-rgb`, `--ac-rgb`).
+- Cache Service Worker dinaikkan ke `amu-5.19.1`.
 
 ## 5.19.0 — Tampilan modern, Chat dengan status online, dan loading ringan
 **Tampilan "Aurora"**
