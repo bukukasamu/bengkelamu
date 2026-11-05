@@ -1,42 +1,56 @@
-// Slip gaji karyawan dalam PDF (A5 tegak), hitam-putih dengan logo toko.
-import { preloadPdf, logoPng, muat } from './nota-pdf.js';
-import { APP_NAME, APP_SUB, COPYRIGHT } from './config.js';
+// Slip gaji / THR / bonus karyawan dalam PDF (A5 tegak) — 5.19.2: desain modern bergradasi sesuai tema.
+// Kepala pita gradasi + logo, kartu identitas, rincian pendapatan & potongan, kotak penghasilan bersih bergradasi,
+// catatan, tanda tangan, dan kaki halaman.
+import { preloadPdf, logoPng } from './nota-pdf.js';
+import { APP_NAME } from './config.js';
+import { palet, penulis, kepala, kakiSemua, judulBagian, gradasi, tandaTangan } from './pdf-kit.js';
 
-const W = 148, H = 210, M = 12, rp = x => 'Rp ' + Math.round(x || 0).toLocaleString('id-ID');
+const W = 148, H = 210, M = 11, rp = x => 'Rp ' + Math.round(x || 0).toLocaleString('id-ID');
 
 export async function slipPdfBlob(d) {
-  const lib = await preloadPdf(), logo = await logoPng();
-  const pdf = new lib.jsPDF({ unit: 'mm', format: 'a5' });
+  const lib = await preloadPdf(), logo = await logoPng(true), P = palet();
+  const pdf = new lib.jsPDF({ unit: 'mm', format: 'a5' }), t = penulis(pdf);
   pdf.setProperties({ title: `${d.judul || 'Slip gaji'} ${d.nama} ${d.periode}`, author: APP_NAME });
-  const t = (s, x, y, o = {}) => { pdf.setFont('helvetica', o.bold ? 'bold' : 'normal'); pdf.setFontSize(o.size || 9); pdf.setTextColor(o.gray ?? 25); pdf.text(String(s), x, y, o.align ? { align: o.align } : undefined); };
-  let y = M, x0 = M;
-  if (logo) { const { w, h } = muat(logo, 20, 13); pdf.addImage(logo.url, 'PNG', M, y, w, h); x0 = M + w + 4; }
-  t(APP_NAME.toUpperCase(), x0, y + 5, { bold: true, size: 11 });
-  t(d.cabang ? 'Cabang ' + d.cabang : APP_SUB, x0, y + 9.5, { size: 7.5, gray: 90 });
-  t(d.judul || 'SLIP GAJI', W - M, y + 5, { bold: true, size: 11, align: 'right' });
-  t(d.periode, W - M, y + 9.5, { size: 8.5, align: 'right' });
-  y += 16; pdf.setDrawColor(60); pdf.setLineWidth(0.4); pdf.line(M, y, W - M, y); y += 6;
-  (d.ident || [['Nama', d.nama], ['Jabatan', d.peran], ['Nota pribadi', String(d.nota)]]).forEach(([l, v]) => { t(l, M, y, { size: 8.5, gray: 90 }); t(': ' + v, M + 26, y, { size: 8.5, bold: true }); y += 4.6; });
-  y += 2;
-  const judul = s => { pdf.setFillColor(235); pdf.rect(M, y - 3.6, W - 2 * M, 5.4, 'F'); t(s, M + 2, y, { bold: true, size: 8 }); y += 6; };
-  const baris = (l, v, k, bold) => {
-    pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(8.5);
-    const ls = pdf.splitTextToSize(l, W - 2 * M - 34); pdf.setTextColor(25); pdf.text(ls, M + 2, y); pdf.text(v, W - M - 2, y, { align: 'right' });
-    y += ls.length * 3.8; if (k) { t(k, M + 2, y - 0.6, { size: 6.8, gray: 110 }); y += 3.4; } y += 1.2;
+  let y = kepala(pdf, { W, M, h: 28, judul: d.judul || 'Slip gaji', kanan: [d.periode], logo, cabang: d.cabang });
+
+  // Kartu identitas karyawan
+  const ident = d.ident || [['Nama', d.nama], ['Jabatan', d.peran], ['Nota pribadi', String(d.nota)]];
+  const ih = 6 + Math.ceil(ident.length / 2) * 8.6;
+  pdf.setFillColor(...P.soft); pdf.roundedRect(M, y, W - 2 * M, ih, 2.5, 2.5, 'F');
+  const kw = (W - 2 * M) / 2;
+  ident.forEach(([l, v], i) => { const cx = M + 4 + (i % 2) * kw, cy = y + 6.5 + Math.floor(i / 2) * 8.6; t(String(l).toUpperCase(), cx, cy, { size: 6, bold: true, gray: 115 }); t(v ?? '–', cx, cy + 4, { size: 8.6, bold: true, color: P.ink, maxW: kw - 6 }); });
+  y += ih + 7;
+
+  const baris = (l, v, k, o = {}) => {
+    pdf.setFont('helvetica', o.bold ? 'bold' : 'normal'); pdf.setFontSize(8.3);
+    const ls = pdf.splitTextToSize(String(l), W - 2 * M - 36);
+    pdf.setTextColor(...(o.bold ? P.ink : [45, 50, 60])); pdf.text(ls, M + 2, y);
+    if (o.warna) pdf.setTextColor(...o.warna); pdf.text(String(v), W - M - 2, y, { align: 'right' });
+    y += ls.length * 3.7; if (k) { t(k, M + 2, y - 0.4, { size: 6.4, gray: 125, maxW: W - 2 * M - 36 }); y += 3.3; }
+    if (!o.bold) { pdf.setDrawColor(238); pdf.setLineWidth(0.15); pdf.line(M + 2, y - 1.4, W - M - 2, y - 1.4); }
+    y += 2;
   };
-  judul('PENDAPATAN');
+  const total = (l, v, warna) => { pdf.setFillColor(248, 249, 252); pdf.roundedRect(M, y - 4, W - 2 * M, 6.6, 1.6, 1.6, 'F'); baris(l, v, '', { bold: true, warna }); y += 2.5; };
+
+  y = judulBagian(pdf, 'Pendapatan', M, y) + 0.5;
   d.pendapatan.forEach(([l, v, k]) => baris(l, rp(v), k));
-  pdf.setDrawColor(160); pdf.line(M, y - 2.4, W - M, y - 2.4); baris('Total pendapatan', rp(d.totalPendapatan), '', true); y += 2;
-  judul('POTONGAN');
-  if (d.potongan.length) d.potongan.forEach(([l, v]) => baris(l, '-' + rp(v))); else baris('Tidak ada', '-');
-  pdf.line(M, y - 2.4, W - M, y - 2.4); baris('Total potongan', '-' + rp(d.totalPotongan), '', true); y += 2;
-  pdf.setDrawColor(40); pdf.setLineWidth(0.5); pdf.rect(M, y - 4, W - 2 * M, 8);
-  t(d.labelBersih || 'PENGHASILAN BERSIH', M + 3, y + 1.2, { bold: true, size: 9.5 }); t(rp(d.bersih), W - M - 3, y + 1.2, { bold: true, size: 11, align: 'right' }); y += 10;
-  t(d.catatan || 'Dihitung otomatis dari penjualan pribadi. Jumlah final ditetapkan manajemen.', M, y, { size: 7, gray: 100 }); y += 12;
-  const kol = (W - 2 * M) / 2;
-  t('Diterima oleh,', M + kol / 2, y, { size: 8, align: 'center' }); t('Disetujui,', M + kol * 1.5, y, { size: 8, align: 'center' }); y += 18;
-  pdf.setDrawColor(120); pdf.setLineWidth(0.3); pdf.line(M + 8, y, M + kol - 8, y); pdf.line(M + kol + 8, y, W - M - 8, y); y += 4;
-  t(d.nama, M + kol / 2, y, { size: 8, align: 'center' }); t('Manajemen', M + kol * 1.5, y, { size: 8, align: 'center' });
-  t('Dicetak ' + new Date().toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' - ' + COPYRIGHT, M, H - 7, { size: 6.5, gray: 130 });
+  total('Total pendapatan', rp(d.totalPendapatan), [23, 138, 80]);
+
+  y = judulBagian(pdf, 'Potongan', M, y) + 0.5;
+  if (d.potongan.length) d.potongan.forEach(([l, v]) => baris(l, '-' + rp(v), '', { warna: [194, 53, 42] })); else baris('Tidak ada potongan', '-');
+  total('Total potongan', '-' + rp(d.totalPotongan), [194, 53, 42]);
+
+  // Kotak penghasilan bersih bergradasi
+  y += 1;
+  gradasi(pdf, M, y, W - 2 * M, 15, P.g, 3);
+  t(d.labelBersih || 'PENGHASILAN BERSIH', M + 5, y + 6.3, { bold: true, size: 7.2, color: [225, 233, 255] });
+  t('Diterima karyawan', M + 5, y + 10.6, { size: 6.5, color: [205, 218, 255] });
+  t(rp(d.bersih), W - M - 5, y + 9.6, { bold: true, size: 14, color: [255, 255, 255], align: 'right' });
+  y += 21;
+  t(d.catatan || 'Dihitung otomatis dari penjualan pribadi. Jumlah final ditetapkan manajemen.', M, y, { size: 6.8, gray: 110, maxW: W - 2 * M }); y += 7;
+
+  if (y + 31 > H - 13) { pdf.addPage(); y = 20; }
+  tandaTangan(pdf, { x: M, y, w: W - 2 * M, kiri: ['Diterima oleh,', d.nama], kanan: ['Disetujui,', 'Manajemen'] });
+  kakiSemua(pdf, { W, H, M });
   return pdf.output('blob');
 }

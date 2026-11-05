@@ -1046,3 +1046,75 @@ main .loader{animation:fade-in .25s ease-out .18s both}
 .sb-link[data-view="penghasilan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/%3E%3C/svg%3E")}
 .sb-link[data-view="panduan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01'/%3E%3C/svg%3E")}
 .sb-link[data-view="thr"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7'/%3E%3C/svg%3E")}
+
+/* =====================================================================
+   5.19.2 — RAPIKAN TAMPILAN HP
+   - Teks tidak diperbesar otomatis oleh Chrome Android (text-size-adjust) → ukuran huruf konsisten.
+   - Bilah atas satu baris: judul dipotong "…", pilihan cabang ringkas, foto & status tidak terdorong keluar layar.
+   - Tab, pilihan periode, dan tombol cepat digulir ke samping (tidak menumpuk jadi kotak besar).
+   - Tabel berisi isian diberi lebar minimum supaya isi tidak terpotong; halaman tidak bisa bergeser ke samping.
+   ===================================================================== */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{max-width:100%;overflow-x:hidden}
+@supports (overflow:clip){html,body{overflow-x:clip}}
+img,svg,video,canvas{max-width:100%}
+.topbar>*{flex-shrink:0}
+.topbar h1{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cabang-box{min-width:0;flex-shrink:1}
+.cabang-pilih{display:flex;align-items:center;gap:6px;min-width:0}
+.cabang-pilih select{min-width:0;width:auto;max-width:220px;padding:6px 28px 6px 10px;border-radius:999px;font-weight:600;font-size:.82rem}
+@media (max-width:900px){
+  main{padding-inline:12px;padding-block:14px 32px}
+  .grid{gap:14px}
+  .panel{padding:14px;border-radius:16px}
+  .topbar{gap:8px;padding:8px 10px;min-height:56px}
+  body.sb-hidden .topbar,body:not(.sb-hidden) .topbar{min-height:56px}
+  .topbar h1{font-size:1.02rem}
+  .sb-toggle{width:36px;height:36px;border-radius:10px}
+  .cabang-pilih span{display:none}
+  .cabang-pilih select{max-width:30vw;font-size:.74rem;padding:5px 22px 5px 9px;background-position:right 6px center}
+  .cabang-tag{max-width:28vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.7rem}
+  .top-status{padding:7px;margin-left:0}
+  .top-profile{padding:2px;max-width:none}
+  .top-avatar{width:32px;height:32px;flex-basis:32px}
+  /* tombol cepat: satu baris, geser ke samping */
+  .toolbar{flex-wrap:nowrap;overflow-x:auto;padding:6px 10px;gap:6px;scrollbar-width:none}
+  .toolbar::-webkit-scrollbar{display:none}
+  .fk{flex:0 0 auto;font-size:.74rem;padding:4px 10px 4px 4px}
+  .fk kbd{display:none}
+  .fk{padding-left:10px}
+  /* tab & pilihan periode: satu baris, geser ke samping */
+  .subtabs,.seg{display:flex;flex-wrap:nowrap;overflow-x:auto;max-width:100%;width:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .subtabs::-webkit-scrollbar,.seg::-webkit-scrollbar{display:none}
+  .subtabs button,.seg button{flex:0 0 auto;white-space:nowrap;font-size:.8rem;padding:7px 12px}
+  /* tabel: geser di dalam kotaknya; isian di tabel tidak terjepit */
+  .tw{-webkit-overflow-scrolling:touch}
+  .tw input,.tw select{min-width:120px}
+  .tw input[type=checkbox],.tw input[type=radio]{min-width:0}
+  .tw table:has(input,select){min-width:720px}
+  th,td{padding:7px 8px}
+  /* kotak & teks */
+  .tiles{gap:10px}
+  .tile{padding:12px 12px 10px}
+  .tile .val{font-size:1.3rem}
+  .tile .lbl{font-size:.64rem}
+  h2{font-size:1.15rem}
+  .row{gap:6px}
+  .btn{padding:8px 12px}
+  .modal{padding:16px;border-radius:18px;max-height:88vh}
+  .modal-bg{padding:10px;align-items:flex-end}
+  .hero h2{font-size:1.2rem}
+  .hero-act .btn{padding:6px 12px;font-size:.8rem}
+  .sb-link{font-size:.9rem;padding:9px 12px}
+}
+@media (max-width:420px){
+  .tiles,.tiles.t5{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tile .val{font-size:1.12rem}
+  .form{grid-template-columns:minmax(0,1fr)}
+}
+/* Foto petugas di Master Data → Petugas & PIN: lingkaran kecil yang bisa diklik (input file disembunyikan) */
+.foto-pilih{position:relative;display:inline-flex;cursor:pointer}
+.foto-pilih input[type=file]{position:absolute;inset:0;opacity:0;width:100%;height:100%;min-width:0!important;cursor:pointer}
+.mini-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:linear-gradient(135deg,rgba(var(--g2-rgb),.14),rgba(var(--g3-rgb),.14));color:var(--accent);font-weight:800;border:1px dashed rgba(var(--ac-rgb),.45)}
+.mini-avatar img{width:100%;height:100%;object-fit:cover}
+.foto-pilih:hover .mini-avatar{border-style:solid}

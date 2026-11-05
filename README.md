@@ -1,9 +1,15 @@
-# Aceh Mandiri Utama POS · versi 5.19.1
+# Aceh Mandiri Utama POS · versi 5.19.2
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.19.2 — PDF modern dan tampilan HP rapi
+- `js/pdf-kit.js` baru: pita kepala bergradasi (mengikuti tema), logo berwarna di plat putih, kartu, judul bagian, tabel modern, tanda tangan, lencana, kaki + nomor halaman.
+- Didesain ulang: slip gaji/THR/bonus (A5), laporan penjualan (A4), BAST transfer stok (A4), data konsumen (A4 mendatar), nota PDF 80 mm. Template cetak HTML BAST kendaraan & BAST transfer diperbarui (warna ikut tercetak).
+- HP: `text-size-adjust:100%`, topbar satu baris (judul ellipsis, cabang ringkas), cegah geser horizontal, subtab/seg/toolbar digulir ke samping, tabel berisian diberi lebar minimum, foto petugas berupa lingkaran (input file disembunyikan).
+- Panduan: topik baru PDF modern, tampilan HP, dan cara memakai aplikasi di HP.
 
 ## 5.19.1 — Perbaikan tampilan di browser lama
 - Chrome 109 ke bawah (Windows 7) tidak mendukung `color-mix()`: latar login, tombol utama, sidebar, dan topbar menjadi transparan (tulisan putih tidak terlihat, tombol Masuk hilang).
