@@ -1,10 +1,12 @@
 // Service worker PWA Aceh Mandiri Utama.
-// - File aplikasi (HTML/CSS/JS) diambil dari internet dulu supaya versi baru langsung terpakai; bila sinyal putus
-//   atau lambat (> 4 detik) dipakai salinan terakhir, jadi aplikasi tetap terbuka.
+// - Halaman HTML diambil dari internet dulu (maks. 2,5 detik), lalu salinan terakhir bila sinyal lambat/putus.
+// - File aplikasi (JS/CSS/JSON/ikon) memakai pola "cache dulu, perbarui di belakang" (stale-while-revalidate):
+//   aplikasi langsung terbuka dari salinan di perangkat (tanpa menunggu puluhan file dari internet satu per satu),
+//   sementara versi terbaru diunduh diam-diam dan dipakai pada pembukaan berikutnya. (5.19.0: penyebab utama loading lama)
 // - Pustaka dari CDN (Firebase, PDF, Excel, QR, font) bernomor versi tetap, jadi disimpan sekali lalu dipakai ulang.
 // - Data Firestore & login TIDAK lewat sini (ditangani Firebase sendiri).
 // Ganti VERSI setiap ada update besar supaya salinan lama dibersihkan.
-const VERSI = 'amu-5.18.1';
+const VERSI = 'amu-5.19.0';
 const INTI = [
   './',
   'index.html',
@@ -42,6 +44,8 @@ const INTI = [
   'js/brand.js',
   'js/cabang.js',
   'js/chat.js',
+  'js/presence.js',
+  'js/memo.js',
   'js/cari-kendaraan.js',
   'js/cari-pilihan.js',
   'js/cek.js',
@@ -95,7 +99,11 @@ const CDN = ['www.gstatic.com', 'cdnjs.cloudflare.com', 'cdn.sheetjs.com', 'cdn.
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSI).then(c => Promise.all(INTI.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => null)))).then(() => self.skipWaiting()));
 });
-self.addEventListener('message', e => { if (e.data?.type === 'SKIP_WAITING') self.skipWaiting(); });
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  // Tombol "Update aplikasi": kosongkan salinan supaya semua file diambil ulang dari internet
+  if (e.data?.type === 'CLEAR_CACHE') e.waitUntil(caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))).then(() => e.ports?.[0]?.postMessage('ok')));
+});
 
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSI).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -110,7 +118,7 @@ function jaringanDulu(req) {
   return new Promise(resolve => {
     let selesai = false;
     const dariCache = () => caches.match(req, { ignoreSearch: req.mode === 'navigate' }).then(r => r || (req.mode === 'navigate' ? caches.match(halamanUntuk(req.url)) : null));
-    const t = setTimeout(() => dariCache().then(r => { if (r && !selesai) { selesai = true; resolve(r); } }), 4000);
+    const t = setTimeout(() => dariCache().then(r => { if (r && !selesai) { selesai = true; resolve(r); } }), 2500);
     fetch(req).then(res => {
       clearTimeout(t);
       if (res && res.ok) { const salin = res.clone(); caches.open(VERSI).then(c => c.put(req, salin)); if (!selesai) { selesai = true; resolve(res); } return; }
@@ -122,6 +130,18 @@ function jaringanDulu(req) {
     });
   });
 }
+// Cache dulu + perbarui di belakang. Pembaruan selesai walau halaman sudah memakai salinan lama (waitUntil).
+function cacheLaluPerbarui(e) {
+  const req = e.request;
+  const ambil = fetch(req).then(res => {
+    if (res && res.ok) { const salin = res.clone(); caches.open(VERSI).then(c => c.put(req, salin)); }
+    return res;
+  });
+  return caches.match(req, { ignoreSearch: true }).then(r => {
+    if (r) { e.waitUntil(ambil.catch(() => null)); return r; }
+    return ambil.catch(() => new Response('', { status: 504 }));
+  });
+}
 function cacheDulu(req) {
   return caches.match(req).then(r => r || fetch(req).then(res => {
     if (res && (res.ok || res.type === 'opaque')) { const salin = res.clone(); caches.open(VERSI).then(c => c.put(req, salin)); }
@@ -131,6 +151,11 @@ function cacheDulu(req) {
 self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin === self.location.origin) { e.respondWith(jaringanDulu(req)); return; }
+  if (url.origin === self.location.origin) {
+    // sw.js & halaman HTML selalu dicek ke internet dulu; file lain langsung dari salinan
+    if (req.mode === 'navigate' || /\.html$|\/sw\.js$|\/$/.test(url.pathname)) e.respondWith(jaringanDulu(req));
+    else e.respondWith(cacheLaluPerbarui(e));
+    return;
+  }
   if (CDN.includes(url.hostname)) e.respondWith(cacheDulu(req));
 });

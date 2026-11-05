@@ -3,17 +3,20 @@
 // Daftar nama untuk layar login disimpan di dokumen publik/login (hanya nama, peran, email buatan).
 import { auth, db, doc, getDoc, setDoc, deleteDoc, createStaffAccount, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from './firebase.js';
 import { PIN_DOMAIN } from './config.js';
+import { memo, lupakan } from './memo.js';
 
 const listRef = () => doc(db, 'publik', 'login');
 export const validPin = p => /^\d{6}$/.test(p || '');
 export const isPinAccount = email => (email || '').endsWith('@' + PIN_DOMAIN);
 const newId = () => Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-4);
 
-export async function loadLoginList() {
-  const s = await getDoc(listRef());
-  return s.exists() ? (s.data().petugas || []) : [];
+// 5.19.0: daftar petugas disimpan 60 detik di memori (Chat, Penghasilan, Master, Absensi memakai daftar yang sama).
+// Selalu dikembalikan sebagai salinan supaya perubahan di satu menu tidak mengotori simpanan.
+export async function loadLoginList({ segar = false } = {}) {
+  const list = await memo('login-list', 60000, async () => { const s = await getDoc(listRef()); return s.exists() ? (s.data().petugas || []) : []; }, { paksa: segar });
+  return list.map(x => ({ ...x }));
 }
-const saveList = list => setDoc(listRef(), { petugas: list.sort((a, b) => a.nama.localeCompare(b.nama)) });
+const saveList = list => { lupakan('login-list'); return setDoc(listRef(), { petugas: list.sort((a, b) => a.nama.localeCompare(b.nama)) }).finally(() => lupakan('login-list')); };
 
 // Buat akun baru. extra = { mekanikId } untuk mekanik.
 export async function tambahPetugas({ nama, peran, pin, ...extra }) {
@@ -21,7 +24,7 @@ export async function tambahPetugas({ nama, peran, pin, ...extra }) {
   const id = newId(), email = `${id}@${PIN_DOMAIN}`;
   await createStaffAccount(email, pin);
   await setDoc(doc(db, 'staff', email), { nama, peran, loginId: id, ...extra });
-  const list = await loadLoginList();
+  const list = await loadLoginList({ segar: true });
   list.push({ id, nama, peran, email, ...extra });
   await saveList(list);
   return { id, email };
@@ -31,7 +34,7 @@ export async function tambahPetugas({ nama, peran, pin, ...extra }) {
 // hak akses dipindah ke akun baru, akun lama otomatis tidak bisa dipakai lagi.
 export async function resetPin(id, pin) {
   if (!validPin(pin)) throw new Error('PIN harus 6 angka');
-  const list = await loadLoginList(), e = list.find(x => x.id === id);
+  const list = await loadLoginList({ segar: true }), e = list.find(x => x.id === id);
   if (!e) throw new Error('Petugas tidak ditemukan');
   const email = `${id}-${Date.now().toString(36)}@${PIN_DOMAIN}`;
   await createStaffAccount(email, pin);
@@ -42,7 +45,7 @@ export async function resetPin(id, pin) {
 }
 
 export async function ubahPetugas(id, patch) {
-  const list = await loadLoginList(), e = list.find(x => x.id === id);
+  const list = await loadLoginList({ segar: true }), e = list.find(x => x.id === id);
   if (!e) throw new Error('Petugas tidak ditemukan');
   Object.assign(e, patch);
   await setDoc(doc(db, 'staff', e.email), patch, { merge: true });
@@ -50,7 +53,7 @@ export async function ubahPetugas(id, patch) {
 }
 
 export async function hapusPetugas(id) {
-  const list = await loadLoginList(), e = list.find(x => x.id === id);
+  const list = await loadLoginList({ segar: true }), e = list.find(x => x.id === id);
   if (!e) return;
   await deleteDoc(doc(db, 'staff', e.email));
   await saveList(list.filter(x => x.id !== id));

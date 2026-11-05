@@ -26,16 +26,21 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); tawara
 window.addEventListener('appinstalled', () => { tawaran = null; perbarui(); });
 
 export async function updateAplikasi(btn) {
-  // Jangan menunggu service worker: pada beberapa browser proses update bisa
-  // tertahan lama di waiting/fetch. Query unik membuat HTML terbaru diminta
-  // seperti Ctrl+Shift+R, lalu SW lama dibersihkan setelah halaman baru hidup.
+  // 5.19.0: file aplikasi kini dibuka dari salinan di perangkat (lebih cepat). Tombol ini mengosongkan salinan itu,
+  // meminta service worker terbaru, lalu memuat ulang dengan alamat unik (seperti Ctrl+Shift+R) supaya semua file baru.
   if (btn) { btn.disabled = true; btn.textContent = 'Memuat ulang…'; }
   if (updateReloading) return;
   updateReloading = true;
   const u = new URL(location.href);
   u.searchParams.set('amu_hard_refresh', Date.now());
   try { localStorage.setItem('amu-hard-refresh', String(Date.now())); } catch (e) {}
-  setTimeout(() => location.replace(u.toString()), 80);
+  const batas = new Promise(r => setTimeout(r, 2500));   // jangan pernah menggantung lebih dari 2,5 detik
+  const bersihkan = (async () => {
+    try { if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k))); } catch (e) {}
+    try { const reg = await navigator.serviceWorker?.getRegistration(); await reg?.update(); } catch (e) {}
+  })();
+  await Promise.race([bersihkan, batas]);
+  location.replace(u.toString());
 }
 
 if (window.navigator && 'serviceWorker' in window.navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

@@ -26,6 +26,6 @@ export async function createStaffAccount(email, password) {
 
 export { onAuthStateChanged, signInWithEmailAndPassword, signInAnonymously, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 export {
-  collection, doc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, documentId,
+  collection, doc, getDoc, getDocs, getDocsFromCache, getDocFromCache, onSnapshot, query, where, orderBy, limit, documentId,
   runTransaction, setDoc, updateDoc, addDoc, deleteDoc, increment, writeBatch, serverTimestamp, deleteField, Timestamp, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";

@@ -274,7 +274,7 @@ function renderTipe() {
 
 /* ---------- Petugas & PIN ---------- */
 async function loadLogins() {
-  try { logins = await loadLoginList(); } catch (e) { logins = []; toast(errMsg(e)); }
+  try { logins = await loadLoginList({ segar: true }); } catch (e) { logins = []; toast(errMsg(e)); }
   if (st.masterTab === 'petugas') renderStaff();
 }
 const ROLE_NON_MEK = Object.entries(ROLES).filter(([k]) => k !== 'mekanik');

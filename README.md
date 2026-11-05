@@ -1,9 +1,39 @@
-# Aceh Mandiri Utama POS · versi 5.7.5
+# Aceh Mandiri Utama POS · versi 5.19.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.19.0 — Tampilan modern, Chat dengan status online, dan loading ringan
+**Tampilan "Aurora"**
+- Bilah kiri bergradasi vertikal dan bilah atas melanjutkan gradasi dari kiri ke kanan, sehingga kedua bilah menyatu; warna mengikuti tema (Biru Segar, Klasik, Tosca, Ungu, Merah, Gelap, Kaca) lewat token `--g1..--g4`.
+- Huruf Plus Jakarta Sans, sudut lebih bulat, bayangan lembut berlapis, ikon untuk setiap menu, tombol utama bergradasi, dialog/toast baru.
+- Beranda: kartu sapaan bergradasi (salam sesuai jam, nama, tanggal, ringkasan hari ini, tombol pintas sesuai hak akses).
+- Halaman login & layar boot memakai gradasi yang sama. Layout HP diperbaiki (status ringkas, sidebar 84vw).
+
+**Chat Internal gaya messenger**
+- Dua kolom: daftar percakapan (Umum, Percakapan, Petugas) + isi percakapan; di HP tampil bergantian dengan tombol kembali.
+- Status **Online (live) / Sibuk / Offline** per petugas (koleksi baru `presence`, detak 2,5 menit memakai jam server, offline otomatis setelah 6 menit), tombol status di bilah atas, titik status di foto profil.
+- Penanda belum dibaca per percakapan, pemisah tanggal, pengelompokan pesan, Enter kirim / Shift+Enter baris baru, kontak Super Admin, mode pantau Super Admin (hanya baca), notifikasi suara di semua menu (diingat per perangkat).
+- Listener pesan dipakai bersama badge dan layar chat (Chat langsung tampil, pembacaan Firestore berkurang); query berurutan `tgl` dengan fallback otomatis bila index belum dibuat.
+
+**Loading lebih ringan**
+- Service Worker: file aplikasi memakai cache-dulu + perbarui di belakang (stale-while-revalidate); HTML tetap network-first maks. 2,5 detik. Tombol Update aplikasi mengosongkan cache lalu memuat ulang.
+- Login: data petugas, cabang, dan hak akses dibaca paralel. Aplikasi terbuka maks. 3,5 detik (dulu 8 detik); data yang menyusul mengisi layar otomatis, render ulang digabung (debounce 60 ms).
+- Master jasa & mekanik dibaca dari cache perangkat dulu lalu disegarkan dari server.
+- `js/memo.js`: simpanan memori 60 detik untuk daftar petugas dan pengambilan nota periode lama (dibersihkan otomatis saat nota realtime berubah). Listener status hanya aktif saat Chat dibuka (`leaveHandlers`).
+- Animasi loading muncul halus setelah ±0,2 detik sehingga tidak berkedip bila data sudah tersedia.
+
+**Panduan**
+- Topik baru: Apa yang baru, Tampilan & kecepatan, Fungsi setiap menu (seluruh 25 menu), Chat & Status, Service Advisor, Sales; topik Masalah umum diperluas (status offline, chat, bunyi, menu lama terbuka, update).
+- Memperbaiki topik Sparepart yang terdefinisi dua kali (topik harga master & Import Excel sebelumnya tidak tampil).
+- Topik "Apa yang baru" terbuka otomatis sekali setelah versi baru terpasang. File `PANDUAN.md` berisi seluruh panduan untuk dicetak/dibagikan.
+
+**Wajib setelah deploy**
+1. Publish `firestore.rules` (aturan `presence`).
+2. Deploy `firestore.indexes.json` (`firebase deploy --only firestore:indexes`) — dua index `chat`.
+3. Minta perangkat menekan **Update aplikasi** sekali.
 
 ## 5.12.0 — Model insentif per kategori
 - Sumber insentif baru hanya: Sparepart, Jasa servis, dan Biaya lain.

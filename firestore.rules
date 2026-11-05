@@ -169,6 +169,15 @@ service cloud.firestore {
         && (request.resource.data.ruang == 'umum' || request.resource.data.participantEmails.hasAny([emailKu()]));
       allow update, delete: if false;
     }
+    // 5.19.0 — Status kehadiran (Online/Sibuk/Offline) untuk Chat Internal.
+    // Setiap petugas hanya boleh menulis dokumen miliknya sendiri; waktu wajib jam server.
+    match /presence/{email} {
+      allow read: if isStaff();
+      allow write: if isStaff() && email == emailKu()
+        && request.resource.data.status in ['online', 'sibuk', 'offline']
+        && request.resource.data.aktif == request.time
+        && request.resource.data.keys().hasOnly(['email', 'nama', 'peran', 'peranLabel', 'cabang', 'status', 'aktif']);
+    }
     // Kartu stok (mutasi keluar/masuk): hanya ditambah, tidak bisa diubah/dihapus
     match /mutasi/{id} {
       allow read: if isStaff() && bolehCabang(resource.data.cabang);

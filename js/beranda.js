@@ -35,6 +35,17 @@ function chartSVG() {
   return `<div style="overflow-x:auto"><svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" style="min-width:420px;display:block" role="img" aria-label="Omzet 7 hari terakhir">${g}</svg></div>`;
 }
 
+// 5.19.0: kartu sapaan bergradasi di atas Beranda — salam sesuai jam, nama, cabang, tanggal, dan tombol pintas
+// yang hanya muncul untuk menu yang boleh dibuka peran ini.
+function heroHTML(s, nAktif) {
+  const j = new Date().getHours(), salam = j < 11 ? 'Selamat pagi' : j < 15 ? 'Selamat siang' : j < 18 ? 'Selamat sore' : 'Selamat malam';
+  const nama = String(st.petugas?.nama || 'Petugas').split(/\s+/).slice(0, 2).join(' ');
+  const tgl = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const ringkas = [bolehKotak('omzet') ? `omzet ${rp(s.total)}` : '', bolehKotak('motor') ? `${nAktif} motor di bengkel` : ''].filter(Boolean).join(' · ');
+  const pintas = [['registrasi', 'Motor masuk'], ['kasir', 'Jual part'], ['bayar', 'Pembayaran'], ['cekstok', 'Cek stok'], ['chat', 'Chat']].filter(([v]) => can(v)).slice(0, 4);
+  return `<section class="hero" aria-label="Sapaan"><div class="hero-txt"><span class="hero-eyebrow">${esc(tgl)}</span><h2>${salam}, ${esc(nama)} 👋</h2><p>${ringkas ? 'Hari ini: ' + esc(ringkas) + '.' : 'Semoga pekerjaan hari ini lancar.'}</p></div>${pintas.length ? `<div class="hero-act">${pintas.map(([v, l], i) => `<button class="btn${i === 0 ? ' pri' : ''}" type="button" data-act="hr-go" data-v="${v}">${l}</button>`).join('')}</div>` : ''}</section>`;
+}
+
 function renderBeranda() {
   const t = dkey(new Date()), s = sums(trxIn(t, t));
   const low = S.parts.filter(p => p.min > 0 && p.stok <= p.min);
@@ -44,7 +55,7 @@ function renderBeranda() {
   const migrasiBox = st.petugas?.super && perluMigrasi() ? `<div class="panel migrasi"><h3>Pembaruan data versi 4 diperlukan</h3><p style="margin:0">Sekali saja: nota/WO/pembelian lama diberi kode cabang (untuk kunci data per cabang), gaji pokok dipindah ke tempat privat, dan aturan insentif dipindah ke pengaturan khusus super admin. Lakukan <b>sebelum</b> publish <code>firestore.rules</code> versi 4.</p><div class="row"><button class="btn pri" type="button" data-act="migrasi-run">Perbarui data sekarang</button><span class="small muted" id="migrasi-info"></span></div></div>` : '';
   const bu = umurBackup();
   const backupBox = st.petugas?.super && !perluMigrasi() && perluBackup() ? `<div class="panel migrasi"><h3>${bu == null ? 'Data belum pernah di-backup' : 'Backup terakhir ' + bu + ' hari lalu'}</h3><p style="margin:0">Unduh backup seluruh data minimal seminggu sekali dan simpan di Google Drive + flashdisk/laptop.</p><div class="row"><button class="btn pri" type="button" data-act="go-backup">Backup sekarang</button></div></div>` : '';
-  $('#view').innerHTML = `<div class="grid">${migrasiBox}${backupBox}${seedBox}
+  $('#view').innerHTML = `<div class="grid">${heroHTML(s, aktif.length)}${migrasiBox}${backupBox}${seedBox}
    ${['omzet', 'part', 'motor', 'stok'].some(bolehKotak) ? `<div class="tiles">
     ${bolehKotak('omzet') ? `<button class="tile click" type="button" data-act="hr-trx"><span class="lbl">Omzet hari ini</span><span class="val">${rp(s.total)}</span><span class="sub">${s.n} transaksi · lihat nota</span></button>` : ''}
     ${bolehKotak('part') ? (bolehKotak('partRp') ? `<button class="tile click" type="button" data-act="hr-part"><span class="lbl">Part terjual</span><span class="val">${s.qty} pcs</span><span class="sub">${rp(s.part)} · lihat item</span></button>` : `<div class="tile"><span class="lbl">Part terjual hari ini</span><span class="val">${s.qty} pcs</span></div>`) : ''}
@@ -72,6 +83,7 @@ async function seedParts() {
 views.beranda = renderBeranda;
 actions['seed'] = seedParts;
 actions['go-registrasi'] = () => go('registrasi');
+actions['hr-go'] = el => go(el.dataset.v);
 
 /* ---- Rincian hari ini (klik kotak di beranda) ---- */
 const hariIni = () => { const t = dkey(new Date()); return trxIn(t, t).sort((a, b) => b.tgl.localeCompare(a.tgl)); };

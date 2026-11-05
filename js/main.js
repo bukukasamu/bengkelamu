@@ -1,7 +1,7 @@
 // Titik masuk aplikasi: login + peran, sidebar, sinkron data Firestore, shortcut keyboard.
 import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal)
 import './cari-pilihan.js';   // pilihan panjang: daftar baru muncul setelah mengetik
-import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch, updateDoc } from './firebase.js';
+import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, getDocs, getDocsFromCache, onSnapshot, query, where, orderBy, limit, writeBatch, updateDoc } from './firebase.js';
 import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
 import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal, viewSebelum } from './state.js';
 import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
@@ -30,7 +30,8 @@ import { adaAbsenTertunda, cekAbsenTertunda } from './absensi.js';
 import { pantauPersetujuan, segarkanBadge } from './persetujuan.js';
 import { pantauMinta } from './cek-stok.js';
 import { setPhLoadedFrom } from './penghasilan.js';
-import { sah } from './data-trx.js';
+import { sah, lupakanTrx } from './data-trx.js';
+import { mulaiPresence, hentikanPresence, renderStatusSaya } from './presence.js';
 import './order.js';
 import './bayar.js';
 import './mekanik.js';
@@ -85,7 +86,7 @@ $('#side-nav').addEventListener('click', e => { const b = e.target.closest('.sb-
 
 /* ---------- LOGIN ---------- */
 // Petugas: pilih nama + PIN 6 digit. Super admin: email + kata sandi.
-let loginMsg = '', unsubs = [], ready = {}, need = [], loginList = [], emailMode = false;
+let loginMsg = '', unsubs = [], ready = {}, need = [], loginList = [], emailMode = false, pralogin = null;
 
 function setLoginMode(email) {
   emailMode = email;
@@ -141,7 +142,7 @@ $('#login-form').addEventListener('submit', async e => {
     showLogin(m[err.code] || err.message); (emailMode ? $('#login-pass') : $('#login-pin')).focus();
   }
 });
-$('#logout').addEventListener('click', async () => { if (await konfirmasiLogout()) { viewSebelum.length = 0; signOut(auth); } });
+$('#logout').addEventListener('click', async () => { if (await konfirmasiLogout()) { viewSebelum.length = 0; hentikanPresence(); signOut(auth); } });
 
 // Ganti PIN sendiri
 $('#ganti-pin').addEventListener('click', () => {
@@ -163,10 +164,12 @@ actions['gp-save'] = async () => {
 
 onAuthStateChanged(auth, async u => {
   unsubs.forEach(f => f()); unsubs = []; st.loaded = false; ready = {};
-  if (!u) { st.petugas = null; st.role = null; showLogin(); fillLoginList(); return; }
+  if (!u) { hentikanPresence(); st.petugas = null; st.role = null; showLogin(); fillLoginList(); return; }
   try {
     const email = (u.email || '').toLowerCase();
     let sd;
+    // 5.19.0: data cabang & hak akses dibaca bersamaan dengan data petugas (dulu satu per satu → login lebih lama)
+    pralogin = Promise.all([loadCabang().catch(() => null), getDoc(doc(db, 'pengaturan', 'akses')).then(a => a.exists() ? a.data() : null).catch(() => undefined)]);
     try { sd = await getDoc(doc(db, 'staff', email)); }
     catch (e) {
       // Tepat setelah login, token kadang belum terpasang ke koneksi database: coba sekali lagi
@@ -189,7 +192,7 @@ onAuthStateChanged(auth, async u => {
     await signOut(auth); return;
   }
   // Cabang: karyawan terikat cabangnya; admin/pemilik bisa berpindah (pilihan terakhir diingat di perangkat ini)
-  await loadCabang();
+  const [, aksesAwal] = await (pralogin || Promise.all([loadCabang(), Promise.resolve(undefined)]));
   if (st.role === 'admin') { let c = null; try { c = localStorage.getItem('amu-cabang'); } catch (e) {} st.cabang = cabangById(c) ? c : CABANG_UTAMA; }
   else st.cabang = st.petugas.cabang || CABANG_UTAMA;
   if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA;
@@ -199,8 +202,10 @@ onAuthStateChanged(auth, async u => {
   $('#who').textContent = st.petugas.nama || st.petugas.email;
   $('#who-role').textContent = st.petugas.super ? 'Super Admin' : ROLES[st.role];
   $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
-  try { const ak = await getDoc(doc(db, 'pengaturan', 'akses')); S.akses = ak.exists() ? ak.data() : null; } catch (e) { S.akses = null; }
+  if (aksesAwal === undefined) { try { const ak = await getDoc(doc(db, 'pengaturan', 'akses')); S.akses = ak.exists() ? ak.data() : null; } catch (e) { S.akses = null; } }
+  else S.akses = aksesAwal;
   renderSidebar();
+  mulaiPresence(); renderStatusSaya();
   pantauChatBadge();
   let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
   st.view = last && can(last) ? last : menuAwal();
@@ -228,14 +233,22 @@ function subscribe() {
     if (parsial) console.warn('AMU POS dibuka dengan data parsial; sumber yang belum siap:', need.filter(n => !ready[n]));
     seedMaster(); go(st.view); cekAbsenTertunda(); pasangPenjaga();
   };
+  // 5.19.0: setelah aplikasi terbuka, setiap data yang datang langsung memperbarui layar (digabung per ±60 ms
+  // supaya beberapa sumber yang datang bersamaan hanya menggambar ulang sekali).
   const mark = k => {
     ready[k] = true;
-    if (need.every(n => ready[n])) { clearTimeout(bootstrapFallback); if (!st.loaded) selesaiBootstrap(); else refresh(); }
+    if (st.loaded) { jadwalRefresh(); if (k === 'jasa' || k === 'mekanik' || k === 'settings') seedMaster(); return; }
+    if (need.every(n => ready[n])) { clearTimeout(bootstrapFallback); selesaiBootstrap(); }
   };
-  bootstrapFallback = setTimeout(() => selesaiBootstrap(true), 15000);
+  bootstrapFallback = setTimeout(() => selesaiBootstrap(true), 6000);
   const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, e => fail(e, k)));
   // Master relatif jarang berubah: baca sekali per sesi, bukan listener realtime global.
-  const once = (q, k, fn) => getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => fail(e, k));
+  // 5.19.0: salinan di perangkat dipakai dulu (instan), lalu diperbarui dari server di belakang layar.
+  const once = (q, k, fn) => {
+    let dariCache = false;
+    getDocsFromCache(q).then(s => { if (s.empty || ready[k]) return; dariCache = true; fn(s); terapkanCabang(); mark(k); }).catch(() => {});
+    getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => { if (!dariCache) fail(e, k); });
+  };
   const perluParts = can('registrasi') || can('kasir') || can('stok') || can('cekstok') || can('order') || can('pembelian');
   const perluJasa = can('registrasi') || can('bayar');
   // Mekanik hanya membutuhkan pembacaan master untuk Cek Stok; one-time fetch membuat login lebih ringan.
@@ -255,7 +268,7 @@ function subscribe() {
   }, () => {}));
   if (st.role === 'admin') {
     // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
-    sub(query(collection(db, 'trx'), where('tgl', '>=', today)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    sub(query(collection(db, 'trx'), where('tgl', '>=', today)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
     sub(query(collection(db, 'wo'), where('tgl', '>=', bulanIni + '-01'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(300)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()); });
   } else {
@@ -264,7 +277,7 @@ function subscribe() {
     // Mode kompatibilitas: filter cabang tunggal + limit tidak membutuhkan composite index.
     // Batas 500 menjaga login tetap cepat ketika histori cabang sangat besar.
     // Tanggal/status disaring di perangkat agar login tidak gagal saat index belum selesai dibuat.
-    sub(query(collection(db, 'trx'), where('cabang', '==', cab), limit(500)), 'trx', s => { raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    sub(query(collection(db, 'trx'), where('cabang', '==', cab), limit(500)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
     let woBulan = [], woAktif = [];
     const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
     sub(query(collection(db, 'wo'), where('cabang', '==', cab), limit(500)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
@@ -275,9 +288,12 @@ function subscribe() {
   pantauPersetujuan(unsubs);
   pantauMinta(unsubs);
   unsubs.push(watchCabang(() => { if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA; renderCabangBox(); if (st.loaded) { terapkanCabang(); refresh(); } }));
-  // Pengaman: buka shell maksimal 8 detik setelah login; data yang belum siap menyusul lewat listener.
-  setTimeout(() => { if (!st.loaded) { console.warn('Startup timeout: membuka aplikasi dengan data yang tersedia'); need.forEach(k => { ready[k] = true; }); mark('__startup_timeout__'); } }, 8000);
+  // Pengaman 5.19.0: aplikasi dibuka paling lama 3,5 detik setelah login walaupun sebagian data masih di jalan
+  // (dulu 8 detik). Data yang menyusul langsung mengisi layar lewat listener realtime.
+  setTimeout(() => { if (!st.loaded) { console.warn('Startup cepat: membuka aplikasi dengan data yang tersedia; menyusul:', need.filter(n => !ready[n])); selesaiBootstrap(true); } }, 3500);
 }
+let refreshTimer = 0;
+function jadwalRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 60); }
 
 /* ---------- CABANG ----------
    Data mentah semua cabang disimpan di "raw"; S.* berisi data cabang yang sedang dipakai.
@@ -309,6 +325,7 @@ function renderProfil() {
   const foto = st.petugas.foto ? `<img src="${esc(st.petugas.foto)}" alt="Foto ${esc(nama)}">` : `<span>${esc(inisial)}</span>`;
   el.hidden = false;
   el.innerHTML = `<div class="top-avatar">${foto}</div><div class="top-profile-text"><b>${esc(nama)}</b><small>${esc(st.petugas.super ? 'Super Admin' : ROLES[st.role] || st.role || '')}</small></div>`;
+  renderStatusSaya();
 }
 document.addEventListener('change', e => {
   if (e.target.id !== 'cabang-pilih') return;
@@ -319,8 +336,12 @@ document.addEventListener('change', e => {
 });
 
 // Admin pertama kali: isi jasa, mekanik, tipe motor default supaya registrasi langsung bisa dipakai
+let seedDicoba = false;
 async function seedMaster() {
-  if (!st.petugas?.super || S.jasa.length || S.mekanik.length || S.settings.tipe || S.settings.dikosongkan) return;
+  // Jangan mengisi data awal sebelum jasa/mekanik/pengaturan benar-benar terbaca (startup cepat bisa dibuka dengan data parsial)
+  if (!ready.jasa || !ready.mekanik || !ready.settings) return;
+  if (!st.petugas?.super || seedDicoba || S.jasa.length || S.mekanik.length || S.settings.tipe || S.settings.dikosongkan) return;
+  seedDicoba = true;
   try {
     const b = writeBatch(db);
     DEFAULT_JASA.forEach(([nama, harga], i) => b.set(doc(collection(db, 'jasa')), { nama, harga, aktif: true, urut: i }));

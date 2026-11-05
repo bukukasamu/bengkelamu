@@ -75,11 +75,13 @@ export const actions = {         // data-act -> fungsi(el)
 export const inputHandlers = [];
 export const changeHandlers = [];
 export const fkeys = {};          // id menu -> { baru, simpan }
+export const leaveHandlers = {};  // id menu -> fungsi saat menu ditinggalkan (mis. hentikan listener realtime) — 5.19.0
 
 // Menu yang dibuka sebelumnya (untuk tombol Kembali)
 export const viewSebelum = [];
 export function go(v, { kembali = false } = {}) {
   if (!can(v)) v = menuAwal();
+  if (st.view && st.view !== v) { try { leaveHandlers[st.view]?.(); } catch (e) { console.warn(e); } }
   if (!kembali && st.view && st.view !== v) { viewSebelum.push(st.view); if (viewSebelum.length > 30) viewSebelum.shift(); }
   st.view = v;
   document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });

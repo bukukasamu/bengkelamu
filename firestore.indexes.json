@@ -41,6 +41,38 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "chat",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ruang",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tgl",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chat",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "participantEmails",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "ruang",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tgl",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
