@@ -1,7 +1,7 @@
 // Titik masuk aplikasi: login + peran, sidebar, sinkron data Firestore, shortcut keyboard.
 import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal)
 import './cari-pilihan.js';   // pilihan panjang: daftar baru muncul setelah mengetik
-import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch } from './firebase.js';
+import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch, updateDoc } from './firebase.js';
 import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
 import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal, viewSebelum } from './state.js';
 import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
@@ -70,6 +70,15 @@ function refreshTombolTema() { document.querySelectorAll('[data-theme-toggle]').
 document.querySelectorAll('[data-theme-toggle]').forEach(b => b.addEventListener('click', () => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); terapkanTema(gelap ? 'segar' : 'gelap'); refreshTombolTema(); }));
 refreshTombolTema();
 window.addEventListener('amu-profile-changed', renderProfil);
+$('#top-profile')?.addEventListener('click', () => $('#profile-file')?.click());
+$('#profile-file')?.addEventListener('change', async e => {
+  const file = e.target.files?.[0], email = st.petugas?.email; if (!file || !email) return;
+  try {
+    const foto = await new Promise((resolve, reject) => { const r = new FileReader(); r.onerror = () => reject(new Error('Foto tidak dapat dibaca')); r.onload = () => { const im = new Image(); im.onerror = () => reject(new Error('Format foto tidak didukung')); im.onload = () => { const max = 360, sk = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * sk)); c.height = Math.max(1, Math.round(im.height * sk)); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); resolve(c.toDataURL('image/jpeg', .78)); }; im.src = r.result; }; r.readAsDataURL(file); });
+    await updateDoc(doc(db, 'staff', email), { foto }); st.petugas.foto = foto; renderProfil(); toast('Foto profil berhasil diperbarui');
+  } catch (err) { toast('Foto gagal disimpan: ' + errMsg(err)); }
+  e.target.value = '';
+});
 window.addEventListener('amu-update-ok', () => toast('Aplikasi sudah menggunakan versi terbaru'));
 window.addEventListener('amu-update-fail', () => toast('Update gagal. Periksa koneksi internet lalu coba lagi.'));
 $('#side-nav').addEventListener('click', e => { const b = e.target.closest('.sb-link'); if (b) go(b.dataset.view); });

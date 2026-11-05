@@ -155,11 +155,13 @@ footer.foot{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 3
 .sb-foot .btn{background:transparent;color:var(--on-hd);border-color:rgba(255,255,255,.3);align-self:flex-start}
 .ver{color:var(--hd-muted);font-family:var(--f-mono);font-size:.72rem}
 .content{min-width:0;min-height:100dvh;margin-left:236px;display:flex;flex-direction:column}
+.content{transition:margin-left .18s ease}
+body.sb-hidden .content{margin-left:0}
 .topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .topbar h1{font-family:var(--f-display);font-size:1.3rem;margin:0;font-weight:700}
 .topbar .clock{margin-left:auto;color:var(--muted);font-size:.85rem}
 .top-profile{display:flex;align-items:center;gap:8px;margin-left:auto;min-width:0;max-width:230px;padding:3px 8px 3px 4px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2);position:relative;z-index:1}
-.top-avatar{width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:var(--accent);color:var(--on-accent);font-family:var(--f-display);font-weight:700}
+.top-avatar{width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:var(--accent);color:var(--on-accent);font-family:var(--f-display);font-weight:700;cursor:pointer}
 .top-avatar img{width:100%;height:100%;object-fit:cover}
 .top-profile-text{display:flex;flex-direction:column;min-width:0;line-height:1.1}
 .top-profile-text b,.top-profile-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top-profile-text b{font-size:.82rem}.top-profile-text small{color:var(--muted);font-size:.7rem;margin-top:2px}
