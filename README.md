@@ -1,9 +1,16 @@
-# Aceh Mandiri Utama POS · versi 5.19.2
+# Aceh Mandiri Utama POS · versi 5.20.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.20.0 — HP gaya aplikasi, KSG 12 kolom, PDF absensi pribadi
+- `js/mobile-nav.js`: di layar ≤ 900px bilah kiri diganti bilah bawah (4 menu utama per peran + tombol Menu) dan lembar menu dari bawah (profil, status, semua menu berikon & badge, Ganti PIN/Pasang/Update/Mode gelap/Keluar). Isi disinkronkan dari `#side-nav` lewat MutationObserver; tombol Kembali & geser ke bawah menutup lembar.
+- HP terkunci: `overscroll-behavior:none`, `touch-action:pan-x pan-y`, viewport `maximum-scale=1`, isian 16px (tanpa zoom iOS), safe-area, dialog jadi bottom sheet, toolbar disembunyikan bila kosong, F8 hanya di Bayar/Jual Part/Laporan, gulir otomatis ke panel rincian.
+- Tarif KSG 12 kolom (`KSG_JUMLAH` di config.js), kolom tipe lengket; registrasi KSG ke-1..12 dengan penanda "(tanpa tarif)".
+- `js/absen-pdf.js`: laporan absensi pribadi A4 (1 halaman untuk 31 hari). Absensi Saya: tombol Pratinjau & PDF; Rekap bulanan super admin: pratinjau/PDF per karyawan.
+- `tabel()` di pdf-kit mendukung `pad` (baris rapat). `body[data-view]` diisi router.
 
 ## 5.19.2 — PDF modern dan tampilan HP rapi
 - `js/pdf-kit.js` baru: pita kepala bergradasi (mengikuti tema), logo berwarna di plat putih, kartu, judul bagian, tabel modern, tanda tangan, lencana, kaki + nomor halaman.

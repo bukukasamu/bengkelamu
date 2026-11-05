@@ -6,7 +6,7 @@ import { renderKonsumenTab, konsumenState } from './konsumen.js';
 import { ambilKonsumen, ubahKonsumen, KTP } from './konsumen-data.js';
 import { cariKendaraan } from './cari-kendaraan.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, isRole, namaPetugas, go, filterBuka, tombolFilter, KOTAK_BERANDA, KOTAK_BAWAAN } from './state.js';
-import { ROLES, MENUS } from './config.js';
+import { ROLES, MENUS, KSG_JUMLAH } from './config.js';
 import { db, doc, getDoc, collection, getDocs, writeBatch, query, where, orderBy, limit, setDoc, updateDoc, addDoc, deleteDoc } from './firebase.js';
 import { nopolKey } from './registrasi.js';
 import { statusPill, rebuildPantau, syncLayar, pindahPantau, AKTIF } from './wo-common.js';
@@ -215,15 +215,15 @@ function renderJasa() {
 /* ---------- Tarif KSG (dari main dealer) ---------- */
 function renderKsg() {
   const tarif = S.settings.ksgTarif || {};
-  $('#ms-body').innerHTML = intro('Tarif klaim jasa KSG dari main dealer, per tipe motor dan KSG ke-1 s.d. 4. Nilai ini yang tercatat sebagai klaim KSG di laporan dan nilai jasa mekanik. Kosongkan bila tipe tersebut tidak punya KSG.') + `
-   <div class="tw"><table><thead><tr><th>Tipe motor</th>${[1, 2, 3, 4].map(n => `<th class="r">KSG ${n}</th>`).join('')}</tr></thead><tbody>
-   ${tipeList().map((t, i) => `<tr><td>${esc(t)}</td>${[0, 1, 2, 3].map(k => `<td class="r"><input class="inline-input num" type="number" min="0" step="500" id="kt-${i}-${k}" value="${tarif[t]?.[k] || ''}" placeholder="0" style="text-align:right;width:100px" aria-label="${esc(t)} KSG ${k + 1}"></td>`).join('')}</tr>`).join('')}
+  $('#ms-body').innerHTML = intro(`Tarif klaim jasa KSG dari main dealer, per tipe motor dan KSG ke-1 s.d. ${KSG_JUMLAH}. Isi sendiri kolom yang berlaku untuk tipe tersebut; kolom yang dikosongkan berarti tidak ada klaim. Nilai ini yang tercatat sebagai klaim KSG di laporan dan nilai jasa mekanik. Geser tabel ke samping untuk kolom berikutnya.`) + `
+   <div class="tw ksg-tw"><table class="ksg-table"><thead><tr><th class="ksg-tipe">Tipe motor</th>${Array.from({ length: KSG_JUMLAH }, (_, n) => `<th class="r">KSG ${n + 1}</th>`).join('')}</tr></thead><tbody>
+   ${tipeList().map((t, i) => `<tr><td class="ksg-tipe">${esc(t)}</td>${Array.from({ length: KSG_JUMLAH }, (_, k) => `<td class="r"><input class="inline-input num" type="number" inputmode="numeric" min="0" step="500" id="kt-${i}-${k}" value="${tarif[t]?.[k] || ''}" placeholder="0" style="text-align:right;width:96px" aria-label="${esc(t)} KSG ${k + 1}"></td>`).join('')}</tr>`).join('')}
    </tbody></table></div>
    <div class="row" style="justify-content:space-between;margin-top:8px"><span class="small muted">Tipe motor diatur di tab Tipe Motor.</span><button class="btn pri" type="button" data-act="kt-save">Simpan tarif KSG [F2]</button></div>`;
 }
 async function saveKsg() {
   const tarif = {};
-  tipeList().forEach((t, i) => { const v = [0, 1, 2, 3].map(k => +$(`#kt-${i}-${k}`).value || 0); if (v.some(Boolean)) tarif[t] = v; });
+  tipeList().forEach((t, i) => { const v = Array.from({ length: KSG_JUMLAH }, (_, k) => +$(`#kt-${i}-${k}`)?.value || 0); while (v.length && !v[v.length - 1]) v.pop(); if (v.some(Boolean)) tarif[t] = v; });
   try { await saveSettings({ ksgTarif: tarif }); toast('Tarif KSG disimpan untuk ' + Object.keys(tarif).length + ' tipe motor'); } catch (e) { toast(errMsg(e)); }
 }
 

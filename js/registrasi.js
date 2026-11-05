@@ -1,6 +1,6 @@
 // Menu Registrasi Servis: data konsumen & kendaraan, keluhan, jenis servis (Reguler/KSB/KSG), jasa, mekanik.
 import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber, konfirmasi, modal } from './util.js';
-import { APP_NAME } from './config.js';
+import { APP_NAME, KSG_JUMLAH } from './config.js';
 import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, part, hargaJualPart, mekanikById, isRole, namaPetugas } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, collection, query, where, limit, documentId } from './firebase.js';
@@ -137,7 +137,7 @@ function renderRegistrasi() {
     <h3>3. Servis</h3>
     <div class="form">
      <label class="f" for="r-jenis">Jenis servis<select id="r-jenis" data-rf="jenisServis" ${dis}>${Object.entries(JENIS_SERVIS).filter(([k]) => ['KSB', 'KSG'].includes(k) || k === w.jenisServis).map(([k, l]) => `<option value="${k}" ${k === w.jenisServis ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-     ${w.jenisServis === 'KSG' ? `<label class="f" for="r-ksgke">KSG ke-<select id="r-ksgke" data-rf="ksgKe" ${dis}><option value="">Pilih</option>${[1, 2, 3, 4].map(n => `<option ${String(n) === String(w.ksgKe) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+     ${w.jenisServis === 'KSG' ? `<label class="f" for="r-ksgke">KSG ke-<select id="r-ksgke" data-rf="ksgKe" ${dis}><option value="">Pilih</option>${Array.from({ length: KSG_JUMLAH }, (_, i) => i + 1).map(n => `<option value="${n}" ${String(n) === String(w.ksgKe) ? 'selected' : ''}>${n}${w.tipe && S.settings.ksgTarif?.[w.tipe] ? (+S.settings.ksgTarif[w.tipe][n - 1] ? '' : ' (tanpa tarif)') : ''}</option>`).join('')}</select></label>` : ''}
      ${w.jenisServis !== 'Reguler' ? inp('noKartu', w.jenisServis === 'KSG' ? 'No. kupon / buku servis' : 'No. kartu KSB', 'class="mono"') : ''}
      <label class="f" for="r-mek">Mekanik<select id="r-mek" data-rf="mekanikId" ${dis}>${mekanikOptions(w)}</select></label>
      <label class="f wide" for="r-keluhan">Keluhan konsumen<textarea id="r-keluhan" data-rf="keluhan" ${dis}>${esc(w.keluhan)}</textarea></label>

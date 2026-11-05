@@ -24,7 +24,7 @@ function renderList() {
 function renderBayar() {
   $('#view').innerHTML = `<div class="grid g-servis">
    <div class="panel"><h3>Motor di bengkel</h3><p class="small muted" style="margin:0">Dikerjakan: tunggu laporan mekanik. Selesai: siap dibayar.</p><div class="wolist" id="bay-list"></div></div>
-   <div class="panel" id="bay-detail"><div class="empty">Pilih motor di sebelah kiri.</div></div>
+   <div class="panel" id="bay-detail"><div class="empty">Pilih motor dari daftar motor di bengkel.</div></div>
   </div>`;
   renderList();
   if (st.bayarNo && AKTIF.includes(findWo(st.bayarNo)?.status)) renderDetail(); else st.bayarNo = null;

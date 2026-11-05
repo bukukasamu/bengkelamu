@@ -23,7 +23,7 @@ export const jenisBadge = w => w.jenisServis === 'KSG' ? `<span class="badge b-k
   : w.jenisServis === 'KSB' ? '<span class="badge b-ksb">KSB</span>' : '<span class="badge b-reg">Reguler</span>';
 export const jenisText = w => w.jenisServis === 'KSG' ? 'KSG' + (w.ksgKe ? ' ke-' + w.ksgKe : '') : w.jenisServis === 'KSB' ? 'KSB' : 'Reguler';
 
-// Tarif klaim KSG dari main dealer: Master Data → Tarif KSG (per tipe motor, KSG ke-1..4)
+// Tarif klaim KSG dari main dealer: Master Data → Tarif KSG (per tipe motor, KSG ke-1..12 sejak 5.20.0)
 export const tarifKsg = w => +(S.settings.ksgTarif?.[w.tipe]?.[(+w.ksgKe || 0) - 1] || 0);
 
 // KSG: jasa tidak ditagih ke konsumen; nilai klaim = tarif main dealer. Sparepart & biaya tambahan tetap ditagih.

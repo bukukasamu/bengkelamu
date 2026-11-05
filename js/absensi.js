@@ -261,6 +261,7 @@ async function renderSaya(a) {
   if (st.view !== 'absensi') return;
   const x = rekapAbsen(docs, a)[kunci] || kosong(), hariIni = docs.find(r => r.tgl === tglWIB()), n = hariIni && nilaiHari(hariIni, a);
   const j = jamCabang(a, st.petugas.cabang || CABANG_UTAMA), hpIni = hp && hp.device === idPerangkat();
+  dataSaya = dataLaporan({ nama: st.petugas.nama || '', peran: st.role, cabang: st.petugas.cabang, ym, x, a });
   $('#view').innerHTML = `<div class="grid">
    <div class="panel"><div class="row spread"><h3>Hari ini · ${esc(new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }))}</h3><span class="small muted">Jam kerja ${esc(j.masuk)}–${esc(j.pulang)} · toleransi ${a.toleransi} mnt</span></div>
     <div class="tiles"><div class="tile"><span class="lbl">Masuk</span><span class="val">${hariIni ? jamTampil(hariIni.masuk) : '–'}</span><span class="sub">${n ? statusPill({ ...n, tanpaPulang: false, belumPulang: false, cepat: 0 }) : 'belum absen'}</span></div>
@@ -268,11 +269,50 @@ async function renderSaya(a) {
     <div class="row"><button class="btn pri" type="button" data-act="ab-scan" style="font-size:1.05rem;padding:12px 18px">📷 Scan QR absen ${hariIni?.masuk ? 'pulang' : 'masuk'}</button></div>
     <p class="small muted" style="margin:0">Scan QR di layar absen bengkel (berganti tiap 15 detik), lalu selfie. ${hp ? (hpIni ? '✅ HP ini adalah HP absen Anda.' : '⚠️ HP ini <b>bukan</b> HP absen terdaftar Anda; absen akan ditolak.') : 'HP yang dipakai pertama kali absen akan menjadi HP absen Anda.'}</p>
    </div>
-   <div class="panel"><div class="row spread"><div class="lap-nav"><button class="btn sm" type="button" data-act="ab-bln" data-n="-1" aria-label="Bulan sebelumnya">‹</button><b>${esc(namaBulan(ym))}</b><button class="btn sm" type="button" data-act="ab-bln" data-n="1" aria-label="Bulan berikutnya" ${ym >= tglWIB().slice(0, 7) ? 'disabled' : ''}>›</button></div></div>
+   <div class="panel"><div class="row spread"><div class="lap-nav"><button class="btn sm" type="button" data-act="ab-bln" data-n="-1" aria-label="Bulan sebelumnya">‹</button><b>${esc(namaBulan(ym))}</b><button class="btn sm" type="button" data-act="ab-bln" data-n="1" aria-label="Bulan berikutnya" ${ym >= tglWIB().slice(0, 7) ? 'disabled' : ''}>›</button></div><div class="row"><button class="btn" type="button" data-act="ab-preview">👁 Pratinjau</button><button class="btn pri" type="button" data-act="ab-pdf">⬇ PDF absensi</button></div></div>
     ${tilesRekap(x, a)}
     ${x.list.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Keterangan</th></tr></thead><tbody>${[...x.list].reverse().map(({ r, n }) => `<tr><td>${esc(new Date(r.tgl + 'T00:00').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }))}</td><td class="num">${jamTampil(r.masuk)}</td><td class="num">${jamTampil(r.pulang)}</td><td>${statusPill(n)}${r.catatan ? `<div class="small muted">${esc(r.catatan)}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Belum ada absensi bulan ini.</div>'}
    </div></div>`;
 }
+
+/* ---------- 5.20.0: Laporan absensi pribadi (pratinjau & PDF) ---------- */
+const keterangan = n => {
+  if (n.manual) return STATUS_MANUAL[n.manual];
+  const p = [];
+  if (n.telat) p.push('Terlambat ' + fmtMenit(n.telat));
+  if (n.tanpaPulang) p.push('Tanpa scan pulang');
+  if (n.belumPulang) p.push('Belum pulang');
+  if (n.cepat) p.push('Pulang cepat ' + fmtMenit(n.cepat));
+  if (!p.length && n.hadir) p.push('Tepat waktu');
+  return p.join(', ') || '–';
+};
+function dataLaporan({ nama, peran, cabang, ym, x, a }) {
+  const j = jamCabang(a, cabang || CABANG_UTAMA);
+  return {
+    nama, peran: ROLES[peran] || peran || '', cabang: namaCabang(cabang || CABANG_UTAMA), periode: namaBulan(ym), ym, jamKerja: `${j.masuk}–${j.pulang} (toleransi ${a.toleransi} mnt)`,
+    rekap: [['Hari hadir', String(x.hadir), 'uang hadir ' + rp(x.uangHadir)], ['Terlambat', x.telat + '×', x.telat ? fmtMenit(x.telatMenit) + ' · ' + rp(x.potongTelat) : 'tidak ada'], ['Tanpa scan pulang', String(x.tanpaPulang), a.wajibPulang ? 'tanpa uang hadir' : 'tidak wajib'], ['Pulang cepat', x.cepat + '×', a.potongPulangCepat ? rp(x.potongCepat) : 'tanpa potongan'], ['Izin/sakit/alpa', `${x.izin}/${x.sakit}/${x.alpa}`, 'dicatat admin']],
+    baris: x.list.map(({ r, n }) => [new Date(r.tgl + 'T00:00').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }), jamTampil(r.masuk), jamTampil(r.pulang), n.masuk != null && n.pulang != null ? fmtMenit(Math.max(0, n.pulang - n.masuk)) : '–', keterangan(n) + (r.catatan ? ' — ' + r.catatan : '')]),
+    catatan: `Uang hadir ${rp(a.uangHadir)}/hari${a.wajibPulang ? ' (wajib scan masuk & pulang)' : ''}, potongan terlambat ${rp(a.potongTelat)}/kali. Waktu memakai jam server WIB.`
+  };
+}
+let laporanAktif = null;
+function pratinjauAbsen(d) {
+  laporanAktif = d;
+  modal(`<div class="ab-pv"><div class="ab-pv-head"><div><small>LAPORAN ABSENSI</small><b>${esc(d.nama)}</b><span>${esc(d.peran)} · ${esc(d.cabang)}</span></div><div class="ab-pv-per">${esc(d.periode)}<small>Jam kerja ${esc(d.jamKerja)}</small></div></div>
+   <div class="ab-pv-rekap">${d.rekap.map(([l, v, s]) => `<div><small>${esc(l)}</small><b>${esc(v)}</b><span>${esc(s)}</span></div>`).join('')}</div>
+   <div class="tw"><table><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Durasi</th><th>Keterangan</th></tr></thead><tbody>${d.baris.length ? d.baris.map(b => `<tr>${b.map((c, i) => `<td${i && i < 4 ? ' class="num"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('') : '<tr><td colspan="5" class="muted">Belum ada absensi pada periode ini.</td></tr>'}</tbody></table></div>
+   <p class="small muted" style="margin:0">${esc(d.catatan)}</p></div>
+   <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Tutup</button><button class="btn pri" type="button" data-act="ab-pdf-ok">⬇ Unduh PDF</button></div>`);
+}
+async function unduhAbsenPdf(d, el) {
+  const label = el?.textContent; if (el) { el.disabled = true; el.textContent = 'Membuat PDF…'; }
+  try {
+    const { absenPdfBlob } = await import('./absen-pdf.js'), { saveBlob } = await import('./nota-pdf.js');
+    saveBlob(await absenPdfBlob(d), `Absensi-${d.nama.replace(/\s+/g, '-')}-${d.ym}.pdf`); toast('PDF absensi diunduh');
+  } catch (e) { toast('Gagal membuat PDF: ' + errMsg(e)); }
+  finally { if (el) { el.disabled = false; el.textContent = label; } }
+}
+let dataSaya = null;
 
 /* Super admin: harian, rekap, HP terdaftar, pengaturan */
 let karyawan = null, fotoDibersihkan = false;
@@ -334,12 +374,16 @@ async function tabRekap(a) {
   const kini = tglWIB().slice(0, 7);
   $('#ab-body').innerHTML = `<div class="grid">
    <div class="row spread"><div class="lap-nav"><button class="btn sm" type="button" data-act="ab-bln" data-n="-1" aria-label="Bulan sebelumnya">‹</button><b>${esc(namaBulan(ym))}</b><button class="btn sm" type="button" data-act="ab-bln" data-n="1" aria-label="Bulan berikutnya" ${ym >= kini ? 'disabled' : ''}>›</button></div><div class="row">${pilihCabang()}<button class="btn" type="button" data-act="ab-xlsx">⬇ Excel</button></div></div>
-   <div class="tw"><table class="bernomor"><thead><tr><th>Karyawan</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Hadir</th><th class="r">Terlambat</th><th class="r">Tanpa pulang</th><th class="r">Izin/sakit/alpa</th><th class="r">Uang hadir</th><th class="r">Potongan</th></tr></thead><tbody>
-    ${org.map(p => { const x = rk[p.kunci] || kosong(); return `<tr><td>${esc(p.nama)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(p.cabang))}</td>` : ''}<td class="r num">${x.hadir}</td><td class="r num">${x.telat ? x.telat + '× · ' + fmtMenit(x.telatMenit) : '–'}</td><td class="r num">${x.tanpaPulang || '–'}</td><td class="r num">${x.izin}/${x.sakit}/${x.alpa}</td><td class="r num" style="color:var(--good)">${rp(x.uangHadir)}</td><td class="r num" style="color:var(--bad)">${x.potongTelat + x.potongCepat ? '−' + rp(x.potongTelat + x.potongCepat) : '–'}</td></tr>`; }).join('')}
+   <div class="tw"><table class="bernomor"><thead><tr><th>Karyawan</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th class="r">Hadir</th><th class="r">Terlambat</th><th class="r">Tanpa pulang</th><th class="r">Izin/sakit/alpa</th><th class="r">Uang hadir</th><th class="r">Potongan</th><th class="no-print"></th></tr></thead><tbody>
+    ${org.map(p => { const x = rk[p.kunci] || kosong(); return `<tr><td>${esc(p.nama)}</td>${multiCabang() ? `<td class="small">${esc(namaCabang(p.cabang))}</td>` : ''}<td class="r num">${x.hadir}</td><td class="r num">${x.telat ? x.telat + '× · ' + fmtMenit(x.telatMenit) : '–'}</td><td class="r num">${x.tanpaPulang || '–'}</td><td class="r num">${x.izin}/${x.sakit}/${x.alpa}</td><td class="r num" style="color:var(--good)">${rp(x.uangHadir)}</td><td class="r num" style="color:var(--bad)">${x.potongTelat + x.potongCepat ? '−' + rp(x.potongTelat + x.potongCepat) : '–'}</td><td class="r no-print" style="white-space:nowrap"><button class="btn sm" type="button" data-act="ab-pv-k" data-k="${esc(p.kunci)}" title="Pratinjau absensi">👁</button> <button class="btn sm" type="button" data-act="ab-pdf-k" data-k="${esc(p.kunci)}" title="Unduh PDF absensi">PDF</button></td></tr>`; }).join('')}
    </tbody></table></div>
    <p class="small muted" style="margin:0">Uang hadir ${rp(a.uangHadir)}/hari${a.wajibPulang ? ' (wajib scan masuk &amp; pulang)' : ''}, potongan terlambat ${rp(a.potongTelat)}/kali. Angka ini otomatis masuk ke Penghasilan Karyawan dan slip gaji.</p></div>`;
 }
 
+function laporanKaryawan(k) {
+  if (!rekapData) return null; const p = rekapData.org.find(o => o.kunci === k); if (!p) return null;
+  return dataLaporan({ nama: p.nama, peran: p.peran, cabang: p.cabang, ym: rekapData.ym, x: rekapData.rk[k] || kosong(), a: aturan || ABSEN_DEFAULT });
+}
 let layarList = [];
 const fmtDetik = d => d >= 60 ? '= ' + Math.floor(d / 60) + ' menit' + (d % 60 ? ' ' + (d % 60) + ' detik' : '') : '';
 const waktuTs = t => t?.toDate ? t.toDate() : (t ? new Date(t) : null);
@@ -405,6 +449,11 @@ Object.assign(actions, {
   'ab-bln': el => { AB.bulan = geserBulan(AB.bulan, +el.dataset.n); renderAbsensi(); },
   'ab-hari': el => { const d = new Date(AB.tgl + 'T00:00'); d.setDate(d.getDate() + +el.dataset.n); AB.tgl = dkey(d); renderAbsensi(); },
   'ab-xlsx': exportXlsx,
+  'ab-preview': () => dataSaya && pratinjauAbsen(dataSaya),
+  'ab-pdf': el => dataSaya && unduhAbsenPdf(dataSaya, el),
+  'ab-pdf-ok': el => laporanAktif && unduhAbsenPdf(laporanAktif, el),
+  'ab-pv-k': el => { const d = laporanKaryawan(el.dataset.k); if (d) pratinjauAbsen(d); },
+  'ab-pdf-k': el => { const d = laporanKaryawan(el.dataset.k); if (d) unduhAbsenPdf(d, el); },
   'ly-jam': async el => {
     const c = el.dataset.c, m = document.querySelector(`.ly-m[data-c="${c}"]`).value, sl = document.querySelector(`.ly-s[data-c="${c}"]`).value;
     const j = Math.round(+document.querySelector(`.ly-j[data-c="${c}"]`).value);

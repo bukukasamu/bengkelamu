@@ -32,6 +32,7 @@ import { pantauMinta } from './cek-stok.js';
 import { setPhLoadedFrom } from './penghasilan.js';
 import { sah, lupakanTrx } from './data-trx.js';
 import { mulaiPresence, hentikanPresence, renderStatusSaya } from './presence.js';
+import { pasangNavHp } from './mobile-nav.js';
 import './order.js';
 import './bayar.js';
 import './mekanik.js';
@@ -65,6 +66,7 @@ function toggleSidebar() {
 }
 try { if (localStorage.getItem('amu-sb-hidden')) document.body.classList.add('sb-hidden'); } catch (e) {}
 $('#sb-toggle').addEventListener('click', toggleSidebar);
+pasangNavHp();
 $('#sb-backdrop').addEventListener('click', toggleSidebar);
 ['#update-app', '#update-app-login'].forEach(sel => { const b = $(sel); b?.addEventListener('click', () => updateAplikasi(b)); });
 function refreshTombolTema() { document.querySelectorAll('[data-theme-toggle]').forEach(b => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); b.textContent = gelap ? '☀ Mode terang' : '☾ Mode gelap'; b.setAttribute('aria-pressed', gelap ? 'true' : 'false'); }); }

@@ -83,7 +83,7 @@ export function go(v, { kembali = false } = {}) {
   if (!can(v)) v = menuAwal();
   if (st.view && st.view !== v) { try { leaveHandlers[st.view]?.(); } catch (e) { console.warn(e); } }
   if (!kembali && st.view && st.view !== v) { viewSebelum.push(st.view); if (viewSebelum.length > 30) viewSebelum.shift(); }
-  st.view = v;
+  st.view = v; document.body.dataset.view = v;
   document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const m = MENUS.find(x => x.id === v); if ($('#page-title')) $('#page-title').textContent = m ? menuLabel(m) : '';
   // Tombol cepat F1/F2/F3/F8 hanya tampil bila berguna di halaman & peran ini

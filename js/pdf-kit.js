@@ -99,7 +99,7 @@ export function kartu(pdf, x, y, w, h, { lbl, val, sub, warna, i = 0 }) {
 }
 // Tabel modern. kolom = [[judul, lebar, 'r'?], ...]; baris = [[...]]; baris.total = [...] (opsional)
 // Mengembalikan y akhir; ganti halaman otomatis lewat cb.halBaru() yang mengembalikan y baru.
-export function tabel(pdf, { x, y, kolom, baris, H, M, halBaru, ukuran = 7.8, maks = 2 }) {
+export function tabel(pdf, { x, y, kolom, baris, H, M, halBaru, ukuran = 7.8, maks = 2, pad = 2.8 }) {
   const P = palet(), t = penulis(pdf), lebar = kolom.reduce((a, k) => a + k[1], 0);
   const kepalaT = () => {
     pdf.setFillColor(...P.soft); pdf.roundedRect(x, y, lebar, 7, 1.6, 1.6, 'F');
@@ -110,10 +110,10 @@ export function tabel(pdf, { x, y, kolom, baris, H, M, halBaru, ukuran = 7.8, ma
   baris.forEach((r, i) => {
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(ukuran);
     const sel = r.map((v, k) => pdf.splitTextToSize(String(v ?? ''), kolom[k][1] - 4.4).slice(0, maks));
-    const h = Math.max(...sel.map(s => s.length)) * (ukuran * 0.42) + 2.8;
+    const h = Math.max(...sel.map(s => s.length)) * (ukuran * 0.42) + pad;
     if (y + h > H - M - 8) { y = halBaru(); kepalaT(); }
     if (i % 2) { pdf.setFillColor(249, 250, 252); pdf.rect(x, y, lebar, h, 'F'); }
-    let cx = x; sel.forEach((s, k) => { const [, w, a] = kolom[k]; pdf.setTextColor(35); pdf.text(s, a === 'r' ? cx + w - 2.2 : cx + 2.2, y + ukuran * 0.42 + 0.9, a === 'r' ? { align: 'right' } : undefined); cx += w; });
+    let cx = x; sel.forEach((s, k) => { const [, w, a] = kolom[k]; pdf.setTextColor(35); pdf.text(s, a === 'r' ? cx + w - 2.2 : cx + 2.2, y + ukuran * 0.42 + pad / 2 - 0.5, a === 'r' ? { align: 'right' } : undefined); cx += w; });
     pdf.setDrawColor(236); pdf.setLineWidth(0.15); pdf.line(x, y + h, x + lebar, y + h);
     y += h;
   });

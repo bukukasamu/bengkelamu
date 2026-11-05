@@ -15,7 +15,7 @@ function renderOrder() {
   const w = st.orderDraft;
   $('#view').innerHTML = `<div class="grid g-servis">
    <div class="panel"><h3>Motor di bengkel</h3><div class="wolist" id="ord-list"></div></div>
-   <div class="panel" id="ord-detail">${w ? '' : '<div class="empty">Pilih motor di sebelah kiri untuk mengisi order sparepart.</div>'}</div>
+   <div class="panel" id="ord-detail">${w ? '' : '<div class="empty">Pilih motor dari daftar untuk mengisi order sparepart.</div>'}</div>
   </div>`;
   renderList(); if (w) renderDetail();
 }

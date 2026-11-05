@@ -1,10 +1,10 @@
-# Panduan Penggunaan AMU Service · versi 5.19.2
+# Panduan Penggunaan AMU Service · versi 5.20.0
 
 Aceh Mandiri Utama — Sparepart & Bengkel Yamaha. Dokumen ini sama dengan menu **Panduan Penggunaan** di dalam aplikasi (www.amuservice.id/pos). Di aplikasi, setiap pengguna hanya melihat topik untuk perannya; dokumen ini memuat seluruh topik.
 
 ## Daftar isi
 
-1. Apa yang baru — versi 5.19.2
+1. Apa yang baru — versi 5.20.0
 2. Umum — semua pengguna
 3. Tampilan, navigasi & kecepatan
 4. Fungsi setiap menu
@@ -21,47 +21,63 @@ Aceh Mandiri Utama — Sparepart & Bengkel Yamaha. Dokumen ini sama dengan menu 
 
 ---
 
-## 1. Apa yang baru — versi 5.19.2
+## 1. Apa yang baru — versi 5.20.0
 
-_Ringkasan lengkap perubahan seri 5.19 (5.19.0–5.19.2): tampilan modern bergradasi, PDF modern, tampilan HP rapi, Chat gaya messenger dengan status Online/Sibuk/Offline, dan loading yang jauh lebih ringan. Baca bagian ini dulu setelah aplikasi diperbarui._
+_Ringkasan lengkap perubahan 5.19.0–5.20.0: tampilan HP gaya aplikasi dengan menu bawah, KSG 12 kolom, PDF absensi pribadi, tampilan modern bergradasi, PDF modern, Chat gaya messenger dengan status Online/Sibuk/Offline, dan loading yang jauh lebih ringan. Baca bagian ini dulu setelah aplikasi diperbarui._
 
-### 1.1 Baru di 5.19.2 — dokumen PDF modern
+### 1.1 Baru di 5.20.0 — menu bawah di HP (gaya aplikasi)
+
+Di HP (layar 900 piksel ke bawah) bilah kiri diganti **bilah menu di bawah layar** seperti aplikasi pada umumnya. Bilah bawah berisi 4 menu utama sesuai peran Anda (contoh Kasir: Beranda, Bayar, Jual Part, Cek Stok; Mekanik: Mekanik, Cek Stok, Absensi, Gaji; Admin: Beranda, Registrasi, Bayar, Jual Part) dan tombol **Menu** di paling kanan. Ketuk **Menu** untuk membuka lembar dari bawah yang berisi: kartu profil (nama, peran, tombol status Online/Sibuk/Offline), **seluruh menu** yang boleh Anda buka dalam bentuk ikon berkelompok (Utama, Komunikasi, Bengkel, Sparepart, Kasir, Keuangan, Pengaturan, Karyawan, Bantuan), serta tombol **Ganti PIN**, **Pasang aplikasi**, **Update aplikasi**, **Mode gelap/terang**, dan **Keluar**. Tutup lembar dengan mengetuk area gelap, menggeser lembar ke bawah, atau tombol Kembali HP. Angka kuning di ikon menandakan ada hal yang perlu ditindaklanjuti (angka di tombol Menu = jumlah untuk menu yang tidak tampil di bilah bawah). Menu yang sedang dibuka disorot berwarna.
+
+### 1.2 Baru di 5.20.0 — layar HP tidak bergoyang
+
+Tampilan HP kini terkunci seperti aplikasi: halaman tidak bisa digeser ke samping, tidak memantul saat ditarik di ujung atas/bawah, tidak bisa dicubit untuk zoom, dan tidak membesar sendiri saat mengetik di kotak isian. Jendela dialog (konfirmasi, rincian, pratinjau) muncul dari bawah layar selebar HP. Tombol cepat di bawah judul hanya tampil bila berguna (mis. Cetak Nota Terakhir hanya di Bayar, Jual Part, dan Laporan). Di menu dengan daftar + rincian (Pembayaran, Order Sparepart), setelah memilih motor layar otomatis bergulir ke rincian. Tabel lebar tetap dapat digeser ke samping di dalam kotaknya.
+
+### 1.3 Baru di 5.20.0 — Tarif KSG 12 kolom
+
+**Master Data → Tarif KSG** sekarang memiliki **12 kolom (KSG 1 s.d. KSG 12)** per tipe motor yang dapat diisi sendiri sesuai buku servis/ketentuan main dealer. Kolom yang dikosongkan berarti tidak ada klaim. Kolom tipe motor tetap terlihat saat tabel digeser ke samping. Di **Registrasi Servis**, pilihan **KSG ke-** kini 1 sampai 12; bila tipe motor sudah punya tarif, nomor yang belum diisi tarifnya ditandai _(tanpa tarif)_. Tarif lama KSG 1–4 tidak berubah.
+
+### 1.4 Baru di 5.20.0 — cetak absensi pribadi (PDF / pratinjau)
+
+Semua karyawan dapat mencetak absensinya sendiri. Buka **Absensi Saya**, pilih bulan dengan tombol ‹ ›, lalu tekan **👁 Pratinjau** untuk melihat laporan di layar, atau **⬇ PDF absensi** untuk mengunduh PDF (dari pratinjau juga ada tombol **Unduh PDF**). Isi laporan: identitas (nama, jabatan, cabang, jam kerja), ringkasan (hari hadir & uang hadir, terlambat & potongan, tanpa scan pulang, pulang cepat, izin/sakit/alpa), rincian harian (tanggal, jam masuk, jam pulang, durasi kerja, keterangan), aturan uang hadir, dan kolom tanda tangan karyawan & manajemen. Super Admin dapat membuat laporan yang sama untuk setiap karyawan dari **Absensi Karyawan → Rekap bulanan** (tombol 👁 dan PDF di setiap baris).
+
+### 1.5 Baru di 5.19.2 — dokumen PDF modern
 
 Semua dokumen PDF kini memakai desain baru yang seragam: pita kepala bergradasi sesuai tema dengan logo toko di plat putih, judul dokumen dan periode di kanan atas, kartu informasi berwarna lembut, judul bagian dengan garis warna, tabel dengan kepala berwarna dan baris belang tipis, serta kaki halaman berisi tanggal cetak dan nomor halaman. Berlaku untuk: **Slip gaji** dan **slip THR/bonus** (kotak **Penghasilan bersih** bergradasi, total pendapatan hijau, potongan merah), **Laporan penjualan PDF** (kartu ringkasan berwarna, halaman lanjutan memakai kepala ringkas), **BAST transfer stok PDF** (kartu tanggal + lencana status DITERIMA/DIKIRIM, rute cabang), **Data konsumen & kendaraan PDF**, serta **Nota PDF** (pita warna tipis atas-bawah, total dalam kotak lembut). Tampilan cetak **BAST kendaraan masuk** dan **BAST transfer stok** (Print / Simpan PDF) juga diperbarui. Warna dokumen mengikuti tema di Master Data → Tema Tampilan (tema Gelap/Kaca memakai biru agar terang saat dicetak).
 
-### 1.2 Baru di 5.19.2 — tampilan HP lebih rapi
+### 1.6 Baru di 5.19.2 — tampilan HP lebih rapi
 
 Di HP: ukuran huruf tidak lagi membesar sendiri; bilah atas selalu satu baris (judul panjang dipotong dengan tanda …, pilihan cabang ringkas, tombol status dan foto profil tidak keluar layar); halaman tidak bisa bergeser ke samping; tab (mis. Master Data, Registrasi) dan pilihan periode (Laporan) tampil satu baris yang dapat **digeser ke samping**; tombol cepat (Baru, Simpan, Cetak) satu baris yang dapat digeser; tabel yang berisi isian (mis. Petugas & PIN) dapat digeser di dalam kotaknya tanpa memotong isian; jarak dan ukuran kartu disesuaikan; dialog muncul dari bawah layar. Foto petugas di Master Data → Petugas & PIN kini berupa lingkaran yang tinggal diketuk (tombol "Choose File" disembunyikan).
 
-### 1.3 Perbaikan 5.19.1 — browser lama (Windows 7)
+### 1.7 Perbaikan 5.19.1 — browser lama (Windows 7)
 
 Pada komputer Windows 7 (Chrome versi 109 ke bawah) tampilan 5.19.0 sempat bermasalah: sisi kiri halaman login putih sehingga nama toko tidak terbaca, tombol **Masuk** tidak terlihat, dan bilah kiri/atas tidak bergradasi. Penyebabnya fungsi warna baru yang belum dikenal browser lama. Versi 5.19.1 memakai cara pewarnaan yang didukung browser lama maupun baru, tanpa mengubah fungsi apa pun. Jika masih melihat tampilan putih, tekan **Update aplikasi** sekali. Disarankan tetap memperbarui browser/perangkat bila memungkinkan, karena Chrome di Windows 7 sudah tidak mendapat pembaruan keamanan.
 
-### 1.4 Cara memastikan sudah memakai versi terbaru
+### 1.8 Cara memastikan sudah memakai versi terbaru
 
-Lihat tulisan kecil **versi 5.19.2** di bagian bawah bilah kiri (atau di halaman login sisi kiri bawah). Jika masih tertulis versi lama, tekan **Update aplikasi** di bilah kiri bawah (atau di layar login). Tombol ini sekarang mengosongkan salinan aplikasi lama di perangkat, mengambil versi terbaru, lalu memuat ulang halaman secara otomatis dalam ±3 detik. Data transaksi tidak ikut terhapus.
+Lihat tulisan kecil **versi 5.20.0** di bagian bawah bilah kiri (atau di halaman login sisi kiri bawah). Jika masih tertulis versi lama, tekan **Update aplikasi** di bilah kiri bawah (atau di layar login). Tombol ini sekarang mengosongkan salinan aplikasi lama di perangkat, mengambil versi terbaru, lalu memuat ulang halaman secara otomatis dalam ±3 detik. Data transaksi tidak ikut terhapus.
 
-### 1.5 Ringkasan perubahan
+### 1.9 Ringkasan perubahan
 
 **1. Tampilan baru "Aurora":** bilah kiri dan bilah atas memakai gradasi warna yang menyambung dari kiri ke kanan, kartu dan tombol lebih bulat, huruf Plus Jakarta Sans yang lebih mudah dibaca, ikon di setiap menu, dan kartu sapaan bergradasi di Beranda. **2. Chat Internal baru:** tampilan dua kolom seperti aplikasi pesan, status **Online (live) / Sibuk / Offline** setiap petugas, penanda pesan belum dibaca per percakapan, pemisah tanggal, Enter untuk kirim, dan bisa chat pribadi dengan Super Admin. **3. Loading lebih ringan:** aplikasi dibuka dari salinan di perangkat, data dimuat bersamaan, dan menu yang dibuka ulang tidak mengunduh data yang sama berkali-kali.
 
-### 1.6 Tombol status di bilah atas
+### 1.10 Tombol status di bilah atas
 
 Di kanan atas sekarang ada tombol bulat bertuliskan **Online** dengan titik hijau. Klik untuk memilih **Online** (siap membalas), **Sibuk** (sedang melayani konsumen/tidak bisa membalas cepat), atau **Offline** (tampil offline untuk petugas lain). Titik kecil di foto profil Anda ikut berubah warna. Lihat topik **Chat & Status** untuk penjelasan lengkap.
 
-### 1.7 Kartu sapaan di Beranda
+### 1.11 Kartu sapaan di Beranda
 
 Bagian paling atas Beranda menampilkan salam sesuai jam (pagi/siang/sore/malam), nama Anda, tanggal lengkap, ringkasan hari ini (omzet dan jumlah motor di bengkel, bila peran Anda boleh melihatnya), serta maksimal empat tombol pintas: **Motor masuk**, **Jual part**, **Pembayaran**, **Cek stok**, atau **Chat**. Tombol pintas hanya muncul untuk menu yang memang boleh Anda buka.
 
-### 1.8 Apa yang lebih cepat
+### 1.12 Apa yang lebih cepat
 
 **Membuka aplikasi:** file aplikasi tidak lagi diunduh satu per satu dari internet setiap kali dibuka; versi baru diunduh diam-diam di belakang layar. **Setelah login:** data cabang, hak akses, dan data petugas dibaca bersamaan. Aplikasi terbuka paling lama ±3,5 detik walau sinyal lemah; data yang belum datang akan langsung mengisi layar begitu tiba. **Menu yang sering dibuka:** daftar petugas dan data nota periode lama (Laporan, Performa Mekanik, Klaim KSG, Penghasilan) disimpan sementara 60 detik, sehingga berpindah menu lalu kembali terasa instan. **Chat:** pesan sudah terunduh sejak login, jadi Chat langsung tampil tanpa loading.
 
-### 1.9 Apakah ada yang berubah pada cara kerja transaksi?
+### 1.13 Apakah ada yang berubah pada cara kerja transaksi?
 
 Tidak. Registrasi, order part, pembayaran, stok, kas, retur, absensi, penghasilan, dan laporan bekerja sama seperti sebelumnya. Perubahan hanya pada tampilan, Chat, dan cara data dimuat. Semua tombol, menu, dan hak akses tetap di tempat yang sama.
 
-### 1.10 Yang perlu dilakukan Super Admin setelah update
+### 1.14 Yang perlu dilakukan Super Admin setelah update
 
 **1.** Publish ulang **firestore.rules** (berisi aturan baru koleksi `presence` untuk status Online/Sibuk/Offline). Tanpa ini aplikasi tetap jalan, tetapi semua petugas akan terlihat Offline. **2.** Deploy **firestore.indexes.json** (dua index baru untuk koleksi `chat`) supaya pesan selalu diambil dari yang terbaru. Tanpa index, Chat otomatis memakai cara lama sehingga tetap berfungsi. **3.** Minta semua perangkat menekan **Update aplikasi** sekali.
 
@@ -139,7 +155,7 @@ Setiap menu memiliki ikon garis agar mudah dikenali. Menu yang sedang dibuka tam
 
 ### 3.4 Menyembunyikan dan membuka menu
 
-Di PC/laptop, tekan tombol **☰** di kiri atas untuk menyembunyikan bilah kiri agar area kerja lebih lebar; tekan lagi untuk menampilkan. Pilihan ini diingat di perangkat. Di HP, bilah kiri tersembunyi; tekan **☰** untuk membuka, lalu pilih menu atau ketuk area gelap untuk menutup.
+Di PC/laptop, tekan tombol **☰** di kiri atas untuk menyembunyikan bilah kiri agar area kerja lebih lebar; tekan lagi untuk menampilkan. Pilihan ini diingat di perangkat. Di HP tidak ada bilah kiri; gunakan **bilah menu bawah** dan tombol **Menu** (lihat Memakai aplikasi di HP).
 
 ### 3.5 Mode gelap dan tema
 
@@ -171,7 +187,7 @@ Animasi roda gigi hanya muncul bila data benar-benar perlu ditunggu (lebih dari 
 
 ### 3.12 Memakai aplikasi di HP
 
-Tekan **☰** untuk membuka menu. Judul halaman yang panjang dipotong dengan tanda …. Pilihan cabang (admin) ada di bilah atas dalam bentuk ringkas. Deretan tab dan tombol periode yang tidak muat layar dapat **digeser ke kiri/kanan** dengan jari. Tabel lebar juga digeser di dalam kotaknya. Untuk memasukkan data panjang (registrasi, master), putar HP mendatar atau gunakan PC bila lebih nyaman.
+Di HP, menu ada di **bilah bawah layar**: 4 menu utama sesuai peran dan tombol **Menu** untuk semua menu lain, profil, status, Ganti PIN, Update aplikasi, Mode gelap, dan Keluar. Bilah atas berisi judul halaman (dipotong dengan … bila panjang), pilihan cabang ringkas (admin), tombol status, dan foto profil. Deretan tab dan tombol periode yang tidak muat dapat **digeser ke kiri/kanan**; tabel lebar digeser di dalam kotaknya. Dialog muncul dari bawah layar. Tombol Kembali HP menutup lembar Menu yang terbuka. Agar terasa seperti aplikasi penuh, pasang ke layar utama lewat **Menu → Pasang aplikasi** (Android) atau Safari → Bagikan → Tambah ke Layar Utama (iPhone).
 
 ### 3.13 Tips agar aplikasi tetap ringan
 
@@ -273,7 +289,7 @@ _Daftar lengkap seluruh menu aplikasi: kegunaan, peran yang biasanya dapat membu
 
 ### 4.23 Absensi Saya / Absensi Karyawan
 
-**Petugas:** tombol **Scan QR absen masuk/pulang**, selfie, dan riwayat absensi bulan berjalan. **Super Admin (Absensi Karyawan):** tab Harian, Rekap bulanan, Layar QR, HP terdaftar, dan Pengaturan.
+**Petugas:** tombol **Scan QR absen masuk/pulang**, selfie, riwayat absensi per bulan, **👁 Pratinjau** dan **⬇ PDF absensi** pribadi. **Super Admin (Absensi Karyawan):** tab Harian, Rekap bulanan (dengan pratinjau/PDF per karyawan), Layar QR, HP terdaftar, dan Pengaturan.
 
 ### 4.24 Penghasilan Saya / Penghasilan Karyawan
 
@@ -385,7 +401,7 @@ Aplikasi menampilkan KM terakhir. KM baru tidak boleh lebih kecil. Jika speedome
 
 ### 6.7 Pilihan KSB dan KSG
 
-Untuk pendaftaran baru, pilih **KSB** atau **KSG**. KSB adalah kartu service berkala. KSG adalah kartu service gratis dan wajib memilih **KSG ke-1, ke-2, ke-3, atau ke-4** serta nomor kupon/buku servis bila tersedia. Data WO lama Reguler tetap dapat dibuka untuk menjaga riwayat.
+Untuk pendaftaran baru, pilih **KSB** atau **KSG**. KSB adalah kartu service berkala. KSG adalah kartu service gratis dan wajib memilih **KSG ke-1 sampai ke-12** (sesuai kolom Tarif KSG di Master Data) serta nomor kupon/buku servis bila tersedia. Data WO lama Reguler tetap dapat dibuka untuk menjaga riwayat.
 
 ### 6.8 Aturan KSG
 
@@ -707,7 +723,7 @@ Buka **Master Data → Jasa Servis**. Tambahkan, ubah, aktifkan/nonaktifkan, ata
 
 ### 13.3 Master Tarif KSG
 
-Buka **Master Data → Tarif KSG**. Isi nilai klaim per tipe motor untuk KSG ke-1 sampai ke-4. Kosongkan jika tidak ada klaim. Pastikan tipe motor dan tarif sesuai dokumen main dealer karena nilai ini masuk laporan klaim dan penghasilan mekanik.
+Buka **Master Data → Tarif KSG**. Isi nilai klaim per tipe motor untuk **KSG ke-1 sampai ke-12** (12 kolom, geser tabel ke samping untuk kolom berikutnya). Kosongkan kolom yang tidak ada klaimnya; kolom kosong di akhir tidak disimpan. Tekan **Simpan tarif KSG** atau F2. Pastikan tipe motor dan tarif sesuai dokumen main dealer karena nilai ini masuk laporan klaim dan penghasilan mekanik.
 
 ### 13.4 Mekanik dan petugas
 
@@ -773,7 +789,7 @@ Menu yang mengambil data periode lama (Laporan rentang panjang, Insight, Penghas
 
 ### 14.4 Tampilan belum berubah setelah update
 
-Tekan **Update aplikasi** sekali dan tunggu halaman memuat ulang sendiri. Jika aplikasi dipasang di HP, tutup aplikasi sepenuhnya lalu buka lagi. Pastikan nomor versi di bilah kiri bawah sudah **5.19.2**.
+Tekan **Update aplikasi** sekali dan tunggu halaman memuat ulang sendiri. Jika aplikasi dipasang di HP, tutup aplikasi sepenuhnya lalu buka lagi. Pastikan nomor versi di bilah kiri bawah (atau di bawah lembar Menu di HP) sudah **5.20.0**.
 
 ### 14.5 Semua petugas tampil Offline di Chat
 
