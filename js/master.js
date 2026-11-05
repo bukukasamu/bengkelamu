@@ -285,16 +285,33 @@ function renderStaff() {
   const cabSel = (id, v) => `<select class="inline-input" id="${id}" style="width:auto" aria-label="Cabang">${cabangList().map(c => `<option value="${esc(c.id)}" ${c.id === (v || CABANG_UTAMA) ? 'selected' : ''}>${esc(c.nama)}</option>`).join('')}</select>`;
   const roleSel = (id, v) => `<select class="inline-input" id="${id}" style="width:auto" aria-label="Peran">${ROLE_NON_MEK.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   el.innerHTML = intro('Petugas masuk dengan memilih nama lalu PIN 6 angka, dan bisa mengganti PIN sendiri. Peran menentukan menu: Registrasi (motor masuk), Sparepart (order part &amp; pembelian), Kasir (pembayaran, status mekanik, penjualan), Admin (semua). Login mekanik diatur di tab Mekanik.') + `
-   <div class="tw"><table><thead><tr><th>Nama</th><th>Peran</th>${multi ? '<th>Cabang</th>' : ''}<th></th></tr></thead><tbody>
+   <div class="tw"><table><thead><tr><th>Profil</th><th>Nama</th><th>Peran</th>${multi ? '<th>Cabang</th>' : ''}<th></th></tr></thead><tbody>
    ${logins.map((s, i) => s.peran === 'mekanik'
-      ? `<tr><td>${esc(s.nama)}</td><td><span class="small muted">Mekanik (atur di tab Mekanik)</span></td>${multi ? `<td class="small">${esc(namaCabang(s.cabang))}</td>` : ''}<td class="r"><button class="btn sm ghost" type="button" data-act="sf-pin" data-i="${i}">Reset PIN</button></td></tr>`
-      : `<tr><td><input class="inline-input" id="sf-n-${i}" value="${esc(s.nama)}" aria-label="Nama"></td><td>${roleSel('sf-r-' + i, s.peran)}</td>${multi ? `<td>${cabSel('sf-c-' + i, s.cabang)}</td>` : ''}<td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="sf-save" data-i="${i}">Simpan</button> <button class="btn sm ghost" type="button" data-act="sf-pin" data-i="${i}">Reset PIN</button> <button class="btn sm ghost" type="button" data-act="sf-del" data-i="${i}">Hapus</button></td></tr>`).join('') || '<tr><td colspan="3" class="empty">Belum ada petugas.</td></tr>'}
+      ? `<tr><td><label class="foto-pilih"><span class="mini-avatar">${s.foto ? `<img src="${esc(s.foto)}" alt="">` : '＋'}</span><input type="file" accept="image/*" data-foto-i="${i}" aria-label="Tambah foto ${esc(s.nama)}"></label></td><td>${esc(s.nama)}</td><td><span class="small muted">Mekanik (atur di tab Mekanik)</span></td>${multi ? `<td class="small">${esc(namaCabang(s.cabang))}</td>` : ''}<td class="r"><button class="btn sm ghost" type="button" data-act="sf-pin" data-i="${i}">Reset PIN</button></td></tr>`
+      : `<tr><td><label class="foto-pilih"><span class="mini-avatar">${s.foto ? `<img src="${esc(s.foto)}" alt="">` : '＋'}</span><input type="file" accept="image/*" data-foto-i="${i}" aria-label="Tambah foto ${esc(s.nama)}"></label></td><td><input class="inline-input" id="sf-n-${i}" value="${esc(s.nama)}" aria-label="Nama"></td><td>${roleSel('sf-r-' + i, s.peran)}</td>${multi ? `<td>${cabSel('sf-c-' + i, s.cabang)}</td>` : ''}<td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="sf-save" data-i="${i}">Simpan</button> <button class="btn sm ghost" type="button" data-act="sf-pin" data-i="${i}">Reset PIN</button> <button class="btn sm ghost" type="button" data-act="sf-del" data-i="${i}">Hapus</button></td></tr>`).join('') || '<tr><td colspan="4" class="empty">Belum ada petugas.</td></tr>'}
    </tbody></table></div>
    <div class="panel" style="background:var(--panel-2);box-shadow:none;margin-top:12px"><h3>Tambah petugas</h3>
     <div class="form"><label class="f" for="sf-nama">Nama<input id="sf-nama" autocomplete="off"></label><label class="f" for="sf-peran">Peran${roleSel('sf-peran', 'kasir')}</label>${multi ? `<label class="f" for="sf-cabang">Cabang${cabSel('sf-cabang', cabAktif())}</label>` : ''}<label class="f" for="sf-pin">PIN awal (6 angka)<input id="sf-pin" class="num" inputmode="numeric" maxlength="6" autocomplete="off"></label></div>
     <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="sf-add">Tambah petugas</button></div></div>
    <p class="small muted" style="margin:8px 0 0">Super admin (cashflow.amu@gmail.com) masuk dengan email dan kata sandi lewat tombol "Masuk sebagai super admin".</p>`;
 }
+function fotoKecil(file) {
+  return new Promise((resolve, reject) => {
+    const rd = new FileReader(); rd.onerror = () => reject(new Error('Foto tidak dapat dibaca')); rd.onload = () => {
+      const im = new Image(); im.onerror = () => reject(new Error('Format foto tidak didukung')); im.onload = () => {
+        const max = 360, skala = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.width * skala)); c.height = Math.max(1, Math.round(im.height * skala));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); resolve(c.toDataURL('image/jpeg', .78));
+      }; im.src = rd.result;
+    }; rd.readAsDataURL(file);
+  });
+}
+changeHandlers.push(async e => {
+  const t = e.target; if (!t.dataset.fotoI || !t.files?.[0] || !logins?.[+t.dataset.fotoI]) return;
+  const s = logins[+t.dataset.fotoI]; t.disabled = true;
+  try { const foto = await fotoKecil(t.files[0]); await ubahPetugas(s.id, { foto }); if (st.petugas?.email === s.email) { st.petugas.foto = foto; window.dispatchEvent(new CustomEvent('amu-profile-changed')); } toast('Foto profil ' + s.nama + ' disimpan'); logins = null; renderStaff(); }
+  catch (e) { toast('Gagal menyimpan foto: ' + errMsg(e)); t.disabled = false; }
+});
 
 /* ---------- Logo (hanya super admin) ---------- */
 let logoDraft = null;

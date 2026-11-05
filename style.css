@@ -158,6 +158,12 @@ footer.foot{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 3
 .topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .topbar h1{font-family:var(--f-display);font-size:1.3rem;margin:0;font-weight:700}
 .topbar .clock{margin-left:auto;color:var(--muted);font-size:.85rem}
+.top-profile{display:flex;align-items:center;gap:8px;margin-left:auto;min-width:0;max-width:230px;padding:3px 8px 3px 4px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2);position:relative;z-index:1}
+.top-avatar{width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:var(--accent);color:var(--on-accent);font-family:var(--f-display);font-weight:700}
+.top-avatar img{width:100%;height:100%;object-fit:cover}
+.top-profile-text{display:flex;flex-direction:column;min-width:0;line-height:1.1}
+.top-profile-text b,.top-profile-text small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top-profile-text b{font-size:.82rem}.top-profile-text small{color:var(--muted);font-size:.7rem;margin-top:2px}
+.topbar .clock{margin-left:0}
 .sb-toggle{border:1px solid var(--line);background:var(--panel-2);border-radius:6px;width:38px;height:36px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
 .sb-toggle svg{width:18px;height:18px;stroke:var(--ink)}
 body.sb-hidden .sidebar{display:none}
@@ -169,6 +175,7 @@ main{width:100%}
   body.sb-open .sidebar{transform:none}
   body.sb-hidden .sidebar{display:flex}
   .topbar .clock{display:none}
+  .top-profile{max-width:170px;margin-left:auto}.top-profile-text{display:none}.top-avatar{width:32px;height:32px;flex-basis:32px}
 }
 @media (prefers-reduced-motion:reduce){.sidebar{transition:none}}
 .login .ver{color:var(--hd-muted);margin-top:6px}

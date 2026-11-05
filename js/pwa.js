@@ -26,18 +26,16 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); tawara
 window.addEventListener('appinstalled', () => { tawaran = null; perbarui(); });
 
 export async function updateAplikasi(btn) {
-  if (btn) { btn.disabled = true; btn.textContent = 'Memeriksa versi…'; }
-  try {
-    const reload = () => { if (!updateReloading) { updateReloading = true; const u = new URL(location.href); u.searchParams.set('amu_update', Date.now()); location.replace(u.toString()); } };
-    if (!('serviceWorker' in navigator)) { reload(); return; }
-    const regs = await navigator.serviceWorker.getRegistrations();
-    for (const r of regs) { try { await r.unregister(); } catch (e) {} }
-    if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.filter(k => /^amu-/i.test(k) || /workbox|precache/i.test(k)).map(k => caches.delete(k))); }
-    await fetch('./sw.js?amu_update=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' }).catch(() => {});
-    swReg = await navigator.serviceWorker.register('./sw.js?amu_update=' + Date.now(), { updateViaCache: 'none' });
-    await swReg.update().catch(() => {});
-    reload();
-  } catch (e) { console.warn('Update aplikasi gagal', e); if (btn) { btn.disabled = false; btn.textContent = 'Update aplikasi'; } window.dispatchEvent(new CustomEvent('amu-update-fail')); }
+  // Jangan menunggu service worker: pada beberapa browser proses update bisa
+  // tertahan lama di waiting/fetch. Query unik membuat HTML terbaru diminta
+  // seperti Ctrl+Shift+R, lalu SW lama dibersihkan setelah halaman baru hidup.
+  if (btn) { btn.disabled = true; btn.textContent = 'Memuat ulang…'; }
+  if (updateReloading) return;
+  updateReloading = true;
+  const u = new URL(location.href);
+  u.searchParams.set('amu_hard_refresh', Date.now());
+  try { localStorage.setItem('amu-hard-refresh', String(Date.now())); } catch (e) {}
+  setTimeout(() => location.replace(u.toString()), 80);
 }
 
 if (window.navigator && 'serviceWorker' in window.navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

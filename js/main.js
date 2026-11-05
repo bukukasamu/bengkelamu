@@ -69,6 +69,7 @@ $('#sb-backdrop').addEventListener('click', toggleSidebar);
 function refreshTombolTema() { document.querySelectorAll('[data-theme-toggle]').forEach(b => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); b.textContent = gelap ? '☀ Mode terang' : '☾ Mode gelap'; b.setAttribute('aria-pressed', gelap ? 'true' : 'false'); }); }
 document.querySelectorAll('[data-theme-toggle]').forEach(b => b.addEventListener('click', () => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); terapkanTema(gelap ? 'segar' : 'gelap'); refreshTombolTema(); }));
 refreshTombolTema();
+window.addEventListener('amu-profile-changed', renderProfil);
 window.addEventListener('amu-update-ok', () => toast('Aplikasi sudah menggunakan versi terbaru'));
 window.addEventListener('amu-update-fail', () => toast('Update gagal. Periksa koneksi internet lalu coba lagi.'));
 $('#side-nav').addEventListener('click', e => { const b = e.target.closest('.sb-link'); if (b) go(b.dataset.view); });
@@ -185,6 +186,7 @@ onAuthStateChanged(auth, async u => {
   if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA;
   bootDone(); $('#login-screen').hidden = true; $('#app-shell').hidden = false;
   renderCabangBox();
+  renderProfil();
   $('#who').textContent = st.petugas.nama || st.petugas.email;
   $('#who-role').textContent = st.petugas.super ? 'Super Admin' : ROLES[st.role];
   $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
@@ -290,6 +292,14 @@ function renderCabangBox() {
   el.innerHTML = st.role === 'admin'
     ? `<label class="cabang-pilih"><span>Cabang</span><select id="cabang-pilih" aria-label="Pindah cabang">${cabangList().map(c => `<option value="${esc(c.id)}" ${c.id === cabAktif() ? 'selected' : ''}>${esc(c.nama)}</option>`).join('')}</select></label>`
     : `<span class="cabang-tag" title="Cabang Anda">${esc(namaCabang(cabAktif()))}</span>`;
+}
+function renderProfil() {
+  const el = $('#top-profile'); if (!el || !st.petugas) return;
+  const nama = st.petugas.nama || st.petugas.email || 'Pengguna';
+  const inisial = nama.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
+  const foto = st.petugas.foto ? `<img src="${esc(st.petugas.foto)}" alt="Foto ${esc(nama)}">` : `<span>${esc(inisial)}</span>`;
+  el.hidden = false;
+  el.innerHTML = `<div class="top-avatar">${foto}</div><div class="top-profile-text"><b>${esc(nama)}</b><small>${esc(st.petugas.super ? 'Super Admin' : ROLES[st.role] || st.role || '')}</small></div>`;
 }
 document.addEventListener('change', e => {
   if (e.target.id !== 'cabang-pilih') return;
