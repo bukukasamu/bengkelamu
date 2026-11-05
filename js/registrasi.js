@@ -94,7 +94,7 @@ function detailBiayaHTML(w, c) {
 function renderRegistrasi() {
   if (!st.regDraft) st.regDraft = blank();
   const w = st.regDraft, locked = w.status === 'Lunas', dis = locked ? 'disabled' : '';
-  const jasaList = jasaAktif();
+  const jasaList = jasaAktif().sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'id', { sensitivity: 'base' }));
   const selected = normJasa(w);
   const extra = selected.filter(j => !jasaList.find(x => x.nama === j.nama));   // jasa lama yang sudah tidak aktif
   const inp = (f, label, attrs = '') => `<label class="f" for="r-${f}">${label}<input id="r-${f}" data-rf="${f}" value="${esc(w[f])}" ${attrs} ${dis}></label>`;
@@ -144,7 +144,7 @@ function renderRegistrasi() {
     </div>
     ${w.jenisServis === 'KSG' ? `<div class="note small">KSG: jasa standar tidak dipilih satu per satu dan tidak ditagihkan ke konsumen. ${w.tipe && w.ksgKe ? (tarifKsg(w) ? `Klaim ke main dealer (${esc(w.tipe)}, KSG ke-${esc(w.ksgKe)}): <b>${rp(tarifKsg(w))}</b>.` : `<span class="diff-bad">Tarif KSG ${esc(w.tipe)} ke-${esc(w.ksgKe)} belum diisi</span> di Master Data → Tarif KSG.`) : 'Pilih tipe motor dan KSG ke berapa untuk melihat nilai klaim.'} Part dan jasa/biaya tambahan tetap ditampilkan.</div>` : ''}
     <h3>${w.jenisServis === 'KSG' ? 'Jasa lainnya' : 'Jasa servis'}</h3>
-    ${w.jenisServis === 'KSG' ? '<div class="small muted">Jasa KSG otomatis mengikuti KSG ke-berapa. Tidak ada checklist jasa standar untuk KSG.</div>' : `<div class="checks">${[...jasaList, ...extra].map((j, i) => `<label for="r-j${i}"><input type="checkbox" id="r-j${i}" data-jasa="${esc(j.nama)}" data-harga="${j.harga}" ${selected.find(x => x.nama === j.nama) ? 'checked' : ''} ${dis}>${esc(j.nama)}<span class="hr">${rp(j.harga)}</span></label>`).join('') || '<div class="small muted">Belum ada jasa. Tambahkan di Master Data → Jasa Servis.</div>'}</div>`}
+    ${w.jenisServis === 'KSG' ? '<div class="small muted">Jasa KSG otomatis mengikuti KSG ke-berapa. Tidak ada checklist jasa standar untuk KSG.</div>' : `<div class="jasa-picker"><div class="row spread"><label class="f" for="r-jasa-cari" style="flex:1">Cari jasa<input id="r-jasa-cari" value="${esc(st.regJasaCari || '')}" placeholder="Ketik nama jasa…" autocomplete="off"></label><button class="btn sm" type="button" data-act="reg-jasa-toggle">${st.regJasaShow === false ? 'Tampilkan daftar jasa' : 'Sembunyikan daftar jasa'}</button></div><div id="r-jasa-list" ${st.regJasaShow === false ? 'hidden' : ''}></div></div>`}
     <h3>Rincian part</h3>${partsTable(w)}
     ${w.no ? timelineHTML(w) : ''}
     ${(w.jenisServis === 'KSG' || w.jenisServis === 'KSB') ? `<h3>BAST kendaraan <span class="badge ${w.jenisServis === 'KSG' ? 'b-ksg' : 'b-ksb'}">${esc(bastKode(w))}</span></h3><div class="form"><label class="f wide" for="r-estimasi">Estimasi selesai / pengambilan (manual)<input id="r-estimasi" data-rf="estimasi" value="${esc(w.estimasi || '')}" placeholder="mis. Sore ini / 2 hari" ${dis}></label><label class="f" for="r-bastTgl">Tanggal BAST<input id="r-bastTgl" type="date" data-rf="bastTgl" value="${esc(w.bastTgl || dkey(new Date()))}" ${dis}></label><label class="f" for="r-bastJam">Jam<input id="r-bastJam" type="time" data-rf="bastJam" value="${esc(w.bastJam || '')}" ${dis}></label><label class="f wide-2" for="r-bastKet">Keterangan BAST<textarea id="r-bastKet" data-rf="bastKet" placeholder="Kendaraan diterima bengkel dari konsumen" ${dis}>${esc(w.bastKet || 'Kendaraan diterima bengkel dari konsumen untuk dilakukan pengerjaan. BAST ini disimpan konsumen dan dibawa saat pengambilan kendaraan.')}</textarea></label></div><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="reg-bast">Cetak BAST masuk ${esc(bastKode(w))}</button></div>` : ''}
@@ -162,6 +162,7 @@ function renderRegistrasi() {
     </div>
    </div></div>`;
   renderList();
+  renderJasaList();
   fillWilayah('rw', { get: () => st.regDraft });
   isiInfoKm();
   if (w.nopol) {
@@ -169,6 +170,14 @@ function renderRegistrasi() {
     if (cachePemilik.key === key) tampilPemilik(cachePemilik.data);
     else getDoc(doc(db, 'kendaraan', key)).then(s2 => { cachePemilik = { key, data: s2.exists() ? s2.data() : null }; if (st.regDraft === w) tampilPemilik(cachePemilik.data); }).catch(() => {});
   }
+}
+
+function renderJasaList() {
+  const el = $('#r-jasa-list'); if (!el || st.regJasaShow === false) return;
+  const w = st.regDraft || {}, selected = normJasa(w), q = String(st.regJasaCari || '').trim().toLocaleLowerCase('id');
+  const aktif = jasaAktif(), lama = selected.filter(x => !aktif.some(j => j.nama === x.nama)).map(x => ({ ...x, aktif: false }));
+  const list = [...aktif, ...lama].filter(j => !q || String(j.nama || '').toLocaleLowerCase('id').includes(q)).sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'id', { sensitivity: 'base' }));
+  el.innerHTML = list.length ? `<div class="checks jasa-checks">${list.map((j, i) => `<label for="r-j${i}"><input type="checkbox" id="r-j${i}" data-jasa="${esc(j.nama)}" data-harga="${j.harga}" ${selected.find(x => x.nama === j.nama) ? 'checked' : ''} ${w.status === 'Lunas' ? 'disabled' : ''}>${esc(j.nama)}<span class="hr">${rp(j.harga)}</span></label>`).join('')}</div>` : '<div class="small muted">Jasa tidak ditemukan.</div>';
 }
 
 // KM terakhir & jadwal ganti oli kendaraan ini (ditampilkan di formulir, dipakai juga untuk cek KM saat simpan)
@@ -488,6 +497,7 @@ Object.assign(actions, {
   'reg-fokus-cari': () => { const c = $('#r-cari'); if (!c) { toast('Pencarian tidak tersedia untuk servis yang sudah dibayar'); return; } c.scrollIntoView({ block: 'center' }); c.focus(); c.select(); },
   'reg-pick': el => { const o = findWo(el.dataset.no); if (o) { st.regDraft = { ...blank(), ...clone(o), jasa: normJasa(o) }; renderRegistrasi(); } },
   'reg-filter': el => { filter = el.dataset.f; document.querySelectorAll('[data-act="reg-filter"]').forEach(b => b.setAttribute('aria-pressed', b === el)); renderList(); },
+  'reg-jasa-toggle': () => { st.regJasaShow = st.regJasaShow === false; renderRegistrasi(); },
   'reg-save': () => save(),
   'reg-bast': () => { if (!st.regDraft?.nopol || !st.regDraft?.nama) { toast('Lengkapi data konsumen dan kendaraan dulu'); return; } bastKendOpen(st.regDraft); },
   'reg-bast-print': () => st.regDraft && bastKendPrint(st.regDraft),
@@ -518,6 +528,7 @@ Object.assign(actions, {
 });
 inputHandlers.push(e => {
   const t = e.target; if (t.dataset.rf && st.regDraft) st.regDraft[t.dataset.rf] = t.value;
+  if (t.id === 'r-jasa-cari') { st.regJasaCari = t.value; renderJasaList(); }
   if (t.id === 'r-km') tampilInfoKm();
   if ((t.id === 'r-hp' || t.id === 'r-nama') && $('#r-wa')) $('#r-wa').innerHTML = waButton(st.regDraft.hp, waMsg(st.regDraft));
   if (t.id === 'r-nama' && st.regDraft.stnkSama !== false && $('#r-namaStnk')) $('#r-namaStnk').value = t.value;

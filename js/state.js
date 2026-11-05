@@ -30,6 +30,7 @@ export const st = {
   cart: emptyCart(),
   regDraft: null, orderNo: null, orderDraft: null, bayarNo: null, bayarDraft: null,
   stokQ: '', stokKat: '', stokLow: false, stokAda: '', stokUrut: { k: 'kode', arah: 1 }, stokN: 200, partEdit: null,
+  regJasaCari: '', regJasaShow: true,
   pbDraft: null, pbFilter: 'semua',
   mekSel: null, mekPeriode: 'ini',
   lap: { range: 'hari', from: '', to: '', filter: null, list: null },

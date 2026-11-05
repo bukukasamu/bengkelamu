@@ -57,7 +57,7 @@ export function nilaiSumber(list, sumber) {
   if (sumber === 'sa') return list.reduce((a, t) => a + (t.items || []).reduce((b, x) => b + x.qty * x.harga, 0) + (t.jasa || []).reduce((b, j) => b + (+j.harga || 0), 0) + (t.biaya || []).reduce((b, x) => b + (+x.jumlah || 0), 0), 0);
   return list.reduce((a, t) => a + (
     sumber === 'part' ? (t.items || []).reduce((b, x) => b + x.qty * x.harga, 0)
-    : sumber === 'jasa' ? (t.jasa || []).reduce((b, j) => b + (+j.harga || 0), 0) + (t.jasaKlaim || 0)
+    : sumber === 'jasa' ? (t.jasa || []).reduce((b, j) => b + (+j.harga || 0), 0) + (t.jasaKlaim || 0) + (t.biaya || []).reduce((b, x) => b + (+x.jumlah || 0), 0)
     : sumber === 'biaya' ? (t.biaya || []).reduce((b, x) => b + (+x.jumlah || 0), 0)
     : (t.total || 0)), 0);
 }
@@ -183,7 +183,7 @@ function rincianHTML(h, judul, ym = PH.bulan, idx = -1) {
     const tk = urutTingkat(x.item), target = x.berikut?.min || x.capai?.min || 0;
     return `<div class="ph-item">
       <div class="row spread"><b>${esc(x.item.nama)}</b><span class="num ${x.jumlah ? 'ph-plus' : 'muted'}">${x.jumlah ? '+' + rp(x.jumlah) : rp(0)}</span></div>
-      <div class="small muted">${esc(labelSumber(x.item.sumber))} pribadi bulan ini: <b class="num" style="color:var(--ink)">${rp(x.nilai)}</b></div>
+      <div class="small muted">${esc(labelSumber(x.item.sumber))}${x.item.sumber === 'jasa' && h.org.peran === 'mekanik' ? ' (termasuk biaya lainnya)' : ''} pribadi bulan ini: <b class="num" style="color:var(--ink)">${rp(x.nilai)}</b></div>
       ${tk.length ? bar(x.nilai, target) : ''}
       <div class="small">${x.capai ? `Tercapai ≥ ${rp(x.capai.min)} → <b>${x.capai.persen}%</b> × ${rp(x.nilai)}` : '<span class="muted">Belum mencapai target</span>'}${x.berikut ? ` · <span class="muted">kurang <b>${rp(x.berikut.min - x.nilai)}</b> lagi untuk ${x.berikut.persen}%</span>` : ''}</div>
       <div class="ph-tk">${tk.map(t => `<span class="${x.capai && t.min <= x.capai.min ? 'on' : ''}">≥ ${rp(t.min)} · ${t.persen}%</span>`).join('')}</div>

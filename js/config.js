@@ -1,7 +1,7 @@
 // Identitas aplikasi, peran pengguna, dan menu per peran.
 export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
-export const APP_VERSION = '5.15.1';
+export const APP_VERSION = '5.16.1';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
@@ -35,7 +35,7 @@ export const MENUS = [
   { id: 'order', label: 'Order Sparepart', group: 'Bengkel', roles: ['admin', 'sparepart'] },
   { id: 'bayar', label: 'Pembayaran & Status Servis', group: 'Bengkel', roles: ['admin', 'kasir'] },
   { id: 'mekanik', label: 'Performa Mekanik', group: 'Bengkel', roles: ['admin', 'mekanik', 'sa'] },
-  { id: 'cekstok', label: 'Cek Stok', group: 'Sparepart', roles: ['admin', 'registrasi', 'kasir', 'sparepart'], baru: '5.0.0' },
+  { id: 'cekstok', label: 'Cek Stok', group: 'Sparepart', roles: ['admin', 'registrasi', 'kasir', 'sparepart', 'mekanik'], baru: '5.0.0' },
   { id: 'kasir', label: 'Penjualan Sparepart', group: 'Kasir', roles: ['admin', 'kasir'] },
   { id: 'pesananPart', label: 'Pesanan Part Pribadi', group: 'Sparepart', roles: ['admin', 'sparepart'] },
   { id: 'stok', label: 'Stok Part', group: 'Sparepart', roles: ['admin', 'sparepart'] },

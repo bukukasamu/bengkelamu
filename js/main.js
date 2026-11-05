@@ -223,8 +223,9 @@ function subscribe() {
   const once = (q, k, fn) => getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => fail(e, k));
   const perluParts = can('registrasi') || can('kasir') || can('stok') || can('order') || can('pembelian');
   const perluJasa = can('registrasi') || can('bayar');
-  // Master part dipantau realtime supaya part baru/hasil edit langsung muncul tanpa logout-login.
-  if (perluParts) sub(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
+  // Mekanik hanya membutuhkan pembacaan master untuk Cek Stok; one-time fetch membuat login lebih ringan.
+  // Kasir/Sparepart/Registrasi tetap realtime agar perubahan master langsung terlihat pada alur transaksi.
+  if (perluParts) (st.role === 'mekanik' ? once : sub)(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
   else { raw.parts = []; mark('parts'); }
   if (perluJasa) once(collection(db, 'jasa'), 'jasa', s => { S.jasa = s.docs.map(d => ({ id: d.id, ...d.data() })); });
   else { S.jasa = []; mark('jasa'); }
