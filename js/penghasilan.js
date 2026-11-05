@@ -83,7 +83,9 @@ export function hitung(org, list, cfg = cfgPenghasilan()) {
   // Komisi jasa % adalah model lama. Bila mekanik sudah diberi insentif
   // sumber Jasa servis, komisi lama tidak ditambahkan lagi agar tidak double.
   const punyaInsentifJasa = cfg.insentif.some(i => i.aktif !== false && berlaku(i, org) && i.sumber === 'jasa' && (i.tingkat || []).some(t => +t.persen > 0));
-  const komisi = org.peran === 'mekanik' && org.komisi && !punyaInsentifJasa ? Math.round(nilaiSumber(pribadi, 'jasa') * org.komisi / 100) : 0;
+  // Model komisi jasa lama sudah dihentikan. Semua insentif mekanik memakai
+  // aturan bertingkat di Master Data agar tidak ada dua sumber pembayaran.
+  const komisi = 0;
   const potongan = cfg.potongan.filter(p => berlaku(p, org)).map(item => ({ item, jumlah: +item.jumlah || 0 }));
   // Absensi: uang hadir per hari & potongan terlambat (dari menu Absensi), bila datanya dimuat
   const ab = org.absen ? { hadir: org.absen.hadir, uangHadir: org.absen.uangHadir || 0, telat: org.absen.telat, potongTelat: org.absen.potongTelat || 0, cepat: org.absen.cepat, potongCepat: org.absen.potongCepat || 0, tanpaPulang: org.absen.tanpaPulang, tarifHadir: org.absen.tarifHadir, tarifTelat: org.absen.tarifTelat } : null;
@@ -199,7 +201,7 @@ function rincianHTML(h, judul, ym = PH.bulan, idx = -1) {
     </div>
     <h3>Insentif</h3>
     ${ins || (h.komisi ? '' : '<div class="small muted">Belum ada insentif untuk peran ini.</div>')}
-    ${h.komisi ? `<div class="ph-item"><div class="row spread"><b>Komisi mekanik ${h.org.komisi}%</b><span class="num ph-plus">+${rp(h.komisi)}</span></div><div class="small muted">dari nilai jasa servis yang dikerjakan</div></div>` : ''}
+    ${h.org.peran === 'mekanik' && !h.insentif.some(x => x.item.sumber === 'biaya') ? '<div class="note small">Biaya lainnya belum memiliki aturan insentif untuk Mekanik. Atur di Master Data → Insentif &amp; Potongan dengan sumber “Biaya lain”.</div>' : ''}
     ${h.absen ? `<div class="ph-item"><div class="row spread"><b>Uang hadir</b><span class="num ${h.absen.uangHadir ? 'ph-plus' : 'muted'}">+${rp(h.absen.uangHadir)}</span></div><div class="small muted">${h.absen.hadir} hari hadir${h.absen.tarifHadir ? ' × ' + rp(h.absen.tarifHadir) : ''}${h.absen.tanpaPulang ? ` · ${h.absen.tanpaPulang} hari tanpa scan pulang tidak dihitung` : ''} · rincian di menu Absensi</div></div>` : ''}
     <h3>Potongan</h3>
     ${h.potongan.length || h.absen?.potongTelat || h.absen?.potongCepat ? `<div class="tw"><table><tbody>${h.potongan.map(p => `<tr><td>${esc(p.item.nama)}</td><td class="r num" style="color:var(--bad)">−${rp(p.jumlah)}</td></tr>`).join('')}${h.absen?.potongTelat ? `<tr><td>Terlambat ${h.absen.telat}×</td><td class="r num" style="color:var(--bad)">−${rp(h.absen.potongTelat)}</td></tr>` : ''}${h.absen?.potongCepat ? `<tr><td>Pulang cepat ${h.absen.cepat}×</td><td class="r num" style="color:var(--bad)">−${rp(h.absen.potongCepat)}</td></tr>` : ''}<tr><td><b>Total potongan</b></td><td class="r num"><b>−${rp(h.totPot)}</b></td></tr></tbody></table></div>` : '<div class="small muted">Tidak ada potongan.</div>'}

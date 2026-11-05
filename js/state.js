@@ -5,7 +5,11 @@ import { MENUS, HOME, KAT, DEFAULT_TIPE } from './config.js';
 /* ---- Data dari Firestore (diisi oleh main.js) ---- */
 // trx/wo/mekanik/pembelian = cabang yang sedang dibuka; trxSemua/woSemua/mekanikSemua = semua cabang
 export const S = { parts: [], map: new Map(), trx: [], wo: [], jasa: [], mekanik: [], settings: {}, pembelian: [], trxSemua: [], woSemua: [], mekanikSemua: [] };
-export const part = k => S.map.get(k);
+export const part = k => {
+  const key = String(k || '').trim();
+  return S.map.get(key) || S.map.get(key.toUpperCase()) || S.parts.find(p => String(p.kode || '').trim().toUpperCase() === key.toUpperCase());
+};
+export const hargaJualPart = p => Math.round((+p?.jual || 0) * (1 + Math.max(0, Math.min(1000, +p?.addPrice || 0)) / 100));
 export function setParts(list) {
   S.parts = list.sort((a, b) => a.kode.localeCompare(b.kode));
   S.map = new Map(S.parts.map(p => [p.kode, p]));

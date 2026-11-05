@@ -60,15 +60,16 @@ export async function loadXLSX() {
 
 let parsed = null, fileName = '';
 const BATCH = 400; // Firestore maksimal 500 tulisan per batch
+const bolehKelolaMasterPart = () => !!st.petugas?.super || (isRole('sparepart') && cabAktif() === CABANG_UTAMA);
 
 function openImport() {
-  if (!st.petugas?.super) { toast('Import Excel hanya untuk super admin'); return; }
+  if (!bolehKelolaMasterPart()) { toast('Import Excel hanya untuk Sparepart Pusat atau Super Admin'); return; }
   parsed = null;
   modal(`<div class="row spread"><h2>Import part dari Excel</h2><button class="btn sm ghost" type="button" data-close="1" aria-label="Tutup">✕</button></div>
    <p class="small" style="margin:0">Format yang dikenali otomatis:</p>
    <ul class="small" style="margin:0;padding-left:18px">
     <li><b>Ekspor stok DMS Yamaha</b> (kolom Parts, On Hand Qty, Average Cost, Retail Price, Product Category)</li>
-    <li><b>Template toko</b>: kode, nama, kategori, cocok, rak, harga_beli, harga_jual, stok, stok_min</li>
+    <li><b>Template toko</b>: kode, nama, kategori, cocok, rak, harga_beli, harga_jual, add_price, stok, stok_min. Add Price hanya informasi; saat import tetap mengikuti master pusat.</li>
    </ul>
    <label class="f" for="imp-file">File Excel (.xlsx, .xls, .csv)<input id="imp-file" type="file" accept=".xlsx,.xls,.csv"></label>
    <div id="imp-body"></div>
@@ -88,6 +89,15 @@ async function readFile(file) {
     const nmSheet = wb.SheetNames.find(n => n.toLowerCase() === nmCab) || (hasilExport ? null : wb.SheetNames[0]);
     if (!nmSheet) { $('#imp-body').innerHTML = `<div class="err">File ini tidak punya sheet untuk cabang <b>${esc(namaCabang(cabAktif()))}</b>. Pindah ke cabang yang sesuai dulu, atau ganti nama sheet menjadi nama cabang ini.</div>`; return; }
     const ws = wb.Sheets[nmSheet];
+    // Beberapa export DMS menulis !ref=A1:V2 walaupun sel sampai ribuan baris.
+    // Perluas range dari alamat sel yang benar-benar ada sebelum sheet_to_json.
+    const alamat = Object.keys(ws).filter(k => /^[A-Z]+\d+$/.test(k));
+    if (alamat.length) {
+      const max = alamat.reduce((m, k) => Math.max(m, X.utils.decode_cell(k).r), 0);
+      const ref = ws['!ref'] ? X.utils.decode_range(ws['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+      if (max > ref.e.r) ref.e.r = max;
+      ws['!ref'] = X.utils.encode_range(ref);
+    }
     const rows = X.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
     if ((rows[0] || []).some(h => String(h ?? '').trim().toLowerCase() === 'cabang')) { $('#imp-body').innerHTML = '<div class="err">Sheet ini berisi stok beberapa cabang sekaligus, jadi tidak bisa di-import. Pakai sheet satu cabang (nama sheet = nama cabang).</div>'; return; }
     if (wb.SheetNames.length > 1) fileName = file.name + ' · sheet ' + nmSheet;
@@ -122,11 +132,11 @@ function renderPreview() {
 
 async function runImport() {
   if (st.saving || !parsed) return;
-  // Import mengubah banyak data sekaligus: hanya super admin, dengan kata sandi
+  if (!bolehKelolaMasterPart()) { toast('Import Excel hanya untuk Sparepart Pusat atau Super Admin'); return; }
   const plan = planImport(parsed.items, parsed.cols, S.map, currentMode());
   const ops = [...plan.baru.map(p => [p.kode, p]), ...plan.ubah.map(u => [u.kode, u.patch])];
   if (!ops.length) return;
-  if (!(await mintaPassword('Import data part dari Excel', `${plan.baru.length} part baru, ${plan.ubah.length} diperbarui.`))) return;
+  if (st.petugas?.super && !(await mintaPassword('Import data part dari Excel', `${plan.baru.length} part baru, ${plan.ubah.length} diperbarui.`))) return;
   st.saving = true;
   const btn = document.querySelector('[data-act="import-run"]'); if (btn) btn.disabled = true;
   let done = 0;
@@ -153,7 +163,7 @@ async function runImport() {
   } finally { st.saving = false; }
 }
 
-const COLS = ['kode', 'nama', 'kategori', 'cocok', 'rak', 'harga_beli', 'harga_jual', 'stok', 'stok_min'];
+const COLS = ['kode', 'nama', 'kategori', 'cocok', 'rak', 'harga_beli', 'harga_jual', 'add_price', 'stok', 'stok_min'];
 async function downloadTemplate() {
   try {
     const X = await loadXLSX();
@@ -183,7 +193,7 @@ async function exportParts() {
     });
     const tahuPesan = c => admin || c === cabAktif();
     const parts = [...S.parts].sort((a, b) => String(a.kode).localeCompare(String(b.kode)));
-    const dasar = p => ({ kode: p.kode, nama: p.nama, kategori: p.kategori || '', cocok: p.cocok || '', rak: p.rak || '', harga_beli: p.beli || 0, harga_jual: p.jual || 0 });
+    const dasar = p => ({ kode: p.kode, nama: p.nama, kategori: p.kategori || '', cocok: p.cocok || '', rak: p.rak || '', harga_beli: p.beli || 0, harga_jual: p.jual || 0, add_price: p.addPrice || 0 });
     const satuCabang = (p, c) => { const stok = stokDi(p, c), d = tahuPesan(c) ? (pesan[c]?.[p.kode] || 0) : ''; return { stok, dipesan: d, ready: d === '' ? '' : stok - d }; };
     const catatan = (ws, n, teks) => X.utils.sheet_add_aoa(ws, [[teks]], { origin: { r: n + 2, c: 1 } }); // kolom B: kolom kode kosong → baris ini dilewati saat import
     const ket = 'Dicetak ' + new Date().toLocaleString('id-ID') + ' oleh ' + namaPetugas() + '. Ready = stok dikurangi part yang sudah dipesan untuk servis yang belum dibayar' + (admin ? '.' : ' (cabang lain: hanya admin yang melihat pesanan servisnya).');

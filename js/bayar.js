@@ -2,7 +2,7 @@
 // Menu Kasir hanya menerima pembayaran motor berstatus Selesai. Laporan selesai/tunda diterima Register.
 import { $, esc, rp, stamp, toast, errMsg, konfirmasi } from './util.js';
 import { APP_NAME } from './config.js';
-import { S, st, views, refreshers, actions, inputHandlers, fkeys, namaPetugas, idPetugas } from './state.js';
+import { S, st, views, actions, changeHandlers, go, namaPetugas, idPetugas, part, hargaJualPart } from './state.js';
 import { db, doc, runTransaction, serverTimestamp } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { AKTIF, woCard, woHeader, woCalc, partsTable, normJasa, mekanikNama, findWo, jenisBadge, tarifKsg, logStatus, timelineHTML, durasi, syncPantau, fmtAntri, kerjaPerMekanik } from './wo-common.js';
@@ -44,6 +44,7 @@ function statusPanel(w) {
 function renderDetail() {
   const w = draftWo(), c = woCalc(w), d = st.bayarDraft, ksg = w.jenisServis === 'KSG';
   const jasa = normJasa(w), bisaBayar = w.status === 'Selesai';
+  const partHilang = (w.parts || []).filter(x => !part(x.kode));
   $('#bay-detail').innerHTML = `<div class="row spread"><h2>${esc(w.no)}</h2>${jenisBadge(w)}</div>
     ${woHeader(w)}
     ${timelineHTML(w)}
@@ -53,11 +54,11 @@ function renderDetail() {
     ${ksg ? `<div class="note small">KSG ke-${esc(w.ksgKe || '?')} ${esc(w.tipe)}: jasa gratis untuk konsumen. Klaim ke main dealer ${tarifKsg(w) ? rp(tarifKsg(w)) : '<span class="diff-bad">belum ada tarif (isi di Master Data → Tarif KSG)</span>'}.</div>` : ''}
     <h3>Order sparepart</h3>
     ${partsTable(w)}
-    ${bisaBayar ? `<div class="note small">Biaya tambahan dan diskon sudah difinalkan di <b>Register Servis</b>. Kasir hanya menerima pembayaran.</div>
+    ${bisaBayar ? `${partHilang.length ? `<div class="err"><b>Pembayaran ditahan.</b> Part berikut belum tersedia di master: ${partHilang.map(x => `<span class="mono">${esc(x.kode)}</span>`).join(', ')}. Minta Sparepart/Admin memperbaiki master part terlebih dahulu.</div>` : ''}<div class="note small">Biaya tambahan dan diskon sudah difinalkan di <b>Register Servis</b>. Kasir hanya menerima pembayaran.</div>
     <h3>Pembayaran</h3>
     ${payFields('bay', d.pay)}
     <div id="bay-tot"></div>
-    <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="bay-confirm">Terima pembayaran &amp; cetak nota [F2]</button></div>` : `<div class="totals"><span class="muted">Estimasi tagihan</span><span class="num">${rp(c.total)}</span></div>`}`;
+    <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="bay-confirm" ${partHilang.length ? 'disabled title="Part belum tersedia di master"' : ''}>Terima pembayaran &amp; cetak nota [F2]</button></div>` : `<div class="totals"><span class="muted">Estimasi tagihan</span><span class="num">${rp(c.total)}</span></div>`}`;
   renderTot();
 }
 
@@ -71,6 +72,8 @@ async function confirm() {
   if (st.saving || !st.bayarNo) return;
   const w = draftWo(), d = st.bayarDraft;
   if (w.status !== 'Selesai') { toast('Motor belum dilaporkan selesai'); return; }
+  const missing = (w.parts || []).filter(x => !part(x.kode));
+  if (missing.length) { toast('Pembayaran ditahan. Part belum ada di master: ' + missing.map(x => x.kode).join(', ')); return; }
   if (w.dataKurang) { toast('Data konsumen belum lengkap. Lengkapi dulu di Registrasi Servis.'); return; }
   const chk = payStatus(d.pay, grandTotal());
   if (chk.err) { toast(chk.err); return; }
@@ -85,14 +88,15 @@ async function confirm() {
       if (ws.data().status === 'Lunas') throw new Error('Work order ini sudah dibayar');
       const finalWo = ws.data();
       const parts = finalWo.parts || [];
-      const refs = parts.map(x => doc(db, 'parts', x.kode));
+      const kodeMaster = parts.map(x => part(x.kode)?.kode || x.kode);
+      const refs = kodeMaster.map(k => doc(db, 'parts', k));
       const ps = await Promise.all(refs.map(r => tx.get(r)));
       const kRef = nopolKey(w.nopol) ? doc(db, 'kendaraan', nopolKey(w.nopol)) : null, ks = kRef ? await tx.get(kRef) : null;
       const items = parts.map((x, i) => {
         if (!ps[i].exists()) throw new Error('Part ' + x.kode + ' tidak ada di master');
         const p = ps[i].data();
         if (stokOf(p, cab) < x.qty) throw new Error('Stok ' + p.nama + ' tinggal ' + stokOf(p, cab));
-        return { kode: p.kode, nama: p.nama, qty: x.qty, harga: p.jual, beli: p.beli || 0 };
+        return { kode: p.kode, nama: p.nama, qty: x.qty, harga: hargaJualPart(p), beli: p.beli || 0, addPrice: +p.addPrice || 0, hargaDasar: p.jual || 0 };
       });
       const ksg = finalWo.jenisServis === 'KSG', jasaAsli = normJasa(finalWo);
       const jasa = jasaAsli.map(j => ({ nama: j.nama, harga: ksg ? 0 : +j.harga || 0 }));
@@ -139,4 +143,3 @@ Object.assign(actions, {
   },
   'bay-confirm': confirm
 });
-

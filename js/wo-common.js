@@ -1,7 +1,7 @@
 // Fungsi bersama untuk work order (WO) servis: hitung biaya, tampilan ringkas, simpan.
 import { esc, rp, clone, stamp, waButton, waNumber, toast, konfirmasi, errMsg } from './util.js';
 import { APP_NAME } from './config.js';
-import { S, part, mekanikById, namaPetugas, idPetugas, can } from './state.js';
+import { S, part, hargaJualPart, mekanikById, namaPetugas, idPetugas, can } from './state.js';
 import { db, doc, getDoc, getDocs, setDoc, deleteDoc, runTransaction, updateDoc, collection, query, where } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
 import { cabAktif, cabangOf, namaCabang, layarDocId, multiCabang } from './cabang.js';
@@ -28,7 +28,7 @@ export const tarifKsg = w => +(S.settings.ksgTarif?.[w.tipe]?.[(+w.ksgKe || 0) -
 
 // KSG: jasa tidak ditagih ke konsumen; nilai klaim = tarif main dealer. Sparepart & biaya tambahan tetap ditagih.
 export function woCalc(w) {
-  const parts = (w.parts || []).reduce((a, x) => { const p = part(x.kode), addPrice = Math.max(0, Math.min(1000, +x.addPrice || 0)); return a + x.qty * Math.round((p?.jual || 0) * (1 + addPrice / 100)); }, 0);
+  const parts = (w.parts || []).reduce((a, x) => a + x.qty * hargaJualPart(part(x.kode)), 0);
   const jasa = normJasa(w).reduce((a, j) => a + (+j.harga || 0), 0);
   const biaya = (w.biaya || []).reduce((a, b) => a + (+b.jumlah || 0), 0);
   const ksg = w.jenisServis === 'KSG';
@@ -81,8 +81,8 @@ export function partsTable(w, removeAct) {
   if (!(w.parts || []).length) return '<div class="small muted">Belum ada order sparepart.</div>';
   return `<div class="tw"><table class="bernomor"><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Stok</th><th class="r">Add Price / Jumlah</th>${removeAct ? '<th></th>' : ''}</tr></thead><tbody>${w.parts.map((x, i) => {
     const p = part(x.kode) || { nama: x.kode + ' (tidak ada di master)', jual: 0, stok: 0 };
-    const addPrice = Math.max(0, Math.min(1000, +x.addPrice || 0)), harga = Math.round((p.jual || 0) * (1 + addPrice / 100));
-    return `<tr><td>${esc(p.nama)}<br><span class="small muted mono">${esc(x.kode)}</span></td><td class="r num">${x.qty}</td><td class="r">${p.stok < x.qty ? `<span class="pill p-bad">${p.stok}</span>` : `<span class="num">${p.stok}</span>`}</td><td class="r"><input class="inline-input num ord-add-price" data-i="${i}" type="number" min="0" max="1000" step="0.1" value="${addPrice || ''}" ${removeAct ? '' : 'disabled'} aria-label="Add Price ${esc(p.nama)} persen"><br><span class="num">${rp(harga * x.qty)}</span></td>${removeAct ? `<td><button class="btn sm ghost" type="button" data-act="${removeAct}" data-i="${i}" aria-label="Hapus">✕</button></td>` : ''}</tr>`;
+    const harga = hargaJualPart(p);
+    return `<tr><td>${esc(p.nama)}<br><span class="small muted mono">${esc(x.kode)}</span></td><td class="r num">${x.qty}</td><td class="r">${p.stok < x.qty ? `<span class="pill p-bad">${p.stok}</span>` : `<span class="num">${p.stok}</span>`}</td><td class="r"><span class="small muted">Add Price master ${p.addPrice || 0}%</span><br><span class="num">${rp(harga * x.qty)}</span></td>${removeAct ? `<td><button class="btn sm ghost" type="button" data-act="${removeAct}" data-i="${i}" aria-label="Hapus">✕</button></td>` : ''}</tr>`;
   }).join('')}</tbody></table></div>`;
 }
 

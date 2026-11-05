@@ -120,7 +120,7 @@ footer.foot{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 3
 .modal ul{display:flex;flex-direction:column;gap:2px}
 
 /* ---------- Layout v2: sidebar + konten ---------- */
-.shell{display:flex;min-height:100vh}
+.shell{display:flex;height:100dvh;min-height:100vh;overflow:hidden}
 .sidebar{width:236px;flex-shrink:0;background:var(--hd);color:var(--on-hd);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
 .sb-brand{padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12)}
 .sb-brand b{display:block;font-family:var(--f-display);font-size:1.25rem;font-weight:700;letter-spacing:.02em;line-height:1.1}
@@ -135,7 +135,7 @@ footer.foot{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 3
 .sb-foot .role{color:var(--hd-muted);font-size:.78rem}
 .sb-foot .btn{background:transparent;color:var(--on-hd);border-color:rgba(255,255,255,.3);align-self:flex-start}
 .ver{color:var(--hd-muted);font-family:var(--f-mono);font-size:.72rem}
-.content{flex:1;min-width:0;display:flex;flex-direction:column}
+.content{flex:1;min-width:0;height:100dvh;overflow-y:auto;display:flex;flex-direction:column}
 .topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .topbar h1{font-family:var(--f-display);font-size:1.3rem;margin:0;font-weight:700}
 .topbar .clock{margin-left:auto;color:var(--muted);font-size:.85rem}
@@ -160,6 +160,11 @@ main{width:100%}
 .tile.click{cursor:pointer;text-align:left;font:inherit;color:inherit}
 .tile.click:hover{border-color:var(--accent)}
 .tile.click[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ph-card{border-left:4px solid var(--accent);background:linear-gradient(135deg,var(--panel),var(--panel-2));box-shadow:0 3px 12px rgba(20,50,110,.08)}
+.ph-card:nth-of-type(3n){border-left-color:var(--jasa)}
+.ph-card:nth-of-type(4n){border-left-color:var(--good)}
+.ph-item{border-left:3px solid var(--accent);background:var(--panel-2);border-radius:6px;padding:10px 12px;margin-top:8px}
+.note{border-left:3px solid var(--warn);background:var(--warn-bg);padding:8px 10px;border-radius:5px}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 6px 3px 12px;font-size:.85rem;font-weight:600}
 .chip button{border:0;background:none;color:inherit;cursor:pointer;font-size:.9rem;padding:0 4px}
 .bar-row{display:flex;flex-direction:column;gap:3px;border:0;background:none;padding:4px 0;text-align:left;cursor:pointer;width:100%;font:inherit;color:inherit}

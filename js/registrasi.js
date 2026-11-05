@@ -1,7 +1,7 @@
 // Menu Registrasi Servis: data konsumen & kendaraan, keluhan, jenis servis (Reguler/KSB/KSG), jasa, mekanik.
 import { $, esc, rp, dkey, stamp, clone, toast, errMsg, waButton, waNumber, konfirmasi, modal } from './util.js';
 import { APP_NAME } from './config.js';
-import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, part, mekanikById, isRole, namaPetugas } from './state.js';
+import { S, st, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, tipeList, jasaAktif, mekanikAktif, part, hargaJualPart, mekanikById, isRole, namaPetugas } from './state.js';
 import { JENIS_SERVIS } from './config.js';
 import { db, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, collection, query, where, limit, documentId } from './firebase.js';
 import { pindahPantau, AKTIF, normJasa, woCalc, woCard, sibukOleh, tarifKsg, saveWo, findWo, statusPill, jenisBadge, logStatus, timelineHTML, syncPantau, partsTable, fmtAntri, kurangBadge, tundaInfo, mekanikNama, syncLayar, laporStatus } from './wo-common.js';
@@ -86,7 +86,7 @@ function detailBiayaHTML(w, c) {
   const jasaRows = w.jenisServis === 'KSG'
     ? `<tr><td>Jasa standar KSG ke-${esc(w.ksgKe || '–')}</td><td class="r">${rp(c.klaim)}</td><td><span class="pill p-good">Gratis konsumen</span></td></tr>`
     : jasa.map(j => `<tr><td>${esc(j.nama)}</td><td class="r">${rp(+j.harga || 0)}</td><td><span class="pill p-info">Ditagihkan</span></td></tr>`).join('') || '<tr><td colspan="3" class="small muted">Belum ada jasa yang dipilih.</td></tr>';
-  const partRows = parts.map(x => { const p = part(x.kode) || {}; const qty = +x.qty || 0, harga = +p.jual || 0; return `<tr><td><b>${esc(p.nama || x.nama || x.kode)}</b><br><span class="small muted mono">${esc(x.kode || '')}</span></td><td class="r">${qty}</td><td class="r">${rp(harga)}</td><td class="r"><b>${rp(qty * harga)}</b></td></tr>`; }).join('') || '<tr><td colspan="4" class="small muted">Belum ada part yang ditagihkan.</td></tr>';
+  const partRows = parts.map(x => { const p = part(x.kode) || {}; const qty = +x.qty || 0, harga = hargaJualPart(p); return `<tr><td><b>${esc(p.nama || x.nama || x.kode)}</b><br><span class="small muted mono">${esc(x.kode || '')}</span></td><td class="r">${qty}</td><td class="r">${rp(harga)}</td><td class="r"><b>${rp(qty * harga)}</b></td></tr>`; }).join('') || '<tr><td colspan="4" class="small muted">Belum ada part yang ditagihkan.</td></tr>';
   const biayaRows = biaya.filter(x => x.ket || +x.jumlah).map(x => `<tr><td>${esc(x.ket || 'Biaya lainnya')}</td><td class="r"><b>${rp(+x.jumlah || 0)}</b></td></tr>`).join('') || '<tr><td colspan="2" class="small muted">Belum ada biaya lainnya.</td></tr>';
   return `<div class="note" style="margin-top:10px"><b>Detail biaya yang akan ditagihkan</b><div class="tw" style="margin-top:7px"><table><thead><tr><th>Jasa ${w.jenisServis === 'KSG' ? '(KSG gratis / nilai klaim)' : ''}</th><th class="r">Nominal</th><th>Status</th></tr></thead><tbody>${jasaRows}</tbody></table></div><div class="tw" style="margin-top:7px"><table><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Harga satuan</th><th class="r">Jumlah</th></tr></thead><tbody>${partRows}</tbody></table></div><div class="tw" style="margin-top:7px"><table><thead><tr><th>Biaya lainnya</th><th class="r">Nominal</th></tr></thead><tbody>${biayaRows}</tbody></table></div></div>`;
 }
@@ -155,9 +155,9 @@ function renderRegistrasi() {
     ${detailBiayaHTML(w, c)}
     <div class="totals small"><span class="muted">Total jasa ditagih</span><span class="num">${rp(c.jasaTagih)}</span>${c.klaim ? `<span class="muted">Klaim KSG</span><span class="num">${rp(c.klaim)}</span>` : ''}${w.parts.length ? `<span class="muted">Total part ditagih</span><span class="num">${rp(c.parts)}</span>` : ''}${c.biaya ? `<span class="muted">Total biaya lainnya</span><span class="num">${rp(c.biaya)}</span>` : ''}<span class="muted"><b>Total servis</b></span><span class="num"><b>${rp(c.total)}</b></span></div>
     <div class="row" style="justify-content:flex-end">
-     ${w.no && !locked && isRole('admin') ? `<label class="f" for="r-status" style="flex-direction:row;align-items:center;gap:6px">Status<select id="r-status" style="width:auto">${AKTIF.map(s => `<option ${s === w.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>` : ''}
+     ${w.no && !locked && (isRole('admin') || isRole('registrasi')) ? `<label class="f" for="r-status" style="flex-direction:row;align-items:center;gap:6px">Status<select id="r-status" style="width:auto">${['Antri', 'Dikerjakan', 'Ditunda', 'Selesai'].map(s => `<option ${s === w.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>${w.status === 'Ditunda' ? '<label class="f" for="r-status-alasan">Alasan tunda wajib<input id="r-status-alasan" data-rf="alasanTunda" value="' + esc(w.alasanTunda || '') + '" placeholder="mis. tunggu part / konsumen ambil besok"></label>' : ''}` : ''}
      ${w.status === 'Ditunda' && !locked ? '<button class="btn warn" type="button" data-act="reg-lanjut">▶ Lanjutkan dikerjakan</button>' : ''}
-     ${w.no && !locked && isRole('admin') ? '<button class="btn ghost" type="button" data-act="reg-hapus" title="Untuk pendaftaran ganda / salah daftar">Batalkan pendaftaran</button>' : ''}
+     ${w.no && !locked && (isRole('admin') || isRole('registrasi')) ? '<button class="btn ghost" type="button" data-act="reg-hapus" title="Untuk pendaftaran ganda / salah daftar">Batalkan pendaftaran</button>' : ''}
     ${locked ? '<span class="small muted">Sudah dibayar, tidak bisa diubah.</span>' : `${w.no ? '' : '<button class="btn" type="button" data-act="reg-cepat" title="Saat ramai: nomor antrian langsung keluar hanya dengan nomor polisi, data lain dilengkapi sesudahnya">Nomor cepat (cukup nopol)</button>'}<button class="btn pri" type="button" data-act="reg-save">${w.no ? 'Simpan perubahan' : 'Daftarkan &amp; beri nomor antrian'} [F2]</button>`}
     </div>
    </div></div>`;
@@ -280,6 +280,7 @@ async function save(opts = {}) {
   w.noRangka = (w.noRangka || '').replace(/\s+/g, ''); w.noMesin = (w.noMesin || '').replace(/\s+/g, '');
   if (w.stnkSama !== false) w.namaStnk = w.nama;
   if (w.jenisServis === 'KSG' && !w.ksgKe) { toast('Pilih KSG ke berapa'); $('#r-ksgke')?.focus(); return; }
+  if (w._manual && w.status === 'Ditunda' && !String(w.alasanTunda || '').trim()) { toast('Alasan tunda wajib diisi'); $('#r-status-alasan')?.focus(); return; }
   // Konsumen & pemilik motor: penanda HP/NIK, ganti pemilik / hanya mengantar, ganti plat, no. rangka berbeda
   if (!(await tentukanPemilik(w))) { delete w._lanjut; return; }
   // (dicek sebelum status/log diubah, supaya draft tidak berubah bila simpan dibatalkan)
@@ -316,7 +317,7 @@ async function save(opts = {}) {
   }
   // Catat jam setiap perubahan status (untuk menghitung lama servis) + mekanik yang mengerjakan
   const infoMek = mek ? { m: mek.nama, mid: mek.id } : {};
-  if (status !== prevStatus) w.log = logStatus(w.log || (stored?.log) || [], status, status === 'Dikerjakan' ? infoMek : {});
+  if (status !== prevStatus) w.log = logStatus(w.log || (stored?.log) || [], status, status === 'Dikerjakan' ? infoMek : (status === 'Ditunda' ? { a: String(w.alasanTunda || '').trim() } : {}));
   else if (status === 'Dikerjakan' && stored && mek && stored.mekanikId !== mek.id) w.log = logStatus(w.log || stored.log || [], 'Dikerjakan', { ...infoMek, a: 'ganti mekanik dari ' + (mekanikNama(stored) || '–') });
   w.status = status; w.mekanik = mek?.nama || '';
   delete w._manual; delete w._lanjut;
@@ -499,11 +500,11 @@ Object.assign(actions, {
   'reg-rm-biaya': el => { if (st.regDraft?.status === 'Lunas') return; st.regDraft.biaya.splice(+el.dataset.i, 1); renderRegistrasi(); },
   'reg-hapus-antar': () => { delete st.regDraft.pengantar; renderRegistrasi(); },
   'reg-lanjut': async () => { const w = st.regDraft; w._lanjut = true; try { await save(); } finally { delete w._lanjut; } },
-  'reg-status': async el => { const alasan = el.dataset.s === 'Ditunda' ? ($('#reg-tunda')?.value || '') : ''; if (await laporStatus(el.dataset.no, el.dataset.s, alasan)) { st.regDraft = { ...blank(), ...clone(findWo(el.dataset.no)), jasa: normJasa(findWo(el.dataset.no)) }; renderRegistrasi(); } },
+  'reg-status': async el => { const alasan = el.dataset.s === 'Ditunda' ? ($('#reg-tunda')?.value || '') : ''; if (el.dataset.s === 'Ditunda' && !alasan.trim()) return toast('Alasan tunda wajib diisi'); if (await laporStatus(el.dataset.no, el.dataset.s, alasan)) { st.regDraft = { ...blank(), ...clone(findWo(el.dataset.no)), jasa: normJasa(findWo(el.dataset.no)) }; renderRegistrasi(); } },
   'reg-oli-luar': () => catatOliLuar(st.regDraft.nopol, oli => { infoKm.oli = oli; infoKm.key = ''; isiInfoKm(); }),
   // Admin: hapus pendaftaran yang salah/ganda (belum dibayar). Nomor antrian tidak dipakai ulang.
   'reg-hapus': async () => {
-    const w = findWo(st.regDraft?.no); if (!w || w.status === 'Lunas') return;
+    const w = findWo(st.regDraft?.no); if (!w || w.status === 'Lunas' || !(isRole('admin') || isRole('registrasi'))) return;
     const ok = await konfirmasi('Batalkan pendaftaran ' + w.nopol + '?', `Antrian <b>${esc(fmtAntri(w.antrian) || '–')}</b> · <span class="mono">${esc(w.no)}</span> · ${esc(w.status)}${mekanikNama(w) ? ' · ' + esc(mekanikNama(w)) : ''}${(w.parts || []).length ? `<br><span class="diff-bad">Ada ${w.parts.length} order sparepart yang ikut terhapus.</span>` : ''}<br>Data servis ini dihapus dari daftar, layar TV, dan halaman cek servis konsumen. Data konsumen & kendaraan tidak terhapus.`, { ya: 'Ya, batalkan pendaftaran', bahaya: true });
     if (!ok) return;
     try {
@@ -535,7 +536,7 @@ changeHandlers.push(e => {
     w.jasa = t.checked ? [...normJasa(w).filter(j => j.nama !== n), { nama: n, harga: +t.dataset.harga || 0 }] : normJasa(w).filter(j => j.nama !== n);
     renderRegistrasi();
   }
-  if (t.id === 'r-status') { w.status = t.value; w._manual = true; }
+  if (t.id === 'r-status') { w.status = t.value; w._manual = true; renderRegistrasi(); }
   if (t.id === 'r-stnkSama') { w.stnkSama = t.checked; if (!t.checked && !w.namaStnk) w.namaStnk = w.nama; const n = $('#r-namaStnk'); n.disabled = t.checked; n.value = t.checked ? w.nama : w.namaStnk; if (!t.checked) n.focus(); }
   if (t.id === 'r-nopol' && !w.no) { t.value = t.value.trim().toUpperCase(); w.nopol = t.value; const g = woAktifNopol(w.nopol); if (g) peringatanGanda(g); else { lookupKendaraan(w.nopol); isiInfoKm(); } }
 });

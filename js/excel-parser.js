@@ -14,10 +14,11 @@ export const ALIASES = {
   jual: ['harga_jual', 'harga jual', 'retail price', 'het', 'price', 'harga'],
   stok: ['stok', 'on hand qty', 'stock', 'qty', 'jumlah', 'total stock qty'],
   min: ['stok_min', 'stok minimum', 'min stock', 'minimum', 'min'],
+  addPrice: ['add_price', 'add price', 'add price (%)'],
   pengganti: ['pengganti', 'part pengganti', 'superseding parts'],
   abc: ['abc', 'abc category']
 };
-export const LABEL = { kode: 'Kode', nama: 'Nama', kategori: 'Kategori', cocok: 'Cocok untuk', rak: 'Rak', beli: 'Harga beli', jual: 'Harga jual', stok: 'Stok', min: 'Stok minimum', pengganti: 'Pengganti', abc: 'ABC' };
+export const LABEL = { kode: 'Kode', nama: 'Nama', kategori: 'Kategori', cocok: 'Cocok untuk', rak: 'Rak', beli: 'Harga beli', jual: 'Harga jual', stok: 'Stok', min: 'Stok minimum', addPrice: 'Add Price (diabaikan saat import)', pengganti: 'Pengganti', abc: 'ABC' };
 const NUM_FIELDS = ['beli', 'jual', 'stok', 'min'];
 export const KODE_RE = /^[A-Z0-9._-]+$/;
 
@@ -87,7 +88,9 @@ export function planImport(items, cols, existingMap, mode) {
       baru.push({ kode: it.kode, nama: it.nama, kategori: it.kategori || '', cocok: it.cocok || '', rak: it.rak || '', beli: it.beli || 0, jual: it.jual || 0, stok: it.stok || 0, min: cols.min != null ? it.min : minFromAbc(it.abc), ...(it.pengganti ? { pengganti: it.pengganti } : {}), ...(it.abc ? { abc: it.abc } : {}) });
     } else if (mode === 'all') {
       const patch = {};
-      for (const [k, v] of Object.entries(it)) if (k !== 'kode' && ex[k] !== v && !(v === '' && ex[k] == null)) patch[k] = v;
+      // Add Price adalah master internal. Kolom Excel hanya ditampilkan sebagai
+      // informasi dan tidak pernah menimpa aturan pusat.
+      for (const [k, v] of Object.entries(it)) if (k !== 'kode' && k !== 'addPrice' && ex[k] !== v && !(v === '' && ex[k] == null)) patch[k] = v;
       Object.keys(patch).length ? ubah.push({ kode: it.kode, patch }) : sama.push(it.kode);
     } else sama.push(it.kode);
   }
