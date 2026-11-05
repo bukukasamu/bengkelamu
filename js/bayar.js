@@ -58,7 +58,7 @@ function renderDetail() {
     <h3>Pembayaran</h3>
     ${payFields('bay', d.pay)}
     <div id="bay-tot"></div>
-    <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="bay-confirm" ${partHilang.length ? 'disabled title="Part belum tersedia di master"' : ''}>Terima pembayaran &amp; cetak nota [F2]</button></div>` : `<div class="totals"><span class="muted">Estimasi tagihan</span><span class="num">${rp(c.total)}</span></div>`}`;
+    <div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-act="bay-confirm" ${partHilang.length ? 'disabled title="Part belum tersedia di master"' : ''}>Terima pembayaran &amp; cetak nota</button></div>` : `<div class="totals"><span class="muted">Estimasi tagihan</span><span class="num">${rp(c.total)}</span></div>`}`;
   renderTot();
 }
 

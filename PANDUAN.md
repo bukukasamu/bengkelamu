@@ -1,10 +1,10 @@
-# Panduan Penggunaan AMU Service · versi 5.20.0
+# Panduan Penggunaan AMU Service · versi 5.21.0
 
 Aceh Mandiri Utama — Sparepart & Bengkel Yamaha. Dokumen ini sama dengan menu **Panduan Penggunaan** di dalam aplikasi (www.amuservice.id/pos). Di aplikasi, setiap pengguna hanya melihat topik untuk perannya; dokumen ini memuat seluruh topik.
 
 ## Daftar isi
 
-1. Apa yang baru — versi 5.20.0
+1. Apa yang baru — versi 5.21.0
 2. Umum — semua pengguna
 3. Tampilan, navigasi & kecepatan
 4. Fungsi setiap menu
@@ -21,63 +21,79 @@ Aceh Mandiri Utama — Sparepart & Bengkel Yamaha. Dokumen ini sama dengan menu 
 
 ---
 
-## 1. Apa yang baru — versi 5.20.0
+## 1. Apa yang baru — versi 5.21.0
 
-_Ringkasan lengkap perubahan 5.19.0–5.20.0: tampilan HP gaya aplikasi dengan menu bawah, KSG 12 kolom, PDF absensi pribadi, tampilan modern bergradasi, PDF modern, Chat gaya messenger dengan status Online/Sibuk/Offline, dan loading yang jauh lebih ringan. Baca bagian ini dulu setelah aplikasi diperbarui._
+_Ringkasan lengkap perubahan 5.19.0–5.21.0: sidebar laci + pintasan bawah di HP, menu profil gaya medsos, KSG 12 kolom, PDF absensi pribadi, tampilan modern bergradasi, PDF modern, Chat gaya messenger dengan status Online/Sibuk/Offline, dan loading yang jauh lebih ringan. Baca bagian ini dulu setelah aplikasi diperbarui._
 
-### 1.1 Baru di 5.20.0 — menu bawah di HP (gaya aplikasi)
+### 1.1 Baru di 5.21.0 — menu HP: sidebar kiri + pintasan bawah
 
-Di HP (layar 900 piksel ke bawah) bilah kiri diganti **bilah menu di bawah layar** seperti aplikasi pada umumnya. Bilah bawah berisi 4 menu utama sesuai peran Anda (contoh Kasir: Beranda, Bayar, Jual Part, Cek Stok; Mekanik: Mekanik, Cek Stok, Absensi, Gaji; Admin: Beranda, Registrasi, Bayar, Jual Part) dan tombol **Menu** di paling kanan. Ketuk **Menu** untuk membuka lembar dari bawah yang berisi: kartu profil (nama, peran, tombol status Online/Sibuk/Offline), **seluruh menu** yang boleh Anda buka dalam bentuk ikon berkelompok (Utama, Komunikasi, Bengkel, Sparepart, Kasir, Keuangan, Pengaturan, Karyawan, Bantuan), serta tombol **Ganti PIN**, **Pasang aplikasi**, **Update aplikasi**, **Mode gelap/terang**, dan **Keluar**. Tutup lembar dengan mengetuk area gelap, menggeser lembar ke bawah, atau tombol Kembali HP. Angka kuning di ikon menandakan ada hal yang perlu ditindaklanjuti (angka di tombol Menu = jumlah untuk menu yang tidak tampil di bilah bawah). Menu yang sedang dibuka disorot berwarna.
+Di HP, menu kembali memakai **sidebar kiri** seperti di PC, dalam bentuk laci yang meluncur dari kiri. Cara membuka: tekan **☰** di kiri atas, tekan tombol **Menu** di bilah bawah, atau **geser jari dari tepi kiri layar** ke kanan. Cara menutup: geser laci ke kiri, ketuk area gelap di kanan, pilih salah satu menu, atau tekan tombol Kembali HP. Di bawah layar ada **bilah pintasan** berisi 4 menu yang paling sering dipakai sesuai peran, plus tombol **Menu**. Pintasan bawaan: Super Admin — Beranda, Persetujuan, Laporan, Chat; Admin — Beranda, Registrasi, Bayar, Laporan; Registrasi — Registrasi, Riwayat Kendaraan, Konsumen, Cek Stok; Sparepart — Order Sparepart, Stok Part, Cek Stok, Pesanan Part; Kasir — Bayar, Jual Part, Kas, Laporan; Mekanik — Performa Mekanik, Cek Stok, Absensi, Gaji; Service Advisor — Beranda, Mekanik, Riwayat, Laporan; Sales — Absensi, Gaji, Chat (bila diberi akses), Panduan. Menu yang tidak diizinkan Hak Akses otomatis diganti menu lain yang boleh dibuka. Angka kuning tampil di pintasan; angka di tombol Menu adalah jumlah untuk menu yang tidak ada di pintasan.
 
-### 1.2 Baru di 5.20.0 — layar HP tidak bergoyang
+### 1.2 Baru di 5.21.0 — mengganti pintasan sendiri
+
+Setiap pengguna dapat memilih 4 pintasan bawahnya sendiri. **Cara 1:** buka sidebar, **tekan lama** (±½ detik) sebuah menu, lalu pilih **★ Jadikan pintasan bawah** atau **✕ Hapus dari pintasan bawah**; bila pintasan sudah 4, jendela pengaturan terbuka untuk memilih mana yang diganti. **Cara 2:** tombol **★ Atur pintasan bawah** di bagian bawah sidebar, atau **Menu profil → Atur pintasan bawah**: tambah menu dengan tombol ＋, hapus dengan ✕, ubah urutan dengan ◀ ▶, lalu **Simpan**. **Kembalikan bawaan** memakai daftar bawaan peran. Menu yang menjadi pintasan ditandai bintang ★ kuning di sidebar. Pilihan disimpan untuk akun Anda di HP tersebut.
+
+### 1.3 Baru di 5.21.0 — menu profil gaya media sosial
+
+Ketuk **foto profil** di kanan atas. Muncul menu profil (di HP sebagai lembar dari bawah, di PC sebagai kotak di bawah foto) berisi: kartu profil (foto, nama, peran & cabang, tombol **Lihat & ubah profil**; ketuk foto untuk menggantinya), pilihan status **Online / Sibuk / Offline**, lalu **Profil saya**, **Ganti foto profil**, **Ganti PIN** (akun PIN), **Atur pintasan bawah** (HP), **Mode gelap/terang**, **Update aplikasi** (beserta nomor versi), **Pasang aplikasi** (bila tersedia), **Panduan penggunaan**, dan **Keluar**. Tombol-tombol tersebut tidak lagi berada di bagian bawah sidebar.
+
+### 1.4 Baru di 5.21.0 — Profil saya (biodata)
+
+Di **Menu profil → Profil saya** setiap karyawan dapat mengisi: foto, nama panggilan, No. HP/WhatsApp, bio/tentang saya (maks. 300 huruf), tanggal lahir, jenis kelamin, kota/domisili, mulai bekerja, alamat, Instagram, dan hobi/minat, lalu menekan **Simpan profil**. Centang **Tampilkan No. HP** bila nomor boleh dilihat rekan kerja. Nama lengkap, peran, dan cabang tetap diatur Super Admin. Rekan kerja dapat melihat **kartu profil** Anda dengan mengetuk foto/inisial Anda di Chat (kepala percakapan atau di samping pesan): tampil foto, nama panggilan, peran & cabang, status, bio, ulang tahun (tanggal & bulan saja), domisili, mulai bekerja, hobi, Instagram, dan tombol WhatsApp bila No. HP ditampilkan. Alamat dan tanggal lahir lengkap hanya terlihat oleh pemilik dan Super Admin. Foto profil kini dapat diganti semua karyawan (sebelumnya penyimpanan foto oleh karyawan bisa ditolak server).
+
+### 1.5 Baru di 5.21.0 — tampilan lain
+
+**Huruf di HP** memakai huruf bawaan sistem (Roboto di Android, San Francisco di iPhone) agar terasa seperti aplikasi asli; di PC tetap Plus Jakarta Sans. **Label tombol F1/F2/F3/F8** (mis. "Simpan [F2]") dihapus dari semua tombol supaya bersih; di PC dengan keyboard, tombol F1/F2/F3/F8 tetap berfungsi. **Panel daftar tetap di tempat (PC):** di Registrasi Servis, Pembayaran, Order Sparepart, Pembelian, dan WO, panel kiri (mis. Motor masuk) tidak ikut tergulir ketika formulir di kanan digulir ke bawah; daftar yang panjang digulir di dalam panelnya sendiri. **Tombol Kembali HP** langsung kembali ke menu sebelumnya tanpa pertanyaan; konfirmasi hanya muncul saat akan keluar aplikasi. **Warna bilah status HP** mengikuti warna tema.
+
+### 1.6 Baru di 5.20.0 — layar HP tidak bergoyang
 
 Tampilan HP kini terkunci seperti aplikasi: halaman tidak bisa digeser ke samping, tidak memantul saat ditarik di ujung atas/bawah, tidak bisa dicubit untuk zoom, dan tidak membesar sendiri saat mengetik di kotak isian. Jendela dialog (konfirmasi, rincian, pratinjau) muncul dari bawah layar selebar HP. Tombol cepat di bawah judul hanya tampil bila berguna (mis. Cetak Nota Terakhir hanya di Bayar, Jual Part, dan Laporan). Di menu dengan daftar + rincian (Pembayaran, Order Sparepart), setelah memilih motor layar otomatis bergulir ke rincian. Tabel lebar tetap dapat digeser ke samping di dalam kotaknya.
 
-### 1.3 Baru di 5.20.0 — Tarif KSG 12 kolom
+### 1.7 Baru di 5.20.0 — Tarif KSG 12 kolom
 
 **Master Data → Tarif KSG** sekarang memiliki **12 kolom (KSG 1 s.d. KSG 12)** per tipe motor yang dapat diisi sendiri sesuai buku servis/ketentuan main dealer. Kolom yang dikosongkan berarti tidak ada klaim. Kolom tipe motor tetap terlihat saat tabel digeser ke samping. Di **Registrasi Servis**, pilihan **KSG ke-** kini 1 sampai 12; bila tipe motor sudah punya tarif, nomor yang belum diisi tarifnya ditandai _(tanpa tarif)_. Tarif lama KSG 1–4 tidak berubah.
 
-### 1.4 Baru di 5.20.0 — cetak absensi pribadi (PDF / pratinjau)
+### 1.8 Baru di 5.20.0 — cetak absensi pribadi (PDF / pratinjau)
 
 Semua karyawan dapat mencetak absensinya sendiri. Buka **Absensi Saya**, pilih bulan dengan tombol ‹ ›, lalu tekan **👁 Pratinjau** untuk melihat laporan di layar, atau **⬇ PDF absensi** untuk mengunduh PDF (dari pratinjau juga ada tombol **Unduh PDF**). Isi laporan: identitas (nama, jabatan, cabang, jam kerja), ringkasan (hari hadir & uang hadir, terlambat & potongan, tanpa scan pulang, pulang cepat, izin/sakit/alpa), rincian harian (tanggal, jam masuk, jam pulang, durasi kerja, keterangan), aturan uang hadir, dan kolom tanda tangan karyawan & manajemen. Super Admin dapat membuat laporan yang sama untuk setiap karyawan dari **Absensi Karyawan → Rekap bulanan** (tombol 👁 dan PDF di setiap baris).
 
-### 1.5 Baru di 5.19.2 — dokumen PDF modern
+### 1.9 Baru di 5.19.2 — dokumen PDF modern
 
 Semua dokumen PDF kini memakai desain baru yang seragam: pita kepala bergradasi sesuai tema dengan logo toko di plat putih, judul dokumen dan periode di kanan atas, kartu informasi berwarna lembut, judul bagian dengan garis warna, tabel dengan kepala berwarna dan baris belang tipis, serta kaki halaman berisi tanggal cetak dan nomor halaman. Berlaku untuk: **Slip gaji** dan **slip THR/bonus** (kotak **Penghasilan bersih** bergradasi, total pendapatan hijau, potongan merah), **Laporan penjualan PDF** (kartu ringkasan berwarna, halaman lanjutan memakai kepala ringkas), **BAST transfer stok PDF** (kartu tanggal + lencana status DITERIMA/DIKIRIM, rute cabang), **Data konsumen & kendaraan PDF**, serta **Nota PDF** (pita warna tipis atas-bawah, total dalam kotak lembut). Tampilan cetak **BAST kendaraan masuk** dan **BAST transfer stok** (Print / Simpan PDF) juga diperbarui. Warna dokumen mengikuti tema di Master Data → Tema Tampilan (tema Gelap/Kaca memakai biru agar terang saat dicetak).
 
-### 1.6 Baru di 5.19.2 — tampilan HP lebih rapi
+### 1.10 Baru di 5.19.2 — tampilan HP lebih rapi
 
 Di HP: ukuran huruf tidak lagi membesar sendiri; bilah atas selalu satu baris (judul panjang dipotong dengan tanda …, pilihan cabang ringkas, tombol status dan foto profil tidak keluar layar); halaman tidak bisa bergeser ke samping; tab (mis. Master Data, Registrasi) dan pilihan periode (Laporan) tampil satu baris yang dapat **digeser ke samping**; tombol cepat (Baru, Simpan, Cetak) satu baris yang dapat digeser; tabel yang berisi isian (mis. Petugas & PIN) dapat digeser di dalam kotaknya tanpa memotong isian; jarak dan ukuran kartu disesuaikan; dialog muncul dari bawah layar. Foto petugas di Master Data → Petugas & PIN kini berupa lingkaran yang tinggal diketuk (tombol "Choose File" disembunyikan).
 
-### 1.7 Perbaikan 5.19.1 — browser lama (Windows 7)
+### 1.11 Perbaikan 5.19.1 — browser lama (Windows 7)
 
 Pada komputer Windows 7 (Chrome versi 109 ke bawah) tampilan 5.19.0 sempat bermasalah: sisi kiri halaman login putih sehingga nama toko tidak terbaca, tombol **Masuk** tidak terlihat, dan bilah kiri/atas tidak bergradasi. Penyebabnya fungsi warna baru yang belum dikenal browser lama. Versi 5.19.1 memakai cara pewarnaan yang didukung browser lama maupun baru, tanpa mengubah fungsi apa pun. Jika masih melihat tampilan putih, tekan **Update aplikasi** sekali. Disarankan tetap memperbarui browser/perangkat bila memungkinkan, karena Chrome di Windows 7 sudah tidak mendapat pembaruan keamanan.
 
-### 1.8 Cara memastikan sudah memakai versi terbaru
+### 1.12 Cara memastikan sudah memakai versi terbaru
 
-Lihat tulisan kecil **versi 5.20.0** di bagian bawah bilah kiri (atau di halaman login sisi kiri bawah). Jika masih tertulis versi lama, tekan **Update aplikasi** di bilah kiri bawah (atau di layar login). Tombol ini sekarang mengosongkan salinan aplikasi lama di perangkat, mengambil versi terbaru, lalu memuat ulang halaman secara otomatis dalam ±3 detik. Data transaksi tidak ikut terhapus.
+Lihat tulisan kecil **versi 5.21.0** di bagian bawah bilah kiri (atau di halaman login sisi kiri bawah). Jika masih tertulis versi lama, tekan **Update aplikasi** di bilah kiri bawah (atau di layar login). Tombol ini sekarang mengosongkan salinan aplikasi lama di perangkat, mengambil versi terbaru, lalu memuat ulang halaman secara otomatis dalam ±3 detik. Data transaksi tidak ikut terhapus.
 
-### 1.9 Ringkasan perubahan
+### 1.13 Ringkasan perubahan
 
 **1. Tampilan baru "Aurora":** bilah kiri dan bilah atas memakai gradasi warna yang menyambung dari kiri ke kanan, kartu dan tombol lebih bulat, huruf Plus Jakarta Sans yang lebih mudah dibaca, ikon di setiap menu, dan kartu sapaan bergradasi di Beranda. **2. Chat Internal baru:** tampilan dua kolom seperti aplikasi pesan, status **Online (live) / Sibuk / Offline** setiap petugas, penanda pesan belum dibaca per percakapan, pemisah tanggal, Enter untuk kirim, dan bisa chat pribadi dengan Super Admin. **3. Loading lebih ringan:** aplikasi dibuka dari salinan di perangkat, data dimuat bersamaan, dan menu yang dibuka ulang tidak mengunduh data yang sama berkali-kali.
 
-### 1.10 Tombol status di bilah atas
+### 1.14 Status Online/Sibuk/Offline
 
-Di kanan atas sekarang ada tombol bulat bertuliskan **Online** dengan titik hijau. Klik untuk memilih **Online** (siap membalas), **Sibuk** (sedang melayani konsumen/tidak bisa membalas cepat), atau **Offline** (tampil offline untuk petugas lain). Titik kecil di foto profil Anda ikut berubah warna. Lihat topik **Chat & Status** untuk penjelasan lengkap.
+Sejak 5.21.0 status diatur dari **menu profil** (ketuk foto profil di kanan atas → pilih Online, Sibuk, atau Offline). Titik kecil di sudut foto profil Anda menunjukkan status yang aktif. Lihat topik **Chat & Status** untuk penjelasan lengkap.
 
-### 1.11 Kartu sapaan di Beranda
+### 1.15 Kartu sapaan di Beranda
 
 Bagian paling atas Beranda menampilkan salam sesuai jam (pagi/siang/sore/malam), nama Anda, tanggal lengkap, ringkasan hari ini (omzet dan jumlah motor di bengkel, bila peran Anda boleh melihatnya), serta maksimal empat tombol pintas: **Motor masuk**, **Jual part**, **Pembayaran**, **Cek stok**, atau **Chat**. Tombol pintas hanya muncul untuk menu yang memang boleh Anda buka.
 
-### 1.12 Apa yang lebih cepat
+### 1.16 Apa yang lebih cepat
 
 **Membuka aplikasi:** file aplikasi tidak lagi diunduh satu per satu dari internet setiap kali dibuka; versi baru diunduh diam-diam di belakang layar. **Setelah login:** data cabang, hak akses, dan data petugas dibaca bersamaan. Aplikasi terbuka paling lama ±3,5 detik walau sinyal lemah; data yang belum datang akan langsung mengisi layar begitu tiba. **Menu yang sering dibuka:** daftar petugas dan data nota periode lama (Laporan, Performa Mekanik, Klaim KSG, Penghasilan) disimpan sementara 60 detik, sehingga berpindah menu lalu kembali terasa instan. **Chat:** pesan sudah terunduh sejak login, jadi Chat langsung tampil tanpa loading.
 
-### 1.13 Apakah ada yang berubah pada cara kerja transaksi?
+### 1.17 Apakah ada yang berubah pada cara kerja transaksi?
 
 Tidak. Registrasi, order part, pembayaran, stok, kas, retur, absensi, penghasilan, dan laporan bekerja sama seperti sebelumnya. Perubahan hanya pada tampilan, Chat, dan cara data dimuat. Semua tombol, menu, dan hak akses tetap di tempat yang sama.
 
-### 1.14 Yang perlu dilakukan Super Admin setelah update
+### 1.18 Yang perlu dilakukan Super Admin setelah update
 
 **1.** Publish ulang **firestore.rules** (berisi aturan baru koleksi `presence` untuk status Online/Sibuk/Offline). Tanpa ini aplikasi tetap jalan, tetapi semua petugas akan terlihat Offline. **2.** Deploy **firestore.indexes.json** (dua index baru untuk koleksi `chat`) supaya pesan selalu diambil dari yang terbaru. Tanpa index, Chat otomatis memakai cara lama sehingga tetap berfungsi. **3.** Minta semua perangkat menekan **Update aplikasi** sekali.
 
@@ -105,7 +121,7 @@ Ketik kata seperti **BAST**, **KSG**, **transfer**, **stok**, **nota**, **PIN**,
 
 ### 2.5 Tombol cepat keyboard
 
-`F1` membuat data baru, `F2` menyimpan atau mengirim, `F3` memfokuskan pencarian, `F8` membuka/cetak nota terakhir, dan `Esc` menutup dialog. Di HP, gunakan tombol yang tampil di layar.
+Khusus PC dengan keyboard (label F di tombol sudah dihapus sejak 5.21.0, tetapi fungsinya tetap): `F1` membuat data baru, `F2` menyimpan atau mengirim, `F3` memfokuskan pencarian, `F8` membuka/cetak nota terakhir, dan `Esc` menutup dialog. Di HP, gunakan tombol yang tampil di layar.
 
 ### 2.6 Konfirmasi tindakan penting
 
@@ -143,7 +159,7 @@ _Penjelasan lengkap bagian-bagian layar 5.19.0, cara berpindah menu, tema dan mo
 
 ### 3.1 Bagian-bagian layar
 
-**Bilah kiri (sidebar)**: nama toko, daftar menu yang dikelompokkan (Utama, Komunikasi, Bengkel, Sparepart, Kasir, Keuangan, Pengaturan, Akun Saya, Bantuan), lalu bagian bawah berisi nama dan peran Anda, tombol **Ganti PIN**, **Keluar**, **Pasang aplikasi**, **Update aplikasi**, **Mode gelap/terang**, dan nomor versi. **Bilah atas**: tombol menu (☰), judul halaman, pilihan cabang (admin) atau nama cabang, tombol status, foto profil, serta jam. **Bilah tombol cepat**: tombol F1/F2/F3/F8 yang hanya muncul bila berguna di halaman itu. **Area kerja**: isi menu yang sedang dibuka.
+**Bilah kiri (sidebar)**: nama toko, daftar menu berikon yang dikelompokkan (Utama, Komunikasi, Bengkel, Sparepart, Kasir, Keuangan, Pengaturan, Akun Saya, Bantuan), serta nama, peran, dan nomor versi di bagian bawah. Di HP sidebar berupa laci geser dan ada tombol **★ Atur pintasan bawah**. **Bilah atas**: tombol ☰, judul halaman, pilihan cabang (admin) atau nama cabang, foto profil (ketuk untuk menu profil: status, profil saya, ganti foto, Ganti PIN, mode gelap, update, panduan, keluar), dan jam (PC). **Bilah tombol cepat**: tombol Baru/Simpan/Cari/Cetak Nota Terakhir yang hanya muncul bila berguna. **Bilah pintasan bawah** (HP): 4 pintasan + Menu. **Area kerja**: isi menu yang sedang dibuka.
 
 ### 3.2 Gradasi warna bilah kiri dan atas
 
@@ -155,7 +171,7 @@ Setiap menu memiliki ikon garis agar mudah dikenali. Menu yang sedang dibuka tam
 
 ### 3.4 Menyembunyikan dan membuka menu
 
-Di PC/laptop, tekan tombol **☰** di kiri atas untuk menyembunyikan bilah kiri agar area kerja lebih lebar; tekan lagi untuk menampilkan. Pilihan ini diingat di perangkat. Di HP tidak ada bilah kiri; gunakan **bilah menu bawah** dan tombol **Menu** (lihat Memakai aplikasi di HP).
+Di PC/laptop, tekan tombol **☰** di kiri atas untuk menyembunyikan bilah kiri agar area kerja lebih lebar; tekan lagi untuk menampilkan. Pilihan ini diingat di perangkat. Di HP, sidebar berupa laci: buka dengan ☰, tombol Menu di bilah bawah, atau geser dari tepi kiri; tutup dengan geser ke kiri, ketuk area gelap, atau tombol Kembali HP.
 
 ### 3.5 Mode gelap dan tema
 
@@ -163,7 +179,7 @@ Tombol **☾ Mode gelap** / **☀ Mode terang** di bilah kiri bawah (dan di laya
 
 ### 3.6 Foto profil
 
-Klik foto/inisial Anda di kanan atas, pilih foto dari galeri atau kamera. Foto diperkecil otomatis lalu disimpan. Titik kecil di sudut foto menunjukkan status Anda (hijau Online, oranye Sibuk, abu-abu Offline).
+Ketuk foto/inisial Anda di kanan atas → **Ganti foto profil** (atau ketuk foto di kartu profil), lalu pilih foto dari galeri atau kamera. Foto diperkecil otomatis lalu disimpan di profil Anda. Titik kecil di sudut foto menunjukkan status Anda (hijau Online, oranye Sibuk, abu-abu Offline).
 
 ### 3.7 Berpindah cabang (admin)
 
@@ -187,7 +203,7 @@ Animasi roda gigi hanya muncul bila data benar-benar perlu ditunggu (lebih dari 
 
 ### 3.12 Memakai aplikasi di HP
 
-Di HP, menu ada di **bilah bawah layar**: 4 menu utama sesuai peran dan tombol **Menu** untuk semua menu lain, profil, status, Ganti PIN, Update aplikasi, Mode gelap, dan Keluar. Bilah atas berisi judul halaman (dipotong dengan … bila panjang), pilihan cabang ringkas (admin), tombol status, dan foto profil. Deretan tab dan tombol periode yang tidak muat dapat **digeser ke kiri/kanan**; tabel lebar digeser di dalam kotaknya. Dialog muncul dari bawah layar. Tombol Kembali HP menutup lembar Menu yang terbuka. Agar terasa seperti aplikasi penuh, pasang ke layar utama lewat **Menu → Pasang aplikasi** (Android) atau Safari → Bagikan → Tambah ke Layar Utama (iPhone).
+Di HP, semua menu ada di **sidebar kiri** (laci geser) dan 4 menu tersering ada di **bilah pintasan bawah**. Ketuk foto profil di kanan atas untuk status, profil, ganti foto, Ganti PIN, mode gelap, update, panduan, dan keluar. Judul halaman yang panjang dipotong dengan …. Deretan tab dan tombol periode yang tidak muat dapat **digeser ke kiri/kanan**; tabel lebar digeser di dalam kotaknya. Dialog muncul dari bawah layar. Tombol Kembali HP menutup laci/menu yang terbuka atau kembali ke menu sebelumnya. Agar tampil penuh tanpa bilah alamat browser, pasang lewat **Menu profil → Pasang aplikasi** (Android) atau Safari → Bagikan → Tambah ke Layar Utama (iPhone).
 
 ### 3.13 Tips agar aplikasi tetap ringan
 
@@ -335,7 +351,7 @@ Setiap petugas memiliki titik status: **hijau = Online** (aplikasi sedang terbuk
 
 ### 5.8 Mengganti status Anda
 
-Klik tombol status di kanan atas (bertuliskan Online/Sibuk/Offline). Pilih status yang sesuai. Pilihan Anda diingat di perangkat ini dan dikirim ke server, sehingga petugas lain langsung melihatnya saat membuka Chat. Di HP, tombol status hanya menampilkan titik warna untuk menghemat tempat.
+Ketuk **foto profil** di kanan atas, lalu pilih **Online**, **Sibuk**, atau **Offline** di bawah kartu profil. Pilihan diingat di perangkat ini dan dikirim ke server, sehingga petugas lain langsung melihatnya saat membuka Chat. Titik di sudut foto profil ikut berubah warna.
 
 ### 5.9 Bagaimana status dihitung otomatis
 
@@ -739,7 +755,7 @@ Buka **Master Data → Hak Akses Menu**. Centang hanya menu yang diperlukan tiap
 
 ### 13.7 Publish aturan & index versi 5.19.0
 
-Setelah update ke 5.19.0: **1.** Firebase Console → Firestore → Rules: tempel isi **firestore.rules** terbaru lalu Publish (menambah koleksi `presence` untuk status Online/Sibuk/Offline; setiap petugas hanya boleh menulis status miliknya dan wajib memakai jam server). **2.** Deploy **firestore.indexes.json** (index `chat`: ruang + tgl menurun, dan participantEmails + ruang + tgl menurun) melalui Firebase CLI `firebase deploy --only firestore:indexes` atau buat manual di Console → Indexes. Tunggu status index **Enabled**. Tanpa langkah 1, semua petugas tampil Offline; tanpa langkah 2, Chat tetap jalan memakai cara lama.
+Setelah update ke 5.21.0 publish ulang rules (berisi koleksi `presence` dan `profil`). Rincian sejak 5.19.0: **1.** Firebase Console → Firestore → Rules: tempel isi **firestore.rules** terbaru lalu Publish (menambah koleksi `presence` untuk status Online/Sibuk/Offline; setiap petugas hanya boleh menulis status miliknya dan wajib memakai jam server). **2.** Deploy **firestore.indexes.json** (index `chat`: ruang + tgl menurun, dan participantEmails + ruang + tgl menurun) melalui Firebase CLI `firebase deploy --only firestore:indexes` atau buat manual di Console → Indexes. Tunggu status index **Enabled**. Tanpa langkah 1, semua petugas tampil Offline; tanpa langkah 2, Chat tetap jalan memakai cara lama.
 
 ### 13.8 Biaya baca/tulis status online
 
@@ -789,7 +805,7 @@ Menu yang mengambil data periode lama (Laporan rentang panjang, Insight, Penghas
 
 ### 14.4 Tampilan belum berubah setelah update
 
-Tekan **Update aplikasi** sekali dan tunggu halaman memuat ulang sendiri. Jika aplikasi dipasang di HP, tutup aplikasi sepenuhnya lalu buka lagi. Pastikan nomor versi di bilah kiri bawah (atau di bawah lembar Menu di HP) sudah **5.20.0**.
+Tekan **Update aplikasi** sekali dan tunggu halaman memuat ulang sendiri. Jika aplikasi dipasang di HP, tutup aplikasi sepenuhnya lalu buka lagi. Pastikan nomor versi di bilah kiri bawah (atau di bawah lembar Menu di HP) sudah **5.21.0**.
 
 ### 14.5 Semua petugas tampil Offline di Chat
 

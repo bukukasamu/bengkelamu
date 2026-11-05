@@ -75,6 +75,8 @@
       <div><b id="who"></b><div class="role" id="who-role"></div></div>
       <div class="row"><button class="btn sm" id="ganti-pin" type="button" hidden>Ganti PIN</button><button class="btn sm" id="logout" type="button">Keluar</button></div>
       <div class="row"><button class="btn sm" id="pasang-app" type="button" hidden>Pasang aplikasi</button><button class="btn sm ghost" id="update-app" type="button">Update aplikasi</button><button class="btn sm ghost" data-theme-toggle type="button">Mode gelap</button></div>
+      <button class="btn sm sb-pintas" type="button" data-act="atur-pintas">★ Atur pintasan bawah</button>
+      <div class="sb-tip">Tekan lama sebuah menu untuk menjadikannya pintasan.</div>
       <div class="ver app-ver"></div>
       <div class="copyright">Copyright SRISP 2026</div>
     </div>
@@ -85,16 +87,15 @@
       <button class="sb-toggle" id="sb-toggle" type="button" aria-label="Tampilkan atau sembunyikan menu" aria-controls="sidebar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <h1 id="page-title">Beranda</h1>
       <span class="cabang-box" id="cabang-box" hidden></span>
-      <button class="top-status" id="top-status" type="button" hidden aria-haspopup="menu"></button>
-      <div class="top-profile" id="top-profile" hidden title="Klik foto untuk mengganti foto profil"></div>
+      <button type="button" class="top-profile" id="top-profile" hidden title="Profil, status, pengaturan & keluar" aria-haspopup="menu"></button>
       <input id="profile-file" type="file" accept="image/*" hidden aria-label="Pilih foto profil">
       <span class="clock num" id="clock"></span>
     </header>
     <div class="toolbar" role="toolbar" aria-label="Aksi cepat">
-      <button class="fk" id="fk-baru" type="button"><kbd>F1</kbd>Baru</button>
-      <button class="fk" id="fk-simpan" type="button"><kbd>F2</kbd>Simpan</button>
-      <button class="fk" id="fk-cari" type="button" hidden><kbd>F3</kbd>Cari</button>
-      <button class="fk" id="fk-cetak" type="button"><kbd>F8</kbd>Cetak Nota Terakhir</button>
+      <button class="fk" id="fk-baru" type="button">Baru</button>
+      <button class="fk" id="fk-simpan" type="button">Simpan</button>
+      <button class="fk" id="fk-cari" type="button" hidden>Cari</button>
+      <button class="fk" id="fk-cetak" type="button">Cetak Nota Terakhir</button>
     </div>
     <main id="view"><div class="loading">Memuat data…</div></main>
   </div>

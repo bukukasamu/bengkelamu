@@ -32,7 +32,8 @@ import { pantauMinta } from './cek-stok.js';
 import { setPhLoadedFrom } from './penghasilan.js';
 import { sah, lupakanTrx } from './data-trx.js';
 import { mulaiPresence, hentikanPresence, renderStatusSaya } from './presence.js';
-import { pasangNavHp } from './mobile-nav.js';
+import { pasangNavHp, bukaLaci, tutupLaci } from './mobile-nav.js';
+import { bukaMenuProfil, simpanFotoProfil, muatProfilSaya } from './profil.js';
 import './order.js';
 import './bayar.js';
 import './mekanik.js';
@@ -57,8 +58,7 @@ function renderSidebar() {
 const isMobile = () => window.matchMedia('(max-width: 900px)').matches;
 function toggleSidebar() {
   if (isMobile()) {
-    const open = !document.body.classList.contains('sb-open');
-    document.body.classList.toggle('sb-open', open); $('#sb-backdrop').hidden = !open;
+    if (document.body.classList.contains('sb-open')) tutupLaci(); else bukaLaci();
   } else {
     const hidden = document.body.classList.toggle('sb-hidden');
     try { localStorage.setItem('amu-sb-hidden', hidden ? '1' : ''); } catch (e) {}
@@ -73,15 +73,9 @@ function refreshTombolTema() { document.querySelectorAll('[data-theme-toggle]').
 document.querySelectorAll('[data-theme-toggle]').forEach(b => b.addEventListener('click', () => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); terapkanTema(gelap ? 'segar' : 'gelap'); refreshTombolTema(); }));
 refreshTombolTema();
 window.addEventListener('amu-profile-changed', renderProfil);
-$('#top-profile')?.addEventListener('click', () => $('#profile-file')?.click());
-$('#profile-file')?.addEventListener('change', async e => {
-  const file = e.target.files?.[0], email = st.petugas?.email; if (!file || !email) return;
-  try {
-    const foto = await new Promise((resolve, reject) => { const r = new FileReader(); r.onerror = () => reject(new Error('Foto tidak dapat dibaca')); r.onload = () => { const im = new Image(); im.onerror = () => reject(new Error('Format foto tidak didukung')); im.onload = () => { const max = 360, sk = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * sk)); c.height = Math.max(1, Math.round(im.height * sk)); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); resolve(c.toDataURL('image/jpeg', .78)); }; im.src = r.result; }; r.readAsDataURL(file); });
-    await updateDoc(doc(db, 'staff', email), { foto }); st.petugas.foto = foto; renderProfil(); toast('Foto profil berhasil diperbarui');
-  } catch (err) { toast('Foto gagal disimpan: ' + errMsg(err)); }
-  e.target.value = '';
-});
+// 5.21.0: klik foto profil membuka menu profil gaya media sosial
+$('#top-profile')?.addEventListener('click', () => bukaMenuProfil());
+$('#profile-file')?.addEventListener('change', async e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await simpanFotoProfil(f); });
 window.addEventListener('amu-update-ok', () => toast('Aplikasi sudah menggunakan versi terbaru'));
 window.addEventListener('amu-update-fail', () => toast('Update gagal. Periksa koneksi internet lalu coba lagi.'));
 $('#side-nav').addEventListener('click', e => { const b = e.target.closest('.sb-link'); if (b) go(b.dataset.view); });
@@ -207,7 +201,7 @@ onAuthStateChanged(auth, async u => {
   if (aksesAwal === undefined) { try { const ak = await getDoc(doc(db, 'pengaturan', 'akses')); S.akses = ak.exists() ? ak.data() : null; } catch (e) { S.akses = null; } }
   else S.akses = aksesAwal;
   renderSidebar();
-  mulaiPresence(); renderStatusSaya();
+  mulaiPresence(); renderStatusSaya(); muatProfilSaya();
   pantauChatBadge();
   let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
   st.view = last && can(last) ? last : menuAwal();

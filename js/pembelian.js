@@ -29,7 +29,7 @@ function renderPembelian() {
     <button class="tile click" type="button" data-act="pb-filter" data-f="belum"><span class="lbl">Hutang ke supplier</span><span class="val" style="color:${hutang.length ? 'var(--bad)' : 'inherit'}">${rp(hutang.reduce((a, p) => a + p.total, 0))}</span><span class="sub">${hutang.length} invoice belum lunas${telat.length ? ` · ${telat.length} lewat jatuh tempo` : ''}</span></button>
     <div class="tile"><span class="lbl">Pembelian bulan ini</span><span class="val">${rp(bln.reduce((a, p) => a + p.total, 0))}</span><span class="sub">${bln.length} invoice masuk stok</span></div>
     <button class="tile click" type="button" data-act="pb-filter" data-f="draft"><span class="lbl">Draft belum diterima</span><span class="val">${S.pembelian.filter(p => p.status === 'Draft').length}</span><span class="sub">perlu dicek &amp; diterima</span></button>
-    <button class="tile click" type="button" data-act="pb-new"><span class="lbl">Invoice baru</span><span class="val">+</span><span class="sub">catat pembelian [F1]</span></button>
+    <button class="tile click" type="button" data-act="pb-new"><span class="lbl">Invoice baru</span><span class="val">+</span><span class="sub">catat pembelian</span></button>
    </div>
    <div class="grid g-servis">
     <div class="panel"><h3>Daftar pembelian</h3>
@@ -72,7 +72,7 @@ function renderForm() {
    <div class="row" style="justify-content:flex-end">
     ${p.no && !lock ? '<button class="btn ghost" type="button" data-act="pb-del">Hapus draft</button>' : ''}
     ${lock ? (p.statusBayar !== 'Lunas' || p._bayarDirty ? '<button class="btn pri" type="button" data-act="pb-savepay">Simpan status bayar</button>' : '')
-      : '<button class="btn" type="button" data-act="pb-save">Simpan draft [F2]</button><button class="btn pri" type="button" data-act="pb-preview">Preview &amp; terima barang</button>'}
+      : '<button class="btn" type="button" data-act="pb-save">Simpan draft</button><button class="btn pri" type="button" data-act="pb-preview">Preview &amp; terima barang</button>'}
    </div>`;
   renderItems();
 }

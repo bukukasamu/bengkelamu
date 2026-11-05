@@ -101,7 +101,7 @@ function renderKasir() {
     ${spare ? `<div class="form"><label class="f" for="k-dis">Diskon total (Rp)<input id="k-dis" class="num" type="number" min="0" step="1000" value="${c.diskon || ''}"></label></div>` : '<p class="small muted">Harga, diskon, dan Add Price sudah ditetapkan oleh Sparepart. Kasir hanya menerima pembayaran.</p>'}
     ${spare ? '' : payFields('k', c.pay)}
     <div id="k-tot"></div>
-    <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cart-clear" type="button">Kosongkan</button><button class="btn pri" data-act="cart-save" type="button">${spare ? 'Simpan pesanan &amp; cetak cek [F2]' : 'Terima pembayaran &amp; cetak nota [F2]'}</button></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn" data-act="cart-clear" type="button">Kosongkan</button><button class="btn pri" data-act="cart-save" type="button">${spare ? 'Simpan pesanan &amp; cetak cek' : 'Terima pembayaran &amp; cetak nota'}</button></div>
    </div></div>`;
   renderKRes(); renderCart(); renderPesanan(); muatPesanan(); muatRetur();
 }

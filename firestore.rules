@@ -169,6 +169,15 @@ service cloud.firestore {
         && (request.resource.data.ruang == 'umum' || request.resource.data.participantEmails.hasAny([emailKu()]));
       allow update, delete: if false;
     }
+    // 5.21.0 — Profil gaya media sosial (biodata & foto diisi sendiri oleh pemilik akun).
+    match /profil/{email} {
+      allow read: if isStaff();
+      allow write: if isStaff() && email == emailKu()
+        && request.resource.data.keys().hasOnly(['nama', 'panggilan', 'bio', 'hp', 'tampilHp', 'tglLahir', 'jk', 'alamat', 'kota', 'instagram', 'hobi', 'mulaiKerja', 'foto', 'diubah'])
+        && (!('foto' in request.resource.data) || (request.resource.data.foto is string && request.resource.data.foto.size() < 200000))
+        && (!('bio' in request.resource.data) || request.resource.data.bio.size() <= 300)
+        && (!('alamat' in request.resource.data) || request.resource.data.alamat.size() <= 200);
+    }
     // 5.19.0 — Status kehadiran (Online/Sibuk/Offline) untuk Chat Internal.
     // Setiap petugas hanya boleh menulis dokumen miliknya sendiri; waktu wajib jam server.
     match /presence/{email} {

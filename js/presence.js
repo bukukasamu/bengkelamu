@@ -91,9 +91,10 @@ export function pantauPresence(cb) {
 
 /* ---- Tombol status di bilah atas ---- */
 export function renderStatusSaya() {
-  const el = document.getElementById('top-status'); if (!el) return;
-  if (!st.petugas) { el.hidden = true; return; }
   const v = pilihanSaya(), s = STATUS[v];
+  document.querySelector('.top-avatar')?.setAttribute('data-status', v);
+  const el = document.getElementById('top-status'); if (!el) return;   // 5.21.0: status dipindah ke menu profil
+  if (!st.petugas) { el.hidden = true; return; }
   el.hidden = false;
   el.innerHTML = `<span class="st-dot ${s.kelas}" aria-hidden="true"></span><span class="top-status-lbl">${esc(s.label)}</span>`;
   el.title = 'Status Anda: ' + s.label + ' — klik untuk mengganti';

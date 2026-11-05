@@ -778,7 +778,7 @@ h3{font-size:.8rem;letter-spacing:.08em;font-weight:800}
 .sb-group:first-child{margin-top:2px}
 .sb-link{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:12px;font-family:var(--f-body);font-size:.88rem;font-weight:500;color:rgba(255,255,255,.88);transition:background .18s,color .18s,transform .18s}
 .sb-link::before{content:"";flex:0 0 18px;width:18px;height:18px;background:currentColor;opacity:.9;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
-.sb-link,.bn-item,.ms-item{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E")}
+.sb-link,.bn-item,.ms-item,.pt-ic{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E")}
 .sb-link:hover{background:rgba(255,255,255,.12);color:#fff;transform:translateX(2px)}
 .sb-link[aria-current="page"]{background:rgba(255,255,255,.95);color:var(--g1);font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 :root[data-tema="gelap"] .sb-link[aria-current="page"]{background:rgba(255,255,255,.16);color:#fff}
@@ -1020,32 +1020,32 @@ main .loader{animation:fade-in .25s ease-out .18s both}
   .ch-row{max-width:90%}
   .ch-stack{display:none}
 }
-.sb-link[data-view="beranda"],.bn-item[data-view="beranda"],.ms-item[data-view="beranda"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'/%3E%3C/svg%3E")}
-.sb-link[data-view="persetujuan"],.bn-item[data-view="persetujuan"],.ms-item[data-view="persetujuan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 12l2 2 4-4M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z'/%3E%3C/svg%3E")}
-.sb-link[data-view="chat"],.bn-item[data-view="chat"],.ms-item[data-view="chat"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12zM8.5 12h.01M12 12h.01M15.5 12h.01'/%3E%3C/svg%3E")}
-.sb-link[data-view="registrasi"],.bn-item[data-view="registrasi"],.ms-item[data-view="registrasi"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4h6l1 2h3v15H5V6h3zM9 11h6M9 15h4'/%3E%3C/svg%3E")}
-.sb-link[data-view="konsumen"],.bn-item[data-view="konsumen"],.ms-item[data-view="konsumen"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M21 19v-1a4 4 0 0 0-3-3.8M16 4.2a3 3 0 0 1 0 5.6'/%3E%3C/svg%3E")}
-.sb-link[data-view="riwayat"],.bn-item[data-view="riwayat"],.ms-item[data-view="riwayat"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2'/%3E%3C/svg%3E")}
-.sb-link[data-view="pengingat"],.bn-item[data-view="pengingat"],.ms-item[data-view="pengingat"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0'/%3E%3C/svg%3E")}
-.sb-link[data-view="order"],.bn-item[data-view="order"],.ms-item[data-view="order"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4h2l2.4 11h11L21 7H6.2M9 20h.01M17 20h.01'/%3E%3C/svg%3E")}
-.sb-link[data-view="bayar"],.bn-item[data-view="bayar"],.ms-item[data-view="bayar"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18v12H3zM3 10h18M7 15h3'/%3E%3C/svg%3E")}
-.sb-link[data-view="mekanik"],.bn-item[data-view="mekanik"],.ms-item[data-view="mekanik"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z'/%3E%3C/svg%3E")}
-.sb-link[data-view="cekstok"],.bn-item[data-view="cekstok"],.ms-item[data-view="cekstok"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14M21 21l-4.3-4.3'/%3E%3C/svg%3E")}
-.sb-link[data-view="kasir"],.bn-item[data-view="kasir"],.ms-item[data-view="kasir"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 4h16v6H4zM6 10v10h12V10M9 14h6M8 7h.01M12 7h4'/%3E%3C/svg%3E")}
-.sb-link[data-view="pesananPart"],.bn-item[data-view="pesananPart"],.ms-item[data-view="pesananPart"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 2h12l2 5H4zM4 7v13h16V7M9 11h6'/%3E%3C/svg%3E")}
-.sb-link[data-view="stok"],.bn-item[data-view="stok"],.ms-item[data-view="stok"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8l-9-5-9 5 9 5zM3 8v8l9 5 9-5V8M12 13v8'/%3E%3C/svg%3E")}
-.sb-link[data-view="opname"],.bn-item[data-view="opname"],.ms-item[data-view="opname"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5h6M9 3h6v4H9zM5 5h2v16h10V5h2M9 12l2 2 4-4'/%3E%3C/svg%3E")}
-.sb-link[data-view="pembelian"],.bn-item[data-view="pembelian"],.ms-item[data-view="pembelian"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7h13v10H3zM16 10h3l2 3v4h-5M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4'/%3E%3C/svg%3E")}
-.sb-link[data-view="laporan"],.bn-item[data-view="laporan"],.ms-item[data-view="laporan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E")}
-.sb-link[data-view="kas"],.bn-item[data-view="kas"],.ms-item[data-view="kas"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7h15a3 3 0 0 1 3 3v7a2 2 0 0 1-2 2H3zM3 7l12-4v4M17 13h.01'/%3E%3C/svg%3E")}
-.sb-link[data-view="klaim"],.bn-item[data-view="klaim"],.ms-item[data-view="klaim"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 4h16v16H4zM8 9h8M8 13h5M15 16l2 2 3-3'/%3E%3C/svg%3E")}
-.sb-link[data-view="insight"],.bn-item[data-view="insight"],.ms-item[data-view="insight"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12c3-6 15-6 18 0-3 6-15 6-18 0M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6'/%3E%3C/svg%3E")}
-.sb-link[data-view="backup"],.bn-item[data-view="backup"],.ms-item[data-view="backup"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 18a5 5 0 0 1-.5-10 6 6 0 0 1 11.6 1.5A4 4 0 0 1 17 18M12 12v8M9 15l3-3 3 3'/%3E%3C/svg%3E")}
-.sb-link[data-view="master"],.bn-item[data-view="master"],.ms-item[data-view="master"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14.6H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.3 7.7l-.1-.1A2 2 0 1 1 7 4.8l.1.1A1.7 1.7 0 0 0 10 3.7V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'/%3E%3C/svg%3E")}
-.sb-link[data-view="absensi"],.bn-item[data-view="absensi"],.ms-item[data-view="absensi"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4M16 2v4M3 8h18M4 5h16v16H4zM9 15l2 2 4-4'/%3E%3C/svg%3E")}
-.sb-link[data-view="penghasilan"],.bn-item[data-view="penghasilan"],.ms-item[data-view="penghasilan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/%3E%3C/svg%3E")}
-.sb-link[data-view="panduan"],.bn-item[data-view="panduan"],.ms-item[data-view="panduan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01'/%3E%3C/svg%3E")}
-.sb-link[data-view="thr"],.bn-item[data-view="thr"],.ms-item[data-view="thr"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7'/%3E%3C/svg%3E")}
+.sb-link[data-view="beranda"],.bn-item[data-view="beranda"],.ms-item[data-view="beranda"],.pt-ic[data-view="beranda"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'/%3E%3C/svg%3E")}
+.sb-link[data-view="persetujuan"],.bn-item[data-view="persetujuan"],.ms-item[data-view="persetujuan"],.pt-ic[data-view="persetujuan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 12l2 2 4-4M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z'/%3E%3C/svg%3E")}
+.sb-link[data-view="chat"],.bn-item[data-view="chat"],.ms-item[data-view="chat"],.pt-ic[data-view="chat"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12zM8.5 12h.01M12 12h.01M15.5 12h.01'/%3E%3C/svg%3E")}
+.sb-link[data-view="registrasi"],.bn-item[data-view="registrasi"],.ms-item[data-view="registrasi"],.pt-ic[data-view="registrasi"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4h6l1 2h3v15H5V6h3zM9 11h6M9 15h4'/%3E%3C/svg%3E")}
+.sb-link[data-view="konsumen"],.bn-item[data-view="konsumen"],.ms-item[data-view="konsumen"],.pt-ic[data-view="konsumen"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M21 19v-1a4 4 0 0 0-3-3.8M16 4.2a3 3 0 0 1 0 5.6'/%3E%3C/svg%3E")}
+.sb-link[data-view="riwayat"],.bn-item[data-view="riwayat"],.ms-item[data-view="riwayat"],.pt-ic[data-view="riwayat"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2'/%3E%3C/svg%3E")}
+.sb-link[data-view="pengingat"],.bn-item[data-view="pengingat"],.ms-item[data-view="pengingat"],.pt-ic[data-view="pengingat"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0'/%3E%3C/svg%3E")}
+.sb-link[data-view="order"],.bn-item[data-view="order"],.ms-item[data-view="order"],.pt-ic[data-view="order"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4h2l2.4 11h11L21 7H6.2M9 20h.01M17 20h.01'/%3E%3C/svg%3E")}
+.sb-link[data-view="bayar"],.bn-item[data-view="bayar"],.ms-item[data-view="bayar"],.pt-ic[data-view="bayar"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18v12H3zM3 10h18M7 15h3'/%3E%3C/svg%3E")}
+.sb-link[data-view="mekanik"],.bn-item[data-view="mekanik"],.ms-item[data-view="mekanik"],.pt-ic[data-view="mekanik"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z'/%3E%3C/svg%3E")}
+.sb-link[data-view="cekstok"],.bn-item[data-view="cekstok"],.ms-item[data-view="cekstok"],.pt-ic[data-view="cekstok"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14M21 21l-4.3-4.3'/%3E%3C/svg%3E")}
+.sb-link[data-view="kasir"],.bn-item[data-view="kasir"],.ms-item[data-view="kasir"],.pt-ic[data-view="kasir"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 4h16v6H4zM6 10v10h12V10M9 14h6M8 7h.01M12 7h4'/%3E%3C/svg%3E")}
+.sb-link[data-view="pesananPart"],.bn-item[data-view="pesananPart"],.ms-item[data-view="pesananPart"],.pt-ic[data-view="pesananPart"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 2h12l2 5H4zM4 7v13h16V7M9 11h6'/%3E%3C/svg%3E")}
+.sb-link[data-view="stok"],.bn-item[data-view="stok"],.ms-item[data-view="stok"],.pt-ic[data-view="stok"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8l-9-5-9 5 9 5zM3 8v8l9 5 9-5V8M12 13v8'/%3E%3C/svg%3E")}
+.sb-link[data-view="opname"],.bn-item[data-view="opname"],.ms-item[data-view="opname"],.pt-ic[data-view="opname"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5h6M9 3h6v4H9zM5 5h2v16h10V5h2M9 12l2 2 4-4'/%3E%3C/svg%3E")}
+.sb-link[data-view="pembelian"],.bn-item[data-view="pembelian"],.ms-item[data-view="pembelian"],.pt-ic[data-view="pembelian"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7h13v10H3zM16 10h3l2 3v4h-5M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4'/%3E%3C/svg%3E")}
+.sb-link[data-view="laporan"],.bn-item[data-view="laporan"],.ms-item[data-view="laporan"],.pt-ic[data-view="laporan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E")}
+.sb-link[data-view="kas"],.bn-item[data-view="kas"],.ms-item[data-view="kas"],.pt-ic[data-view="kas"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7h15a3 3 0 0 1 3 3v7a2 2 0 0 1-2 2H3zM3 7l12-4v4M17 13h.01'/%3E%3C/svg%3E")}
+.sb-link[data-view="klaim"],.bn-item[data-view="klaim"],.ms-item[data-view="klaim"],.pt-ic[data-view="klaim"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 4h16v16H4zM8 9h8M8 13h5M15 16l2 2 3-3'/%3E%3C/svg%3E")}
+.sb-link[data-view="insight"],.bn-item[data-view="insight"],.ms-item[data-view="insight"],.pt-ic[data-view="insight"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12c3-6 15-6 18 0-3 6-15 6-18 0M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6'/%3E%3C/svg%3E")}
+.sb-link[data-view="backup"],.bn-item[data-view="backup"],.ms-item[data-view="backup"],.pt-ic[data-view="backup"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 18a5 5 0 0 1-.5-10 6 6 0 0 1 11.6 1.5A4 4 0 0 1 17 18M12 12v8M9 15l3-3 3 3'/%3E%3C/svg%3E")}
+.sb-link[data-view="master"],.bn-item[data-view="master"],.ms-item[data-view="master"],.pt-ic[data-view="master"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14.6H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.3 7.7l-.1-.1A2 2 0 1 1 7 4.8l.1.1A1.7 1.7 0 0 0 10 3.7V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'/%3E%3C/svg%3E")}
+.sb-link[data-view="absensi"],.bn-item[data-view="absensi"],.ms-item[data-view="absensi"],.pt-ic[data-view="absensi"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4M16 2v4M3 8h18M4 5h16v16H4zM9 15l2 2 4-4'/%3E%3C/svg%3E")}
+.sb-link[data-view="penghasilan"],.bn-item[data-view="penghasilan"],.ms-item[data-view="penghasilan"],.pt-ic[data-view="penghasilan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/%3E%3C/svg%3E")}
+.sb-link[data-view="panduan"],.bn-item[data-view="panduan"],.ms-item[data-view="panduan"],.pt-ic[data-view="panduan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01'/%3E%3C/svg%3E")}
+.sb-link[data-view="thr"],.bn-item[data-view="thr"],.ms-item[data-view="thr"],.pt-ic[data-view="thr"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7'/%3E%3C/svg%3E")}
 
 /* =====================================================================
    5.19.2 — RAPIKAN TAMPILAN HP
@@ -1149,7 +1149,6 @@ img,svg,video,canvas{max-width:100%}
   .tw,.subtabs,.seg,.toolbar,.ch-list,.ch-body,.ms-body{overscroll-behavior:contain}
   input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px}
   /* bilah kiri diganti bilah bawah */
-  .sidebar,.sb-backdrop,#sb-toggle{display:none!important}
   .topbar{padding-top:calc(8px + env(safe-area-inset-top));position:sticky;top:0}
   body.has-bnav .content{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
   .bottom-nav:not([hidden]){display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(16,32,80,.1);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);user-select:none;-webkit-user-select:none}
@@ -1216,3 +1215,128 @@ img,svg,video,canvas{max-width:100%}
 @media (display-mode:standalone) and (max-width:900px){body{-webkit-user-select:none;user-select:none}input,textarea,[contenteditable],.ch-text,td,p{-webkit-user-select:text;user-select:text}}
 @media (max-width:900px){body:not([data-view="kasir"]):not([data-view="bayar"]):not([data-view="laporan"]) #fk-cetak{display:none}}
 @media (max-width:900px){#bay-detail,#ord-detail,#mk-detail,#kn-detail{scroll-margin-top:72px}}
+
+/* =====================================================================
+   5.21.0 — MODEL 2 (sidebar laci + pintasan bawah), MENU PROFIL GAYA MEDSOS, HURUF HP, PANEL TETAP
+   ===================================================================== */
+/* Tombol akun dipindah ke menu profil: sembunyikan di bilah kiri (tetap ada untuk diteruskan) */
+.sb-foot>.row{display:none}
+.sb-pintas,.sb-tip{display:none}
+/* Foto profil = tombol */
+button.top-profile{font:inherit;cursor:pointer;text-align:left;margin-left:auto}
+button.top-profile:focus-visible{outline:2px solid #fff;outline-offset:2px}
+/* Panel daftar (Motor masuk, Motor di bengkel, dst.) tetap di tempat saat halaman digulir — PC */
+@media (min-width:901px){
+  .g-servis{align-items:start}
+  .g-servis>.panel:first-child{position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;scrollbar-width:thin}
+  .g-servis>.panel:first-child .wolist{max-height:none;overflow:visible}
+}
+/* ---------- Menu profil ---------- */
+.pf-menu{position:fixed;inset:0;z-index:70;pointer-events:none}
+.pf-backdrop{position:absolute;inset:0;pointer-events:auto;background:transparent}
+.pf-panel{position:absolute;width:330px;max-height:calc(100dvh - 90px);overflow-y:auto;pointer-events:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 60px rgba(8,20,60,.28);padding:10px;opacity:0;transform:translateY(-6px) scale(.98);transform-origin:top right;transition:opacity .16s,transform .16s}
+.pf-menu.on .pf-panel{opacity:1;transform:none}
+.pf-handle{display:none}
+.pf-card{display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;color:#fff;background:radial-gradient(60% 120% at 100% 0%,rgba(var(--g4-rgb),.55),transparent 70%),linear-gradient(120deg,var(--g1),var(--g2) 55%,var(--g3))}
+.pf-card-av{position:relative;border:0;background:none;padding:0;cursor:pointer;flex:0 0 auto}
+.pf-card-av i{position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#fff;font-size:.72rem;font-style:normal;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.pf-av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:#fff;color:var(--g1);font-weight:800;flex:0 0 auto}
+.pf-av img{width:100%;height:100%;object-fit:cover}
+.pf-av.lg{width:58px;height:58px;font-size:1.2rem;box-shadow:0 0 0 3px rgba(255,255,255,.5)}
+.pf-av.xl{width:84px;height:84px;font-size:1.6rem;box-shadow:0 0 0 4px var(--panel),0 8px 22px rgba(8,20,60,.25);background:linear-gradient(135deg,var(--g2),var(--g3));color:#fff}
+.pf-card-tx{min-width:0;display:flex;flex-direction:column;gap:2px}
+.pf-card-tx b{font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-card-tx small{opacity:.85;font-size:.78rem}
+.pf-link{align-self:flex-start;margin-top:4px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;border-radius:999px;padding:4px 11px;font:600 .74rem var(--f-body);cursor:pointer}
+.pf-status{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0 4px}
+.pf-status button{display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:8px 6px;font:600 .78rem var(--f-body);cursor:pointer}
+.pf-status button[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.pf-status .st-dot{box-shadow:none}
+.pf-list{display:flex;flex-direction:column;margin-top:6px}
+.pf-item{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;padding:10px 8px;border-radius:12px;color:var(--ink);text-align:left;cursor:pointer;font:inherit}
+.pf-item:hover,.pf-item:focus-visible{background:var(--accent-soft);outline:none}
+.pf-ic{width:36px;height:36px;flex:0 0 36px;border-radius:11px;display:grid;place-items:center;background:var(--panel-2);font-size:1rem}
+.pf-tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.pf-tx b{font-weight:600;font-size:.9rem}
+.pf-tx small{color:var(--muted);font-size:.74rem}
+.pf-chev{color:var(--muted);font-size:1.2rem}
+.pf-item.bad .pf-tx b,.pf-item.bad .pf-ic{color:var(--bad)}
+/* Profil saya & kartu rekan */
+.pf-modal{max-width:620px;width:100%}
+.pf-form{display:flex;flex-direction:column;gap:14px}
+.pf-hero{display:flex;align-items:center;gap:16px}
+.pf-hero>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pf-hero b{font-size:1.15rem}
+.pf-hero small{font-size:.8rem}
+.pf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pf-full{grid-column:1/-1}
+.pf-view{display:flex;flex-direction:column;gap:10px;margin:-22px -22px 0;padding-bottom:4px}
+.pf-cover{height:96px;border-radius:22px 22px 0 0;background:radial-gradient(60% 120% at 100% 0%,rgba(var(--g4-rgb),.6),transparent 70%),linear-gradient(120deg,var(--g1),var(--g2) 55%,var(--g3))}
+.pf-view-head{position:relative;align-self:center;margin-top:-52px}
+.pf-view-head .st-dot{position:absolute;right:6px;bottom:6px;width:16px;height:16px;box-shadow:0 0 0 3px var(--panel)}
+.pf-view-name{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;padding:0 18px}
+.pf-view-name b{font-size:1.2rem}
+.pf-view-name small{color:var(--muted)}
+.pf-st{margin-top:4px;font-size:.74rem;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--panel-2)}
+.pf-st.st-online{background:rgba(31,191,106,.14);color:#15924f}.pf-st.st-sibuk{background:rgba(245,158,11,.16);color:#b26b00}.pf-st.st-offline{background:var(--panel-2);color:var(--muted)}
+.pf-bio{margin:0 18px;text-align:center;font-size:.9rem;line-height:1.5}
+.pf-rows{display:flex;flex-direction:column;gap:2px;margin:0 18px;border-top:1px solid var(--line);padding-top:8px}
+.pf-row{display:flex;gap:12px;align-items:center;padding:6px 0}
+.pf-row>span{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--panel-2)}
+.pf-row small{display:block;color:var(--muted);font-size:.72rem}
+.pf-row b{font-weight:600;font-size:.88rem}
+.pf-view>.row{padding:0 18px}
+.ch-av[data-act]{cursor:pointer}
+/* Editor pintasan */
+.pt-pilih{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:pt}
+.pt-pilih li{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2);counter-increment:pt}
+.pt-pilih li::before{content:counter(pt);font-weight:800;color:var(--accent);width:16px}
+.pt-pilih b{flex:1;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt-btn{display:flex;gap:4px}
+.pt-ic i{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--accent-soft);color:var(--accent)}
+.pt-ic i::before{content:"";width:18px;height:18px;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+.pt-h{margin:14px 0 6px;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.pt-lain{display:flex;flex-wrap:wrap;gap:6px}
+.pt-chip{border:1px dashed var(--line);background:none;border-radius:999px;padding:6px 12px;font:600 .8rem var(--f-body);color:var(--ink);cursor:pointer}
+.pt-chip:disabled{opacity:.45;cursor:not-allowed}
+.pt-aksi{display:flex;flex-direction:column;gap:8px}
+.ms-act{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:14px;padding:12px 14px;font:600 .88rem var(--f-body);text-align:left;cursor:pointer}
+
+@media (max-width:900px){
+  /* Huruf asli HP: Roboto di Android, San Francisco di iPhone → terasa seperti aplikasi bawaan */
+  :root{--f-body:system-ui,-apple-system,BlinkMacSystemFont,Roboto,"Segoe UI","Helvetica Neue",Arial,sans-serif;--f-display:system-ui,-apple-system,BlinkMacSystemFont,Roboto,"Segoe UI","Helvetica Neue",Arial,sans-serif}
+  body:not(.tv-body):not(.ab-body){letter-spacing:0}
+  h2,.topbar h1,.tile .val{letter-spacing:-.01em}
+  /* Laci kiri */
+  #sb-toggle{display:grid;place-items:center}
+  .sidebar{width:min(84vw,300px);transition:transform .24s cubic-bezier(.2,.8,.2,1);box-shadow:none}
+  body.sb-open .sidebar{box-shadow:12px 0 40px rgba(8,20,60,.35)}
+  .sb-backdrop:not([hidden]){position:fixed;inset:0;z-index:39;background:rgba(8,16,40,.45);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:fade-in .2s}
+  .sb-pintas{display:block;width:100%;border-radius:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;padding:9px 12px;text-align:left}
+  .sb-tip{display:block;font-size:.68rem;color:rgba(255,255,255,.7)}
+  .sb-link[data-pintas]::after{content:"★";margin-left:auto;font-size:.72rem;color:#ffd166}
+  .sb-link[data-pintas] .sb-badge{margin-left:6px}
+  .sb-link{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  /* Bilah atas: ☰ · judul · cabang · foto */
+  .topbar{min-height:56px}
+  button.top-profile{padding:0;border:0;background:none;box-shadow:none}
+  /* Menu profil jadi lembar bawah */
+  .pf-backdrop{background:rgba(8,16,40,.45);opacity:0;transition:opacity .2s}
+  .pf-menu.on .pf-backdrop{opacity:1}
+  .pf-panel{left:0;right:0;bottom:0;width:auto;max-height:90dvh;border-radius:24px 24px 0 0;border:0;padding:6px 14px calc(14px + env(safe-area-inset-bottom));transform:translateY(100%);opacity:1;transition:transform .24s cubic-bezier(.2,.8,.2,1)}
+  .pf-menu.on .pf-panel{transform:none}
+  .pf-handle{display:flex;justify-content:center;padding:6px 0 10px}
+  .pf-handle span{width:42px;height:5px;border-radius:99px;background:var(--line)}
+  .pf-item{padding:12px 6px}
+  .pf-grid{grid-template-columns:minmax(0,1fr)}
+  .pf-view{margin:-18px -16px 0}
+  .pf-cover{border-radius:22px 22px 0 0}
+  /* Bilah pintasan: tanpa tombol aneh, rapat & bersih */
+  .bn-item span{font-size:.68rem}
+  /* Rasa aplikasi asli */
+  body{-webkit-touch-callout:none}
+  a,button{-webkit-tap-highlight-color:transparent}
+  .btn,.bn-item,.pf-item,.sb-link,.subtabs button,.seg button{touch-action:manipulation}
+  .btn:active,.pf-item:active,.sb-link:active{transform:scale(.98)}
+}
+@media (max-width:900px){.sidebar{z-index:50}.sb-backdrop:not([hidden]){z-index:49}}

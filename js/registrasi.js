@@ -100,14 +100,14 @@ function renderRegistrasi() {
   const inp = (f, label, attrs = '') => `<label class="f" for="r-${f}">${label}<input id="r-${f}" data-rf="${f}" value="${esc(w[f])}" ${attrs} ${dis}></label>`;
   const c = woCalc(w);
   $('#view').innerHTML = `<div class="grid g-servis">
-   <div class="panel"><div class="row spread"><h3>Motor masuk</h3><button class="btn sm" data-act="reg-new" type="button">+ Motor masuk [F1]</button></div>
+   <div class="panel"><div class="row spread"><h3>Motor masuk</h3><button class="btn sm" data-act="reg-new" type="button">+ Motor masuk</button></div>
     <div class="seg" role="group" aria-label="Tampilkan">${[['aktif', 'Aktif'], ['hari', 'Hari ini'], ['tunda', 'Ditunda'], ['semua', 'Semua']].map(([k, l]) => `<button type="button" data-act="reg-filter" data-f="${k}" aria-pressed="${k === filter}" title="${k === 'tunda' ? 'Motor yang pengerjaannya ditunda (lanjut lama) beserta alasannya' : ''}">${l}${k === 'tunda' ? '<span class="cnt" id="reg-ntunda" hidden></span>' : ''}</button>`).join('')}</div>
     <div class="wolist" id="reg-list"></div>
    </div>
    <div class="panel"><div class="row spread"><h2 class="row" style="gap:10px">${w.no ? `<span>Antrian ${fmtAntri(w.antrian) || '–'}</span> <span class="small muted mono" title="Nomor kartu kerja (work order)">${esc(w.no)}</span><button class="btn sm ghost" type="button" data-act="rw-buka" data-np="${esc(w.nopol)}">Riwayat motor</button>` : 'Registrasi motor masuk'}${(w.jenisServis === 'KSG' || w.jenisServis === 'KSB') ? '<button class="btn sm pri" type="button" data-act="reg-bast" title="BAST serah terima konsumen ke bengkel">BAST masuk</button>' : ''}</h2>${w.no ? `<span class="row">${kurangBadge(w)}${jenisBadge(w)}${statusPill(w.status)}</span>` : ''}</div>
     ${w.status === 'Ditunda' && w.no ? `<div class="tunda-box">${tundaInfo(w)}<div class="small" style="margin-top:4px">Untuk melanjutkan: pilih mekanik yang kosong di bagian <b>3. Servis</b> (boleh mekanik yang sama atau lain), lalu tekan <b>Lanjutkan dikerjakan</b>.</div></div>` : ''}
     ${laporanStatusHTML(w)}
-    ${locked ? '' : `<div class="cari-box"><label class="f" for="r-cari">Pernah servis di sini? Cari data lama<span class="row" style="gap:6px"><input id="r-cari" placeholder="No. polisi, nama, no. HP, NIK, no. rangka, atau no. mesin — boleh sebagian (F3)" autocomplete="off" style="flex:1 1 220px"><button class="btn" type="button" data-act="reg-cari">Cari [F3]</button></span></label><div id="r-cari-hasil"></div></div>`}
+    ${locked ? '' : `<div class="cari-box"><label class="f" for="r-cari">Pernah servis di sini? Cari data lama<span class="row" style="gap:6px"><input id="r-cari" placeholder="No. polisi, nama, no. HP, NIK, no. rangka, atau no. mesin — boleh sebagian" autocomplete="off" style="flex:1 1 220px"><button class="btn" type="button" data-act="reg-cari">Cari</button></span></label><div id="r-cari-hasil"></div></div>`}
     <h3>1. Data konsumen <span class="h-sub">sesuai KTP</span></h3>
     <div class="form">
      ${inp('nik', 'NIK (16 angka)', 'inputmode="numeric" maxlength="16" class="num" autocomplete="off"')}
@@ -158,7 +158,7 @@ function renderRegistrasi() {
      ${w.no && !locked && (isRole('admin') || isRole('registrasi')) ? `<label class="f reg-status-box" for="r-status">Status<select id="r-status">${['Antri', 'Dikerjakan', 'Ditunda', 'Selesai'].map(s => `<option ${s === w.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>${w.status === 'Ditunda' ? '<label class="f" for="r-status-alasan">Alasan tunda wajib<input id="r-status-alasan" data-rf="alasanTunda" value="' + esc(w.alasanTunda || '') + '" placeholder="mis. tunggu part / konsumen ambil besok"></label>' : ''}` : ''}
      ${w.status === 'Ditunda' && !locked ? '<button class="btn warn" type="button" data-act="reg-lanjut">▶ Lanjutkan dikerjakan</button>' : ''}
      ${w.no && !locked && (isRole('admin') || isRole('registrasi')) ? '<button class="btn warn reg-cancel" type="button" data-act="reg-hapus" title="Untuk pendaftaran ganda / salah daftar">Batalkan pendaftaran</button>' : ''}
-    ${locked ? '<span class="small muted">Sudah dibayar, tidak bisa diubah.</span>' : `${w.no ? '' : '<button class="btn" type="button" data-act="reg-cepat" title="Saat ramai: nomor antrian langsung keluar hanya dengan nomor polisi, data lain dilengkapi sesudahnya">Nomor cepat (cukup nopol)</button>'}<button class="btn pri" type="button" data-act="reg-save">${w.no ? 'Simpan perubahan' : 'Daftarkan &amp; beri nomor antrian'} [F2]</button>`}
+    ${locked ? '<span class="small muted">Sudah dibayar, tidak bisa diubah.</span>' : `${w.no ? '' : '<button class="btn" type="button" data-act="reg-cepat" title="Saat ramai: nomor antrian langsung keluar hanya dengan nomor polisi, data lain dilengkapi sesudahnya">Nomor cepat (cukup nopol)</button>'}<button class="btn pri" type="button" data-act="reg-save">${w.no ? 'Simpan perubahan' : 'Daftarkan &amp; beri nomor antrian'}</button>`}
     </div>
    </div></div>`;
   renderList();

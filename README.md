@@ -1,9 +1,18 @@
-# Aceh Mandiri Utama POS · versi 5.20.0
+# Aceh Mandiri Utama POS · versi 5.21.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.21.0 — Sidebar laci + pintasan, menu profil gaya medsos, huruf HP
+- HP: sidebar kiri kembali sebagai laci (☰, tombol Menu, geser dari tepi kiri; tutup geser/ketuk/Kembali) + bilah 4 pintasan per peran (`PINTAS_BAWAAN`), bisa diganti pengguna (tekan lama menu di sidebar / ★ Atur pintasan; disimpan `amu-pintas-<email>`). Lembar "Menu" 5.20 dihapus.
+- `js/profil.js`: klik foto profil → menu profil (status, Profil saya, ganti foto, Ganti PIN, pintasan, mode gelap, update, pasang, panduan, keluar). Biodata di koleksi baru `profil/{email}` (rules baru); kartu profil rekan dari avatar Chat. Foto profil disimpan di `profil` (memperbaiki karyawan yang ditolak saat menulis `staff`).
+- Tombol status di topbar dihapus (pindah ke menu profil); tombol akun di sidebar disembunyikan.
+- Huruf sistem di HP (Roboto/SF), label `[F1]`…`[F8]` dan `<kbd>` dihapus dari UI (shortcut tetap aktif).
+- PC: panel kiri `.g-servis` sticky (Motor masuk dkk. tidak ikut tergulir).
+- Tombol Kembali: langsung ke menu sebelumnya; konfirmasi hanya saat keluar. `theme-color` mengikuti tema.
+- **Wajib:** publish ulang `firestore.rules` (koleksi `profil`).
 
 ## 5.20.0 — HP gaya aplikasi, KSG 12 kolom, PDF absensi pribadi
 - `js/mobile-nav.js`: di layar ≤ 900px bilah kiri diganti bilah bawah (4 menu utama per peran + tombol Menu) dan lembar menu dari bawah (profil, status, semua menu berikon & badge, Ganti PIN/Pasang/Update/Mode gelap/Keluar). Isi disinkronkan dari `#side-nav` lewat MutationObserver; tombol Kembali & geser ke bawah menutup lembar.

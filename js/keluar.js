@@ -33,6 +33,9 @@ window.addEventListener('popstate', async () => {
       return;
     }
     const prev = viewSebelum[viewSebelum.length - 1];
+    // 5.21.0: seperti aplikasi HP — tombol Kembali langsung kembali ke menu sebelumnya tanpa bertanya;
+    // konfirmasi hanya muncul saat sudah tidak ada menu sebelumnya (akan keluar aplikasi).
+    if (prev) { viewSebelum.pop(); go(prev, { kembali: true }); return; }
     const opsi = [];
     if (prev) opsi.push({ v: 'kembali', label: 'Kembali ke ' + namaMenu(prev), kelas: 'pri' });
     opsi.push({ v: 'keluar', label: 'Keluar dari aplikasi', kelas: 'danger' });

@@ -21,7 +21,7 @@ function renderServis() {
   if (!st.woDraft) st.woDraft = blankWo();
   const w = st.woDraft, locked = w.status === 'Lunas', dis = locked ? 'disabled' : '';
   $('#view').innerHTML = `<div class="grid g-servis">
-   <div class="panel"><div class="row spread"><h3>Work order</h3><button class="btn sm" data-act="wo-new" type="button">+ Motor masuk [F1]</button></div>
+   <div class="panel"><div class="row spread"><h3>Work order</h3><button class="btn sm" data-act="wo-new" type="button">+ Motor masuk</button></div>
     <div class="wolist" id="wo-list"></div>
    </div>
    <div class="panel"><div class="row spread"><h2>${w.no ? esc(w.no) : 'Work order baru'}</h2>${w.no ? `<span class="pill ${STATUS[w.status]}">${w.status}</span>` : ''}</div>
@@ -43,7 +43,7 @@ function renderServis() {
     <div id="w-tot"></div>
     <div class="row" style="justify-content:flex-end">
      ${w.no && !locked ? `<label class="f" for="w-st" style="flex-direction:row;align-items:center;gap:6px">Status<select id="w-st" data-f="status" style="width:auto">${['Antri', 'Dikerjakan', 'Selesai'].map(s => `<option ${s === w.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>` : ''}
-     ${locked ? `<button class="btn" type="button" data-act="wo-nota">Lihat nota</button>` : `<button class="btn" type="button" data-act="wo-save">Simpan WO [F2]</button><button class="btn pri" type="button" data-act="wo-pay">Selesai &amp; Bayar</button>`}
+     ${locked ? `<button class="btn" type="button" data-act="wo-nota">Lihat nota</button>` : `<button class="btn" type="button" data-act="wo-save">Simpan WO</button><button class="btn pri" type="button" data-act="wo-pay">Selesai &amp; Bayar</button>`}
     </div>
    </div></div>`;
   renderWoList(); renderWoParts();

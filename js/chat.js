@@ -98,7 +98,7 @@ function kontakSemua() {
 const kontakDari = email => kontakSemua().find(k => k.email === email) || { email, nama: presence.get(email)?.nama || email.split('@')[0], peran: presence.get(email)?.peranLabel || '', cabang: presence.get(email)?.cabang || '' };
 const statusOrang = email => email === emailSaya() ? pilihanSaya() : statusDari(presence.get(email));
 const dot = (email, kecil = false) => { const s = statusOrang(email); return `<span class="st-dot ${STATUS[s].kelas}${kecil ? ' sm' : ''}" title="${STATUS[s].label}"></span>`; };
-const avatar = (nama, email, cls = '') => `<span class="ch-av ${cls}" style="--h:${warna(email || nama)}">${esc(inisial(nama))}${email ? dot(email, true) : ''}</span>`;
+const avatar = (nama, email, cls = '') => `<span class="ch-av ${cls}" style="--h:${warna(email || nama)}"${email && cls !== 'xs' && cls !== '' ? ` data-act="profil-lihat" data-email="${esc(email)}" data-nama="${esc(nama || '')}" role="button" tabindex="0" title="Lihat profil ${esc(nama || '')}"` : ''}>${esc(inisial(nama))}${email ? dot(email, true) : ''}</span>`;
 function teksStatus(email) {
   const s = statusOrang(email);
   if (s === 'online') return '<span class="ch-live"><i></i>Online · live</span>';

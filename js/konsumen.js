@@ -29,7 +29,7 @@ async function muatList() {
 export function renderKonsumenTab() {
   const el = $('#ms-body'); if (!el) return;
   el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="kn-q" placeholder="Cari nama, no. HP, atau NIK (min. 3 huruf/angka)" value="${esc(KN.q)}" style="flex:1 1 260px" autocomplete="off" aria-label="Cari konsumen">
-     <div class="row">${isRole('admin') ? '<button class="btn" type="button" data-act="kn-daftar" title="Daftar semua / yang servis / yang didaftarkan, per cabang — Excel, PDF, print">🖨 Daftar &amp; Cetak</button>' : ''}${isRole('admin') ? `<button class="btn${KN.cek ? ' pri' : ''}" type="button" data-act="kn-cek" title="Data yang perlu diperiksa (kemungkinan ganda)">⚑ Perlu dicek</button>` : ''}${bolehUbah() ? '<button class="btn pri" type="button" data-act="kn-baru">+ Konsumen baru [F1]</button>' : ''}</div></div>
+     <div class="row">${isRole('admin') ? '<button class="btn" type="button" data-act="kn-daftar" title="Daftar semua / yang servis / yang didaftarkan, per cabang — Excel, PDF, print">🖨 Daftar &amp; Cetak</button>' : ''}${isRole('admin') ? `<button class="btn${KN.cek ? ' pri' : ''}" type="button" data-act="kn-cek" title="Data yang perlu diperiksa (kemungkinan ganda)">⚑ Perlu dicek</button>` : ''}${bolehUbah() ? '<button class="btn pri" type="button" data-act="kn-baru">+ Konsumen baru</button>' : ''}</div></div>
    ${st.petugas?.super && !S.settings.konsumenSiap ? `<div class="note small" style="margin-top:10px"><b>Bentuk database konsumen (sekali saja).</b> Data konsumen lama masih menempel di data kendaraan. Tekan tombol ini untuk mengelompokkan kendaraan per no. HP menjadi data konsumen (satu orang bisa punya beberapa motor). Yang meragukan ditandai <b>Perlu dicek</b>.<div class="row" style="margin-top:6px"><button class="btn pri" type="button" data-act="kn-bentuk">Bentuk database konsumen</button></div></div>` : ''}
    <div id="kn-form"></div>
    <div id="kn-list"></div>`;
@@ -73,7 +73,7 @@ function gambarForm() {
    <div class="row" style="justify-content:flex-end;margin-top:10px">
     ${!baru && isRole('admin') && !k.dihapus ? '<button class="btn ghost" type="button" data-act="kn-gabung">Gabungkan dengan…</button>' : ''}
     ${!baru && st.petugas?.super && !k.dihapus ? '<button class="btn ghost" type="button" data-act="kn-hapus">Hapus data pribadi</button>' : ''}
-    <button class="btn" type="button" data-act="kn-tutup">Tutup</button>${bolehUbah() && !k.dihapus ? `<button class="btn pri" type="button" data-act="kn-simpan">${baru ? 'Simpan konsumen' : 'Simpan perubahan'} [F2]</button>` : ''}</div>
+    <button class="btn" type="button" data-act="kn-tutup">Tutup</button>${bolehUbah() && !k.dihapus ? `<button class="btn pri" type="button" data-act="kn-simpan">${baru ? 'Simpan konsumen' : 'Simpan perubahan'}</button>` : ''}</div>
   </div>`;
   fillWilayah('kw', { get: () => KN.draft });
 }

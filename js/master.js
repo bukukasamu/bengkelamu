@@ -103,7 +103,7 @@ function renderKend() {
   const rekap = {}; list.forEach(k => { const v = k[lvl[0]] || '(belum diisi)'; rekap[v] = (rekap[v] || 0) + 1; });
   const rk = Object.entries(rekap).sort((a, b) => b[1] - a[1]), mx = rk.length ? rk[0][1] : 1;
   const sel = (id, v, list, ph) => `<select id="${id}" style="width:auto;max-width:100%" aria-label="${ph}"><option value="">${ph}</option>${list.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
-  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, NIK, HP, rangka, mesin, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row">${tombolFilter('kend', [fWil.kab, fWil.kec, fWil.kel].filter(Boolean).length)}${isRole('admin') ? '<button class="btn" type="button" data-act="ms-pantau" title="Bangun ulang data halaman cek servis konsumen dari servis yang sudah ada">Sinkron cek servis</button>' : ''}${st.petugas?.super ? '<button class="btn" type="button" data-act="ms-kxlsx">⬇ Excel</button><button class="btn" type="button" data-act="ms-kpdf">⬇ PDF</button>' : ''}<button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan [F1]</button></div></div>
+  el.innerHTML = `<div class="row spread" style="margin-top:12px"><input id="ms-kq" placeholder="Cari nopol, nama, NIK, HP, rangka, mesin, alamat" value="${esc(kendQ)}" style="flex:1 1 240px" aria-label="Cari kendaraan"><div class="row">${tombolFilter('kend', [fWil.kab, fWil.kec, fWil.kel].filter(Boolean).length)}${isRole('admin') ? '<button class="btn" type="button" data-act="ms-pantau" title="Bangun ulang data halaman cek servis konsumen dari servis yang sudah ada">Sinkron cek servis</button>' : ''}${st.petugas?.super ? '<button class="btn" type="button" data-act="ms-kxlsx">⬇ Excel</button><button class="btn" type="button" data-act="ms-kpdf">⬇ PDF</button>' : ''}<button class="btn pri" type="button" data-act="ms-kadd">+ Kendaraan</button></div></div>
    ${filterBuka('kend') ? `<div class="filter-box"><div class="row"><span class="small muted">Filter wilayah:</span>${sel('fw-kab', fWil.kab, kabs, 'Semua kabupaten/kota')}${sel('fw-kec', fWil.kec, kecs, 'Semua kecamatan')}${sel('fw-kel', fWil.kel, kels, 'Semua kelurahan/gampong')}${fWil.kab || fWil.kec || fWil.kel ? '<button class="btn sm ghost" type="button" data-act="fw-clear">Hapus filter</button>' : ''}</div>
    ${rk.length > 1 || (rk.length === 1 && !fWil.kel) ? `<div class="panel" style="box-shadow:none;margin-block:10px"><h3>Konsumen per ${lvl[2].toLowerCase()}</h3>${rk.slice(0, 12).map(([w, c]) => `<button class="bar-row" type="button" data-act="fw-pick" data-l="${lvl[1]}" data-v="${esc(w)}"><span class="row spread small"><span class="bar-lbl">${esc(w)}</span><span class="num">${c} kendaraan</span></span><span class="bar-track"><span class="bar-fill" style="display:block;width:${c / mx * 100}%"></span></span></button>`).join('')}</div>` : ''}</div>` : ''}
    <div id="ms-kform"></div>
@@ -123,7 +123,7 @@ function renderKForm() {
    ${!isNew && (k.riwayatUbah || []).length ? `<details class="small"><summary><b>Riwayat perubahan data (${k.riwayatUbah.length})</b></summary>${[...k.riwayatUbah].reverse().map(r => `<div style="margin-top:4px"><span class="muted">${esc(r.tgl)} · ${esc(r.oleh || '')}</span>: ${(r.ubah || []).map(u => `${esc(LABEL_K[u.f] || u.f)} <s class="muted">${esc(u.dari || '–')}</s> → <b>${esc(u.ke || '–')}</b>`).join('; ')}</div>`).join('')}</details>` : ''}
    ${!isNew ? '<div class="small muted">Perubahan ikut diterapkan ke servis yang masih berjalan dan halaman cek servis konsumen. Nota yang sudah lunas tetap seperti aslinya.</div>' : ''}
    ${riwayat.length ? `<div class="small"><b>Riwayat servis:</b> ${riwayat.map(w => `${esc(w.no)} (${esc(w.tgl.slice(0, 10))}) ${statusPill(w.status)}`).join(' · ')}</div>` : ''}
-   <div class="row" style="justify-content:flex-end">${!isNew && st.petugas?.super ? '<button class="btn ghost" type="button" data-act="ms-kdel">Hapus</button>' : ''}<button class="btn" type="button" data-act="ms-kclose">Batal</button><button class="btn pri" type="button" data-act="ms-ksave">Simpan [F2]</button></div></div>`;
+   <div class="row" style="justify-content:flex-end">${!isNew && st.petugas?.super ? '<button class="btn ghost" type="button" data-act="ms-kdel">Hapus</button>' : ''}<button class="btn" type="button" data-act="ms-kclose">Batal</button><button class="btn pri" type="button" data-act="ms-ksave">Simpan</button></div></div>`;
   fillWilayah('mw', { get: () => kendEdit });
 }
 // Simpan perubahan data konsumen/kendaraan. Perubahan dicatat (siapa, kapan, apa) dan ikut diterapkan ke
@@ -219,7 +219,7 @@ function renderKsg() {
    <div class="tw ksg-tw"><table class="ksg-table"><thead><tr><th class="ksg-tipe">Tipe motor</th>${Array.from({ length: KSG_JUMLAH }, (_, n) => `<th class="r">KSG ${n + 1}</th>`).join('')}</tr></thead><tbody>
    ${tipeList().map((t, i) => `<tr><td class="ksg-tipe">${esc(t)}</td>${Array.from({ length: KSG_JUMLAH }, (_, k) => `<td class="r"><input class="inline-input num" type="number" inputmode="numeric" min="0" step="500" id="kt-${i}-${k}" value="${tarif[t]?.[k] || ''}" placeholder="0" style="text-align:right;width:96px" aria-label="${esc(t)} KSG ${k + 1}"></td>`).join('')}</tr>`).join('')}
    </tbody></table></div>
-   <div class="row" style="justify-content:space-between;margin-top:8px"><span class="small muted">Tipe motor diatur di tab Tipe Motor.</span><button class="btn pri" type="button" data-act="kt-save">Simpan tarif KSG [F2]</button></div>`;
+   <div class="row" style="justify-content:space-between;margin-top:8px"><span class="small muted">Tipe motor diatur di tab Tipe Motor.</span><button class="btn pri" type="button" data-act="kt-save">Simpan tarif KSG</button></div>`;
 }
 async function saveKsg() {
   const tarif = {};
@@ -269,7 +269,7 @@ const rekData = i => ({ bank: $('#rk-b-' + i).value.trim(), noRek: $('#rk-n-' + 
 function renderTipe() {
   $('#ms-body').innerHTML = intro('Satu tipe per baris. Urutan di sini menjadi urutan pilihan di registrasi dan tabel tarif KSG.') + `
    <textarea id="tp-list" rows="14" aria-label="Daftar tipe motor">${esc(tipeList().join('\n'))}</textarea>
-   <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn pri" type="button" data-act="tp-save">Simpan tipe motor [F2]</button></div>`;
+   <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn pri" type="button" data-act="tp-save">Simpan tipe motor</button></div>`;
 }
 
 /* ---------- Petugas & PIN ---------- */

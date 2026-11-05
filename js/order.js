@@ -27,7 +27,7 @@ function tombolSimpan(w) {
   const info = o?.orderTgl ? `Terakhir disimpan ${esc(o.orderTgl)}${o.orderOleh ? ' oleh ' + esc(o.orderOleh) : ''}` : (o?.orderOleh ? 'Disimpan oleh ' + esc(o.orderOleh) : '');
   return `<span class="small ${dirty ? 'diff-bad' : 'muted'}" id="ord-info">${dirty ? 'Ada perubahan yang BELUM disimpan' : info}</span>
     <button class="btn" type="button" data-act="ord-reset" ${dirty ? '' : 'disabled'}>Batalkan perubahan</button>
-    <button class="btn ${dirty ? 'warn' : 'ok'}" type="button" data-act="ord-save" id="ord-save">${dirty ? 'Simpan order [F2]' : '✓ Tersimpan'}</button>`;
+    <button class="btn ${dirty ? 'warn' : 'ok'}" type="button" data-act="ord-save" id="ord-save">${dirty ? 'Simpan order' : '✓ Tersimpan'}</button>`;
 }
 function segarkanStatus() {
   const w = st.orderDraft, b = $('#ord-aksi'); if (!w || !b) return;
