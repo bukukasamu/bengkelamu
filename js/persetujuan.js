@@ -2,14 +2,14 @@
 // Admin (pemilik/kepala cabang): hanya permintaan aktivasi layar absen.
 import { $, esc, rp, stamp, toast, errMsg, konfirmasi } from './util.js';
 import { st, views, refreshers, actions, go, namaPetugas } from './state.js';
-import { db, collection, doc, query, where, onSnapshot, setDoc } from './firebase.js';
+import { db, collection, doc, query, where, onSnapshot, setDoc, updateDoc } from './firebase.js';
 import { namaCabang, multiCabang } from './cabang.js';
 import { setujuiBatal, tolakBatal } from './kontrol.js';
 import { showNota } from './nota.js';
 
-let batal = [], opname = [], layar = [], layarSemua = [];
+let batal = [], opname = [], po = [], layar = [], layarSemua = [];
 export function segarkanBadge() {
-  const n = batal.length + opname.length + layar.length, el = document.querySelector('.sb-link[data-view="persetujuan"]');
+  const n = batal.length + opname.length + po.length + layar.length, el = document.querySelector('.sb-link[data-view="persetujuan"]');
   if (el) el.innerHTML = 'Persetujuan' + (n ? ` <span class="sb-badge">${n}</span>` : '');
 }
 export function pantauPersetujuan(unsubs) {
@@ -19,6 +19,7 @@ export function pantauPersetujuan(unsubs) {
   if (!st.petugas?.super) return;
   unsubs.push(onSnapshot(query(collection(db, 'trx'), where('batal.status', '==', 'diminta')), s => { batal = s.docs.map(d => d.data()); badge(); }, () => {}));
   unsubs.push(onSnapshot(query(collection(db, 'opname'), where('status', '==', 'diajukan')), s => { opname = s.docs.map(d => ({ id: d.id, ...d.data() })); badge(); }, () => {}));
+  unsubs.push(onSnapshot(query(collection(db, 'orderSupplier'), where('status', '==', 'menunggu_persetujuan')), s => { po = s.docs.map(d => ({ id: d.id, ...d.data() })); badge(); }, () => {}));
 }
 
 const waktuMinta = l => l.tglMinta?.toDate ? l.tglMinta.toDate().toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : (typeof l.tglMinta === 'string' ? l.tglMinta : '');
@@ -29,7 +30,8 @@ const layarHTML = () => `<div class="panel"><h3>Aktivasi layar QR absen (${layar
    </div>`;
 function renderPersetujuan() {
   if (!st.petugas?.super) { $('#view').innerHTML = `<div class="grid">${layarHTML()}</div>`; return; }
-  $('#view').innerHTML = `<div class="grid">${layar.length ? layarHTML() : ''}
+  const poHTML = `<div class="panel"><h3>Order ke Supplier (${po.length})</h3><p class="small muted" style="margin:0">Periksa daftar belanja sebelum dikirim. Satu PO dapat berisi beberapa supplier.</p>${po.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>No PO</th><th>Cabang</th><th>Dibuat oleh</th><th>Supplier</th><th class="r">Item</th><th class="r">Perkiraan</th><th></th></tr></thead><tbody>${po.map(o => `<tr><td class="mono">${esc(o.no)}</td><td>${esc(o.cabang || '')}</td><td class="small">${esc(o.dibuatOleh || '')}<br>${esc(o.tgl || '')}</td><td class="small">${esc([...new Set((o.items || []).map(x => x.supplier))].join(', '))}</td><td class="r num">${(o.items || []).length}</td><td class="r num">${rp(o.total)}</td><td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="ps-po-tolak" data-id="${esc(o.id)}">Kembalikan</button> <button class="btn sm pri" type="button" data-act="ps-po-setujui" data-id="${esc(o.id)}">Setujui &amp; kirim</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Tidak ada PO yang menunggu persetujuan.</div>'}</div>`;
+  $('#view').innerHTML = `<div class="grid">${layar.length ? layarHTML() : ''}${poHTML}
    <div class="panel"><h3>Pembatalan nota (${batal.length})</h3>
     ${batal.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nota</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th>Pelanggan</th><th class="r">Total</th><th>Diajukan</th><th>Alasan</th><th></th></tr></thead><tbody>${batal.map((t, i) => `<tr><td class="mono"><button class="link-btn" type="button" data-act="ps-nota" data-i="${i}">${esc(t.no)}</button><div class="small muted">${esc(t.tgl)}</div></td>${multiCabang() ? `<td class="small">${esc(namaCabang(t.cabang))}</td>` : ''}<td>${esc(t.pelanggan || 'Umum')}${t.nopol ? `<div class="small muted mono">${esc(t.nopol)}</div>` : ''}</td><td class="r num">${rp(t.total)}</td><td class="small">${esc(t.batal.oleh)}<br>${esc(t.batal.tgl)}</td><td class="small">${esc(t.batal.alasan)}</td><td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="ps-tolak" data-no="${esc(t.no)}">Tolak</button> <button class="btn sm pri" type="button" data-act="ps-setujui" data-no="${esc(t.no)}">Setujui</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Tidak ada pengajuan pembatalan.</div>'}
    </div>
@@ -64,5 +66,15 @@ Object.assign(actions, {
     // opname cabang lain: pindah ke cabang itu dulu supaya stok sistem yang tampil sesuai
     if (el.dataset.c && el.dataset.c !== st.cabang) { const sel = document.getElementById('cabang-pilih'); if (sel) { sel.value = el.dataset.c; sel.dispatchEvent(new Event('change', { bubbles: true })); } }
     st.opn = st.opn || {}; st.opn.aktif = el.dataset.id; go('opname');
+  },
+  'ps-po-setujui': async el => {
+    const o = po.find(x => x.id === el.dataset.id); if (!o) return;
+    if (!(await konfirmasi('Setujui PO ' + o.no + '?', `PO berisi ${(o.items || []).length} jenis barang dan perkiraan nilai ${rp(o.total)}. Setelah disetujui, PO boleh dikirim ke supplier.`, { ya: 'Setujui & kirim' }))) return;
+    try { await updateDoc(doc(db, 'orderSupplier', o.id), { status: 'Dipesan', disetujuiOleh: namaPetugas(), tglSetuju: stamp(new Date()) }); toast('PO ' + o.no + ' disetujui dan siap dikirim'); } catch (e) { toast(errMsg(e)); }
+  },
+  'ps-po-tolak': async el => {
+    const o = po.find(x => x.id === el.dataset.id); if (!o) return;
+    if (!(await konfirmasi('Kembalikan PO ke draft?', `PO ${o.no} akan dikembalikan kepada pembuat untuk diperbaiki.`, { ya: 'Kembalikan ke draft' }))) return;
+    try { await updateDoc(doc(db, 'orderSupplier', o.id), { status: 'Draf', dikembalikanOleh: namaPetugas(), tglKembali: stamp(new Date()) }); toast('PO dikembalikan ke draft'); } catch (e) { toast(errMsg(e)); }
   }
 });

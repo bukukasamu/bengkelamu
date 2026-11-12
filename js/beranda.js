@@ -49,6 +49,7 @@ function heroHTML(s, nAktif) {
 function renderBeranda() {
   const t = dkey(new Date()), s = sums(trxIn(t, t));
   const low = S.parts.filter(p => p.min > 0 && p.stok <= p.min);
+  const poQty = {}; (S.orderSupplier || []).filter(o => ['menunggu_persetujuan', 'Dipesan', 'Datang sebagian'].includes(o.status)).forEach(o => (o.items || []).forEach(x => { poQty[x.kode] = (poQty[x.kode] || 0) + Math.max(0, (+x.qty || 0) - (+x.datang || 0)); }));
   const woToday = S.wo.filter(w => w.tgl.slice(0, 10) === t);
   const aktif = S.wo.filter(w => AKTIF.includes(w.status));
   const seedBox = S.parts.length || !can('stok') ? '' : `<div class="panel"><h3>Database part masih kosong</h3><p style="margin:0">Upload data part dari Excel (ekspor DMS Yamaha atau template sendiri), atau isi 20 part contoh untuk mencoba.</p><div class="row">${can('stok') ? '<button class="btn pri" type="button" data-act="import-open">Import dari Excel</button>' : ''}<button class="btn" type="button" data-act="seed">Isi 20 part contoh</button></div></div>`;
@@ -69,7 +70,7 @@ function renderBeranda() {
      ${aktif.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nopol</th><th>Motor</th><th>Mekanik</th><th>Status</th></tr></thead><tbody>${aktif.map(w => `<tr class="row-click" tabindex="0" data-act="hr-woopen" data-no="${esc(w.no)}" title="Buka motor ini"><td class="mono">${esc(w.nopol)}<br>${jenisBadge(w)}</td><td>${esc(w.tipe)}</td><td>${esc(mekanikNama(w) || '–')}</td><td>${statusPill(w.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada motor dalam antrian.</div>'}
     </div>` : ''}
     ${bolehKotak('stok') ? `<div class="panel"><div class="row spread"><h3>Perlu dipesan ulang</h3><button class="btn sm" data-act="go-low" type="button">Lihat semua</button></div>
-     ${low.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Kode</th><th>Part</th><th class="r">Stok</th><th class="r">Min</th></tr></thead><tbody>${low.slice(0, 15).map(p => `<tr class="row-click" tabindex="0" data-act="hr-partedit" data-k="${esc(p.kode)}" title="Buka part ini"><td class="mono">${esc(p.kode)}</td><td>${esc(p.nama)}</td><td class="r"><span class="pill p-bad">${p.stok}</span></td><td class="r num">${p.min}</td></tr>`).join('')}</tbody></table></div>${low.length > 15 ? `<p class="small muted" style="margin:0">+${low.length - 15} part lainnya</p>` : ''}` : '<div class="empty">Semua stok aman.</div>'}
+     ${low.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Kode</th><th>Part</th><th class="r">Stok</th><th class="r">Min</th><th>Status</th></tr></thead><tbody>${low.slice(0, 15).map(p => `<tr class="row-click" tabindex="0" data-act="hr-partedit" data-k="${esc(p.kode)}" title="Buka part ini"><td class="mono">${esc(p.kode)}</td><td>${esc(p.nama)}</td><td class="r"><span class="pill p-bad">${p.stok}</span></td><td class="r num">${p.min}</td><td>${poQty[p.kode] ? `<span class="pill p-info">Sudah dipesan · ${poQty[p.kode]}</span>` : '<span class="small muted">Belum dipesan</span>'}</td></tr>`).join('')}</tbody></table></div>${low.length > 15 ? `<p class="small muted" style="margin:0">+${low.length - 15} part lainnya</p>` : ''}` : '<div class="empty">Semua stok aman.</div>'}
     </div>` : ''}
    </div></div>`;
 }

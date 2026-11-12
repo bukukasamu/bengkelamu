@@ -1,4 +1,4 @@
-// Nota dalam bentuk PDF (lebar struk 80 mm), hitam-putih, dengan watermark logo toko.
+// Nota dalam bentuk PDF dengan pilihan struk 80 mm atau A4 portrait/landscape.
 // Pustaka jsPDF dimuat dari CDN saat pertama kali dibutuhkan.
 import { notaRows } from './nota.js';
 import { getBrand, loadBrand } from './brand.js';
@@ -17,9 +17,6 @@ export function preloadPdf() {
   return loading;
 }
 
-// Logo diubah ke PNG hitam-putih (tanpa warna) + ukuran aslinya. Tepi kosong di sekeliling logo dipangkas
-// supaya logo pas di tengah nota dan proporsinya tidak berubah.
-// warna = true: logo tetap berwarna (untuk dokumen A4/A5 modern); bawaan hitam-putih untuk struk.
 export async function logoPng(warna = false) {
   let b = getBrand(); if (b.logo === undefined) b = await loadBrand();
   if (!b.logo) return null;
@@ -35,7 +32,6 @@ export async function logoPng(warna = false) {
         for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i += 4) {
           const v = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
           if (!warna) d[i] = d[i + 1] = d[i + 2] = v;
-          // piksel berisi = tidak transparan dan bukan putih polos
           if (d[i + 3] > 16 && v < 246) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
         }
         g.putImageData(im, 0, 0);
@@ -46,61 +42,63 @@ export async function logoPng(warna = false) {
         res({ url: o.toDataURL('image/png'), w: cw, h: ch });
       } catch (e) { res(null); }
     };
-    img.onerror = () => res(null);
-    img.src = b.logo;
+    img.onerror = () => res(null); img.src = b.logo;
   });
 }
-// Ukuran gambar agar muat di kotak maxW x maxH tanpa mengubah perbandingan sisinya
 export function muat(logo, maxW, maxH) { const k = Math.min(maxW / logo.w, maxH / logo.h); return { w: logo.w * k, h: logo.h * k }; }
 
-const W = 80, M = 5, LH = 4.3;   // lebar kertas, margin, tinggi baris (mm)
+const PRESET = {
+  struk: { w: 80, margin: 5, line: 4.3, title: 12, body: 8.5, small: 7 },
+  portrait: { w: 210, margin: 14, line: 6.4, title: 18, body: 12, small: 9 },
+  landscape: { w: 297, margin: 16, line: 6.8, title: 19, body: 12.5, small: 9.5 }
+};
+const textScale = ukuran => ukuran === 'besar' ? 1.25 : ukuran === 'sangat-besar' ? 1.5 : 1;
 
-function layout(pdf, rows, logo, draw) {
-  const P = palet();
-  let y = M + 4;
-  if (logo) { const { w, h } = muat(logo, 36, 16); if (draw) pdf.addImage(logo.url, 'PNG', (W - w) / 2, y, w, h); y += h + 5; }
+function layout(pdf, rows, logo, draw, preset, ukuran) {
+  const P = palet(), sc = textScale(ukuran), M = preset.margin, W = preset.w;
+  const LH = preset.line * sc, body = preset.body * sc, small = preset.small * sc;
+  let y = M + 5;
+  if (logo) { const { w, h } = muat(logo, Math.min(58, W - 2 * M), 22 * sc); if (draw) pdf.addImage(logo.url, 'PNG', (W - w) / 2, y, w, h); y += h + 6; }
   for (const r of rows) {
-    if (r.type === 'title') { if (draw) { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12); pdf.setTextColor(...P.ink); pdf.text(r.l, W / 2, y + 1, { align: 'center' }); pdf.setTextColor(25); } y += LH + 1.5; continue; }
-    if (r.type === 'sub') { if (draw) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.text(r.l, W / 2, y, { align: 'center' }); } y += LH; continue; }
-    if (r.type === 'line') { if (draw) { pdf.setLineDashPattern([0.8, 0.8], 0); pdf.setDrawColor(150); pdf.line(M, y - 1.4, W - M, y - 1.4); pdf.setLineDashPattern([], 0); } y += 2.6; continue; }
-    if (r.type === 'head') { if (draw) { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.5); pdf.setTextColor(...P.ac); pdf.text(r.l, M, y); pdf.setTextColor(25); } y += LH; continue; }
-    if (r.type === 'center') { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(r.small ? 7 : 8.5); const ls = pdf.splitTextToSize(r.l, W - 2 * M); if (draw) pdf.text(ls, W / 2, y, { align: 'center' }); y += ls.length * (r.small ? 3.4 : LH) + (r.small ? 0.8 : 0); continue; }
+    if (r.type === 'title') { if (draw) { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(preset.title * sc); pdf.setTextColor(...P.ink); pdf.text(r.l, W / 2, y + 1, { align: 'center' }); pdf.setTextColor(25); } y += LH + 2; continue; }
+    if (r.type === 'sub') { if (draw) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8 * sc); pdf.text(r.l, W / 2, y, { align: 'center' }); } y += LH; continue; }
+    if (r.type === 'line') { if (draw) { pdf.setLineDashPattern([0.8, 0.8], 0); pdf.setDrawColor(150); pdf.line(M, y - 1.4, W - M, y - 1.4); pdf.setLineDashPattern([], 0); } y += 3.2; continue; }
+    if (r.type === 'head') { if (draw) { pdf.setFont('helvetica', 'bold'); pdf.setFontSize((preset.body - 1) * sc); pdf.setTextColor(...P.ac); pdf.text(r.l, M, y); pdf.setTextColor(25); } y += LH; continue; }
+    if (r.type === 'center') { pdf.setFont('helvetica', 'normal'); pdf.setFontSize((r.small ? small : 8.5 * sc)); const ls = pdf.splitTextToSize(r.l, W - 2 * M); if (draw) pdf.text(ls, W / 2, y, { align: 'center' }); y += ls.length * (r.small ? 4.5 * sc : LH); continue; }
     if (r.type === 'item') {
-      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); const ls = pdf.splitTextToSize(r.l, W - 2 * M);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(body); const ls = pdf.splitTextToSize(r.l, W - 2 * M);
       if (draw) pdf.text(ls, M, y); y += ls.length * LH;
-      if (draw) { pdf.setFontSize(8); pdf.text('   ' + r.sub, M, y); pdf.text(r.r, W - M, y, { align: 'right' }); } y += LH; continue;
+      if (draw) { pdf.setFontSize((preset.body - 0.5) * sc); pdf.text('   ' + r.sub, M, y); pdf.text(r.r, W - M, y, { align: 'right' }); } y += LH; continue;
     }
-    // lr
-    pdf.setFont('helvetica', r.bold ? 'bold' : 'normal'); pdf.setFontSize(r.bold ? 10.5 : 8.5);
-    const rw = pdf.getTextWidth(String(r.r)) + 3, ls = pdf.splitTextToSize(String(r.l), W - 2 * M - rw);
-    if (draw && r.bold) { pdf.setFillColor(...P.soft); pdf.roundedRect(M - 1.5, y - 4.4, W - 2 * M + 3, ls.length * LH + 2.6, 1.6, 1.6, 'F'); pdf.setTextColor(...P.ink); }
+    pdf.setFont('helvetica', r.bold ? 'bold' : 'normal'); pdf.setFontSize((r.bold ? 10.5 : preset.body) * sc);
+    const rw = pdf.getTextWidth(String(r.r)) + 5, ls = pdf.splitTextToSize(String(r.l), W - 2 * M - rw);
+    if (draw && r.bold) { pdf.setFillColor(...P.soft); pdf.roundedRect(M - 2, y - 5.2, W - 2 * M + 4, ls.length * LH + 3, 1.6, 1.6, 'F'); pdf.setTextColor(...P.ink); }
     if (draw) { pdf.text(ls, M, y); pdf.text(String(r.r), W - M, y, { align: 'right' }); pdf.setTextColor(25); }
     y += ls.length * LH + (r.bold ? 2 : 0);
   }
   return y + M;
 }
 
-export async function notaPdfBlob(t) {
+export async function notaPdfBlob(t, options = {}) {
   const lib = await preloadPdf(), logo = await logoPng(), rows = notaRows(t);
-  const probe = new lib.jsPDF({ unit: 'mm', format: [W, 200] });
-  const H = Math.max(110, layout(probe, rows, logo, false));
-  const pdf = new lib.jsPDF({ unit: 'mm', format: [W, H] });
+  const mode = options.orientasi === 'landscape' ? 'landscape' : options.orientasi === 'portrait' ? 'portrait' : 'struk';
+  const preset = PRESET[mode], ukuran = options.ukuran || 'normal';
+  const probe = new lib.jsPDF({ unit: 'mm', format: mode === 'struk' ? [preset.w, 200] : 'a4', orientation: mode === 'landscape' ? 'landscape' : 'portrait' });
+  const estimated = layout(probe, rows, logo, false, preset, ukuran);
+  const format = mode === 'struk' ? [preset.w, Math.max(110, estimated)] : 'a4';
+  const pdf = new lib.jsPDF({ unit: 'mm', format, orientation: mode === 'landscape' ? 'landscape' : 'portrait' });
+  const W = preset.w, H = mode === 'struk' ? Math.max(110, estimated) : pdf.internal.pageSize.getHeight();
   pdf.setProperties({ title: `Nota ${t.no}`, author: APP_NAME });
-  // Watermark tanpa warna: logo abu-abu besar transparan di tengah (atau nama toko miring bila belum ada logo)
-  pdf.saveGraphicsState();
-  pdf.setGState(new pdf.GState({ opacity: 0.08 }));
-  if (logo) { const { w, h } = muat(logo, W - 16, H * 0.55); pdf.addImage(logo.url, 'PNG', (W - w) / 2, (H - h) / 2, w, h); }
-  else { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(26); pdf.setTextColor(60); pdf.text(APP_NAME.toUpperCase(), W / 2, H / 2, { align: 'center', angle: 35 }); }
-  pdf.restoreGraphicsState();
-  pdf.setTextColor(25);
-  // 5.19.2: pita gradasi tipis di atas & bawah struk sesuai tema
-  gradasi(pdf, 0, 0, W, 2.6, palet().g, 0, 40); gradasi(pdf, 0, H - 1.6, W, 1.6, palet().g, 0, 40);
-  layout(pdf, rows, logo, true);
+  pdf.saveGraphicsState(); pdf.setGState(new pdf.GState({ opacity: 0.08 }));
+  if (logo) { const { w, h } = muat(logo, W - (mode === 'struk' ? 16 : 40), H * 0.45); pdf.addImage(logo.url, 'PNG', (W - w) / 2, (H - h) / 2, w, h); }
+  else { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(mode === 'struk' ? 26 : 42); pdf.setTextColor(60); pdf.text(APP_NAME.toUpperCase(), W / 2, H / 2, { align: 'center', angle: 35 }); }
+  pdf.restoreGraphicsState(); pdf.setTextColor(25);
+  if (mode === 'struk') { gradasi(pdf, 0, 0, W, 2.6, palet().g, 0, 40); gradasi(pdf, 0, H - 1.6, W, 1.6, palet().g, 0, 40); }
+  layout(pdf, rows, logo, true, preset, ukuran);
   return pdf.output('blob');
 }
 
 export function saveBlob(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }

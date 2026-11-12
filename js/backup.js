@@ -7,7 +7,7 @@ import { mintaPassword } from './otorisasi.js';
 import { APP_NAME, APP_VERSION } from './config.js';
 
 // Semua koleksi yang disimpan. "pantau" (link cek konsumen) tidak bisa didaftar dan dibuat ulang otomatis dari WO.
-export const KOLEKSI = ['parts', 'kendaraan', 'jasa', 'mekanik', 'meta', 'publik', 'staff', 'trx', 'wo', 'pembelian', 'mutasi', 'transfer', 'opname',
+export const KOLEKSI = ['parts', 'kendaraan', 'jasa', 'mekanik', 'meta', 'publik', 'staff', 'trx', 'wo', 'pembelian', 'orderSupplier', 'mutasi', 'transfer', 'opname',
   'pengeluaran', 'kas', 'klaim', 'penghasilan', 'gaji', 'slip', 'penghasilanBulan', 'absen', 'absenPerangkat', 'pengaturan', 'ubahKonsumen', 'masuk', 'imports', 'konsumen', 'mintaStok'];
 // Foto selfie absen tidak ikut backup (besar dan dihapus otomatis setelah beberapa hari).
 export const HARI_PENGINGAT = 7;

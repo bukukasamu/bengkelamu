@@ -39,6 +39,7 @@ import './bayar.js';
 import './mekanik.js';
 import './stok.js';
 import './pembelian.js';
+import './order-supplier.js';
 import './master.js';
 import './import-excel.js';
 import { pasangPenjaga, konfirmasiLogout } from './keluar.js';
@@ -222,6 +223,7 @@ function subscribe() {
   need = ['parts', 'trx', 'wo', 'jasa', 'mekanik', 'settings', 'aturan'];
   if (st.role !== 'admin') need.push('woAktif');
   if (can('pembelian')) need.push('pembelian');
+  if (can('orderSupplier')) need.push('orderSupplier');
   let bootstrapFallback = null;
   const selesaiBootstrap = (parsial = false) => {
     if (st.loaded) return;
@@ -245,7 +247,7 @@ function subscribe() {
     getDocsFromCache(q).then(s => { if (s.empty || ready[k]) return; dariCache = true; fn(s); terapkanCabang(); mark(k); }).catch(() => {});
     getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => { if (!dariCache) fail(e, k); });
   };
-  const perluParts = can('registrasi') || can('kasir') || can('stok') || can('cekstok') || can('order') || can('pembelian');
+  const perluParts = can('registrasi') || can('kasir') || can('stok') || can('cekstok') || can('order') || can('pembelian') || can('orderSupplier');
   const perluJasa = can('registrasi') || can('bayar');
   // Mekanik hanya membutuhkan pembacaan master untuk Cek Stok; one-time fetch membuat login lebih ringan.
   // Kasir/Sparepart/Registrasi tetap realtime agar perubahan master langsung terlihat pada alur transaksi.
@@ -267,6 +269,7 @@ function subscribe() {
     sub(query(collection(db, 'trx'), where('tgl', '>=', today)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
     sub(query(collection(db, 'wo'), where('tgl', '>=', bulanIni + '-01'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(300)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()); });
+    if (can('orderSupplier')) sub(query(collection(db, 'orderSupplier'), orderBy('diubah', 'desc'), limit(300)), 'orderSupplier', s => { raw.orderSupplier = s.docs.map(d => d.data()); });
   } else {
     // Karyawan: hanya data cabangnya. WO bulan berjalan + WO aktif; histori transaksi lama dimuat saat laporan dibuka.
     const cab = cabAktif(), bulan = [bulanIni];
@@ -280,6 +283,7 @@ function subscribe() {
     // Tetap menandai listener kedua agar kebutuhan readiness lama tetap terpenuhi; data sudah berasal dari query cabang di atas.
     ready.woAktif = true;
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab), limit(100)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
+    if (can('orderSupplier')) sub(query(collection(db, 'orderSupplier'), where('cabang', '==', cab), limit(300)), 'orderSupplier', s => { raw.orderSupplier = s.docs.map(d => d.data()).sort((a, b) => String(b.diubah || b.tgl).localeCompare(String(a.diubah || a.tgl))); });
   }
   pantauPersetujuan(unsubs);
   pantauMinta(unsubs);
@@ -294,7 +298,7 @@ function jadwalRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout
 /* ---------- CABANG ----------
    Data mentah semua cabang disimpan di "raw"; S.* berisi data cabang yang sedang dipakai.
    S.woSemua / S.trxSemua tetap berisi semua cabang (untuk laporan gabungan dan pencarian konsumen). */
-const raw = { parts: [], trx: [], wo: [], mekanik: [], pembelian: [] };
+const raw = { parts: [], trx: [], wo: [], mekanik: [], pembelian: [], orderSupplier: [] };
 function terapkanCabang() {
   const cab = cabAktif(), ini = d => diCabang(d, cab);
   // stokCab = stok per cabang (untuk Cek Stok & rincian cabang lain)
@@ -305,6 +309,7 @@ function terapkanCabang() {
   S.woSemua = raw.wo; S.wo = raw.wo.filter(ini);
   S.mekanikSemua = raw.mekanik; S.mekanik = raw.mekanik.filter(ini);
   S.pembelian = raw.pembelian.filter(ini);
+  S.orderSupplier = raw.orderSupplier.filter(ini);
 }
 function renderCabangBox() {
   const el = $('#cabang-box'); if (!el) return;

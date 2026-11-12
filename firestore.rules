@@ -148,6 +148,17 @@ service cloud.firestore {
       allow update: if isSuper() || (hasRole(['admin', 'sparepart']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang);
       allow delete: if hasRole(['admin']);
     }
+    // Purchase Order supplier: dibuat Sparepart, wajib disetujui Super Admin sebelum berstatus Dipesan.
+    // Satu PO dapat memuat item dari beberapa supplier; penerimaan parsial memperbarui PO dan membuat pembelian stok.
+    match /orderSupplier/{id} {
+      allow read: if hasRole(['sparepart']) && bolehCabang(resource.data.cabang);
+      allow create: if hasRole(['sparepart']) && bolehCabang(request.resource.data.cabang);
+      allow update: if isSuper() || (hasRole(['sparepart']) && bolehCabang(resource.data.cabang)
+        && request.resource.data.cabang == resource.data.cabang
+        && resource.data.status in ['Draf', 'Dipesan', 'Datang sebagian']
+        && request.resource.data.status in ['Draf', 'menunggu_persetujuan', 'Dipesan', 'Datang sebagian', 'Selesai']);
+      allow delete: if isSuper() || (hasRole(['sparepart']) && bolehCabang(resource.data.cabang) && resource.data.status == 'Draf');
+    }
     // Log aktivitas sensitif: hanya super admin yang boleh membaca dan menambah; tidak boleh diubah/dihapus.
     match /aktivitas/{id} {
       allow read, create: if isSuper();

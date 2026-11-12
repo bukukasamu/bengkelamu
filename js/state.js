@@ -4,7 +4,7 @@ import { MENUS, HOME, KAT, DEFAULT_TIPE } from './config.js';
 
 /* ---- Data dari Firestore (diisi oleh main.js) ---- */
 // trx/wo/mekanik/pembelian = cabang yang sedang dibuka; trxSemua/woSemua/mekanikSemua = semua cabang
-export const S = { parts: [], map: new Map(), trx: [], wo: [], jasa: [], mekanik: [], settings: {}, pembelian: [], trxSemua: [], woSemua: [], mekanikSemua: [] };
+export const S = { parts: [], map: new Map(), trx: [], wo: [], jasa: [], mekanik: [], settings: {}, pembelian: [], orderSupplier: [], trxSemua: [], woSemua: [], mekanikSemua: [] };
 // Kode part dari Excel/WO kadang membawa spasi non-breaking atau karakter zero-width.
 // Tampilan dapat terlihat sama, tetapi pencocokan string biasa tetap gagal.
 export const normalKode = k => String(k ?? '').normalize('NFKC').replace(/[\s\u200B-\u200D\uFEFF]/g, '').toUpperCase();
@@ -31,7 +31,7 @@ export const st = {
   regDraft: null, orderNo: null, orderDraft: null, bayarNo: null, bayarDraft: null,
   stokQ: '', stokKat: '', stokLow: false, stokAda: '', stokUrut: { k: 'kode', arah: 1 }, stokN: 200, partEdit: null,
   regJasaCari: '', regJasaShow: true,
-  pbDraft: null, pbFilter: 'semua',
+  pbDraft: null, pbFilter: 'semua', poDraft: null, poFilter: 'semua',
   mekSel: null, mekPeriode: 'ini',
   lap: { range: 'hari', from: '', to: '', filter: null, list: null },
   masterTab: 'tipe', filterBuka: {}

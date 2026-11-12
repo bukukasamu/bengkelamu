@@ -12,14 +12,14 @@ export const PINTAS_BAWAAN = {
   super: ['beranda', 'persetujuan', 'laporan', 'chat'],
   admin: ['beranda', 'registrasi', 'bayar', 'laporan'],
   registrasi: ['registrasi', 'riwayat', 'konsumen', 'cekstok'],
-  sparepart: ['order', 'stok', 'cekstok', 'pesananPart'],
+  sparepart: ['order', 'orderSupplier', 'stok', 'cekstok'],
   kasir: ['bayar', 'kasir', 'kas', 'laporan'],
   mekanik: ['mekanik', 'cekstok', 'absensi', 'penghasilan'],
   sa: ['beranda', 'mekanik', 'riwayat', 'laporan'],
   sales: ['absensi', 'penghasilan', 'chat', 'panduan']
 };
-const CADANGAN = ['beranda', 'registrasi', 'bayar', 'kasir', 'mekanik', 'order', 'cekstok', 'stok', 'laporan', 'chat', 'absensi', 'penghasilan', 'riwayat', 'panduan'];
-const PENDEK = { beranda: 'Beranda', registrasi: 'Registrasi', bayar: 'Bayar', kasir: 'Jual Part', mekanik: 'Mekanik', order: 'Order', cekstok: 'Cek Stok', stok: 'Stok', laporan: 'Laporan', absensi: 'Absensi', penghasilan: 'Gaji', chat: 'Chat', riwayat: 'Riwayat', panduan: 'Panduan', konsumen: 'Konsumen', pengingat: 'Pengingat', pesananPart: 'Pesanan', opname: 'Opname', pembelian: 'Pembelian', kas: 'Kas', klaim: 'Klaim', insight: 'Insight', backup: 'Backup', master: 'Master', persetujuan: 'Setujui', thr: 'THR' };
+const CADANGAN = ['beranda', 'registrasi', 'bayar', 'kasir', 'mekanik', 'order', 'orderSupplier', 'cekstok', 'stok', 'laporan', 'chat', 'absensi', 'penghasilan', 'riwayat', 'panduan'];
+const PENDEK = { beranda: 'Beranda', registrasi: 'Registrasi', bayar: 'Bayar', kasir: 'Jual Part', mekanik: 'Mekanik', order: 'Order', cekstok: 'Cek Stok', stok: 'Stok', laporan: 'Laporan', absensi: 'Absensi', penghasilan: 'Gaji', chat: 'Chat', riwayat: 'Riwayat', panduan: 'Panduan', konsumen: 'Konsumen', pengingat: 'Pengingat', pesananPart: 'Pesanan', opname: 'Opname', orderSupplier: 'PO Supplier', pembelian: 'Pembelian', kas: 'Kas', klaim: 'Klaim', insight: 'Insight', backup: 'Backup', master: 'Master', persetujuan: 'Setujui', thr: 'THR' };
 let bar = null;
 
 const links = () => [...document.querySelectorAll('#side-nav .sb-link')];

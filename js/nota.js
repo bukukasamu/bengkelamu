@@ -62,6 +62,9 @@ export const cekLink = nopol => publicUrl('cek', { nopol: nopol ? String(nopol).
 const waText = t => `Halo ${t.pelanggan && t.pelanggan !== 'Umum' ? t.pelanggan : 'Bapak/Ibu'}, terima kasih telah ${t.jenis === 'SERVIS' ? 'servis' : 'berbelanja'} di ${APP_NAME}. Berikut nota ${t.no}, total Rp ${n(t.total)}.` + (t.nopol ? `\nCek status & riwayat servis ${t.nopol}: ${cekLink(t.nopol)}` : '');
 
 let current = null;
+let notaPrintOptions = { orientasi: 'struk', ukuran: 'normal' };
+const opsiNota = () => ({ orientasi: $('#nota-orientasi')?.value || notaPrintOptions.orientasi, ukuran: $('#nota-ukuran')?.value || notaPrintOptions.ukuran });
+const labelOrientasi = o => o === 'landscape' ? 'A4 Landscape' : o === 'portrait' ? 'A4 Portrait' : 'Struk 80 mm';
 function tombolRetur(t) {
   if (!t || t.jenis !== 'PART' || t.batal?.status === 'disetujui' || !(st.petugas?.super || st.role === 'kasir' || st.role === 'admin')) return '';
   return `<button class="btn ghost" type="button" data-act="retur-ajukan" data-no="${esc(t.no)}">Ajukan retur</button>`;
@@ -74,7 +77,11 @@ export function showNota(t) {
    ${batalHTML(t)}${t.retur?.status === 'diajukan' ? `<div class="note small">Retur diajukan: ${esc(t.retur.alasan || '')}. Menunggu persetujuan.</div>` : ''}${t.retur?.status === 'disetujui' ? `<div class="note small batal-on"><b>RETUR DISETUJUI</b> · ${esc(t.retur.catatanSuper || t.retur.alasan || '')}</div>` : ''}
    <div class="nota" id="nota-text">${esc(notaText(t))}</div>
    <label class="f" for="nota-hp"><span class="f-wa">No. WhatsApp konsumen<span class="small muted" id="nota-hp-ok"></span></span><input id="nota-hp" inputmode="tel" value="${esc(t.hp || '')}" placeholder="mis. 0812 xxxx xxxx"></label>
+   <div class="form" style="margin-top:12px"><label class="f" for="nota-orientasi">Format cetak<select id="nota-orientasi"><option value="struk">Struk 80 mm</option><option value="portrait">A4 Portrait</option><option value="landscape">A4 Landscape</option></select></label><label class="f" for="nota-ukuran">Ukuran tulisan<select id="nota-ukuran"><option value="normal">Normal</option><option value="besar">Besar</option><option value="sangat-besar">Sangat besar</option></select></label></div>
+   <p class="small muted" style="margin:4px 0 0">Pilihan ini berlaku untuk Cetak dan Unduh PDF. Untuk nota panjang, gunakan tulisan normal agar semua rincian tetap muat.</p>
    <div class="row" style="justify-content:flex-end">${tombolBatal(t)}${tombolRetur(t)}<button class="btn" data-act="print" type="button">Cetak</button><button class="btn" data-act="nota-pdf" type="button">Unduh PDF</button><button class="btn wa-solid" data-act="nota-wa" type="button">Kirim PDF via WA</button><button class="btn pri" data-close="1" type="button">Tutup</button></div>`);
+  $('#nota-orientasi').value = notaPrintOptions.orientasi;
+  $('#nota-ukuran').value = notaPrintOptions.ukuran;
   checkHp();
 }
 async function ajukanRetur(el) {
@@ -96,14 +103,18 @@ async function kirimRetur(el) {
 const checkHp = () => { const ok = $('#nota-hp-ok'); if (ok) ok.textContent = waNumber($('#nota-hp')?.value) ? '✓ nomor valid' : ''; };
 
 function printNota() {
-  const w = window.open('', '_blank', 'width=420,height=640');
+  const options = opsiNota(); notaPrintOptions = options;
+  const w = window.open('', '_blank', 'width=860,height=760');
   if (!w) { toast('Pop-up diblokir browser. Izinkan pop-up untuk mencetak.'); return; }
-  w.document.write('<pre style="font:12px/1.4 monospace;margin:0">' + $('#nota-text').innerHTML + '</pre>');
-  w.document.close(); w.focus(); w.print(); w.close();
+  const wide = options.orientasi === 'landscape', large = options.ukuran === 'besar' ? 1.25 : options.ukuran === 'sangat-besar' ? 1.5 : 1;
+  const width = options.orientasi === 'struk' ? '80mm' : wide ? '277mm' : '185mm';
+  const content = notaHTML(current);
+  w.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Nota ${esc(current.no)}</title><style>@page{size:${options.orientasi === 'struk' ? '80mm auto' : 'A4 ' + (wide ? 'landscape' : 'portrait')};margin:${options.orientasi === 'struk' ? '4mm' : '12mm'}}*{box-sizing:border-box}body{font-family:Arial,sans-serif;width:${width};margin:0 auto;color:#111;font-size:${12 * large}px;line-height:1.4}.struk{width:100%}.s-title{text-align:center;font-weight:700;font-size:${18 * large}px;margin-bottom:3px}.s-sub,.s-center{text-align:center}.s-center.small{font-size:${10 * large}px;color:#555}.s-head{font-weight:700;margin-top:8px}.s-lr{display:flex;justify-content:space-between;gap:12px}.s-item{margin:6px 0}.s-total{font-weight:700;font-size:${14 * large}px}.s-center{margin-top:5px}hr{border:0;border-top:1px dashed #555;margin:7px 0}.muted{color:#555}@media print{body{width:100%}}</style></head><body>${content}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(() => { w.print(); w.close(); }, 250);
 }
 
 async function downloadPdf() {
-  try { const { notaPdfBlob, saveBlob } = await import('./nota-pdf.js'); saveBlob(await notaPdfBlob(current), `Nota-${current.no}.pdf`); }
+  try { const options = notaPrintOptions = opsiNota(); const { notaPdfBlob, saveBlob } = await import('./nota-pdf.js'); saveBlob(await notaPdfBlob(current, options), `Nota-${current.no}-${labelOrientasi(options.orientasi).replace(/\s+/g, '-')}.pdf`); }
   catch (e) { toast('PDF gagal dibuat: ' + e.message); }
 }
 // HP/tablet yang mendukung berbagi file: PDF langsung dikirim lewat menu bagikan → WhatsApp.
@@ -114,7 +125,8 @@ async function sendWa() {
   const text = waText(current);
   try {
     const { notaPdfBlob, saveBlob } = await import('./nota-pdf.js');
-    const blob = await notaPdfBlob(current), file = new File([blob], `Nota-${current.no}.pdf`, { type: 'application/pdf' });
+    const options = notaPrintOptions = opsiNota();
+    const blob = await notaPdfBlob(current, options), file = new File([blob], `Nota-${current.no}.pdf`, { type: 'application/pdf' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e.name === 'AbortError') return; }
     }
