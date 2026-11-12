@@ -1,4 +1,4 @@
-// Nota dalam bentuk PDF dengan pilihan struk 80 mm atau A4 portrait/landscape.
+// Nota dalam bentuk PDF dengan pilihan struk 75 mm atau folio 9½ × 11 inci portrait/landscape.
 // Pustaka jsPDF dimuat dari CDN saat pertama kali dibutuhkan.
 import { notaRows } from './nota.js';
 import { getBrand, loadBrand } from './brand.js';
@@ -48,9 +48,9 @@ export async function logoPng(warna = false) {
 export function muat(logo, maxW, maxH) { const k = Math.min(maxW / logo.w, maxH / logo.h); return { w: logo.w * k, h: logo.h * k }; }
 
 const PRESET = {
-  struk: { w: 80, margin: 5, line: 4.3, title: 12, body: 8.5, small: 7 },
-  portrait: { w: 210, margin: 14, line: 6.4, title: 18, body: 12, small: 9 },
-  landscape: { w: 297, margin: 16, line: 6.8, title: 19, body: 12.5, small: 9.5 }
+  struk: { w: 75, margin: 3, line: 4.3, title: 12, body: 8.5, small: 7 },
+  portrait: { w: 241.3, margin: 14, line: 6.4, title: 18, body: 12, small: 9 },
+  landscape: { w: 279.4, margin: 16, line: 6.8, title: 19, body: 12.5, small: 9.5 }
 };
 const textScale = ukuran => ukuran === 'besar' ? 1.25 : ukuran === 'sangat-besar' ? 1.5 : 1;
 
@@ -85,9 +85,9 @@ export async function notaPdfBlob(t, options = {}) {
   const preset = PRESET[mode], ukuran = options.ukuran || 'normal';
   const probe = new lib.jsPDF({ unit: 'mm', format: mode === 'struk' ? [preset.w, 200] : 'a4', orientation: mode === 'landscape' ? 'landscape' : 'portrait' });
   const estimated = layout(probe, rows, logo, false, preset, ukuran);
-  const format = mode === 'struk' ? [preset.w, Math.max(110, estimated)] : 'a4';
+  const format = mode === 'struk' ? [preset.w, Math.max(35, estimated)] : mode === 'portrait' ? [241.3, 279.4] : [279.4, 241.3];
   const pdf = new lib.jsPDF({ unit: 'mm', format, orientation: mode === 'landscape' ? 'landscape' : 'portrait' });
-  const W = preset.w, H = mode === 'struk' ? Math.max(110, estimated) : pdf.internal.pageSize.getHeight();
+  const W = mode === 'struk' ? preset.w : pdf.internal.pageSize.getWidth(), H = mode === 'struk' ? Math.max(35, estimated) : pdf.internal.pageSize.getHeight();
   pdf.setProperties({ title: `Nota ${t.no}`, author: APP_NAME });
   pdf.saveGraphicsState(); pdf.setGState(new pdf.GState({ opacity: 0.08 }));
   if (logo) { const { w, h } = muat(logo, W - (mode === 'struk' ? 16 : 40), H * 0.45); pdf.addImage(logo.url, 'PNG', (W - w) / 2, (H - h) / 2, w, h); }
