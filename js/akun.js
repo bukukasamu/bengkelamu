@@ -1,68 +1,31 @@
-// Akun login petugas dengan PIN.
-// Setiap petugas punya akun Firebase dengan email buatan ({id}@PIN_DOMAIN) dan kata sandi = PIN 6 digit.
-// Daftar nama untuk layar login disimpan di dokumen publik/login (hanya nama, peran, email buatan).
-import { auth, db, doc, getDoc, setDoc, deleteDoc, createStaffAccount, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from './firebase.js';
-import { PIN_DOMAIN } from './config.js';
-import { memo, lupakan } from './memo.js';
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "./firebase.js";
+import { requireAuth, PERAN, toast, aksi, catatLog, pasangAplikasi, teksVersi, selisihJamPerangkat, jamSiap } from "./common.js";
 
-const listRef = () => doc(db, 'publik', 'login');
-export const validPin = p => /^\d{6}$/.test(p || '');
-export const isPinAccount = email => (email || '').endsWith('@' + PIN_DOMAIN);
-const newId = () => Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-4);
+const { user, profil } = await requireAuth();
+document.getElementById("aNama").textContent = profil.nama;
+document.getElementById("aUser").textContent = "@" + profil.username;
+document.getElementById("aPeran").textContent = PERAN[profil.role] || profil.role;
+document.getElementById("btnPasang").onclick = pasangAplikasi;
+jamSiap.then(() => {
+  const d = Math.round(selisihJamPerangkat() / 1000);
+  document.getElementById("infoVersi").textContent = `${teksVersi()} · selisih jam perangkat dengan server: ${Math.abs(d) < 60 ? d + " detik" : Math.round(d / 60) + " menit"}`;
+});
+document.getElementById("btnNotif").onclick = async () => {
+  if (!("Notification" in window)) return toast("Browser ini tidak mendukung notifikasi.", "err");
+  const p = await Notification.requestPermission();
+  toast(p === "granted" ? "Notifikasi aktif" : "Notifikasi tidak diizinkan. Ubah di pengaturan browser.", p === "granted" ? "ok" : "err");
+};
 
-// 5.19.0: daftar petugas disimpan 60 detik di memori (Chat, Penghasilan, Master, Absensi memakai daftar yang sama).
-// Selalu dikembalikan sebagai salinan supaya perubahan di satu menu tidak mengotori simpanan.
-export async function loadLoginList({ segar = false } = {}) {
-  const list = await memo('login-list', 60000, async () => { const s = await getDoc(listRef()); return s.exists() ? (s.data().petugas || []) : []; }, { paksa: segar });
-  return list.map(x => ({ ...x }));
-}
-const saveList = list => { lupakan('login-list'); return setDoc(listRef(), { petugas: list.sort((a, b) => a.nama.localeCompare(b.nama)) }).finally(() => lupakan('login-list')); };
-
-// Buat akun baru. extra = { mekanikId } untuk mekanik.
-export async function tambahPetugas({ nama, peran, pin, ...extra }) {
-  if (!validPin(pin)) throw new Error('PIN harus 6 angka');
-  const id = newId(), email = `${id}@${PIN_DOMAIN}`;
-  await createStaffAccount(email, pin);
-  await setDoc(doc(db, 'staff', email), { nama, peran, loginId: id, ...extra });
-  const list = await loadLoginList({ segar: true });
-  list.push({ id, nama, peran, email, ...extra });
-  await saveList(list);
-  return { id, email };
-}
-
-// Admin mengganti PIN: dibuatkan akun baru (Firebase tidak mengizinkan mengubah kata sandi orang lain dari aplikasi web),
-// hak akses dipindah ke akun baru, akun lama otomatis tidak bisa dipakai lagi.
-export async function resetPin(id, pin) {
-  if (!validPin(pin)) throw new Error('PIN harus 6 angka');
-  const list = await loadLoginList({ segar: true }), e = list.find(x => x.id === id);
-  if (!e) throw new Error('Petugas tidak ditemukan');
-  const email = `${id}-${Date.now().toString(36)}@${PIN_DOMAIN}`;
-  await createStaffAccount(email, pin);
-  const old = await getDoc(doc(db, 'staff', e.email));
-  await setDoc(doc(db, 'staff', email), { ...(old.exists() ? old.data() : { nama: e.nama, peran: e.peran }), loginId: id });
-  await deleteDoc(doc(db, 'staff', e.email));
-  e.email = email; await saveList(list);
-}
-
-export async function ubahPetugas(id, patch) {
-  const list = await loadLoginList({ segar: true }), e = list.find(x => x.id === id);
-  if (!e) throw new Error('Petugas tidak ditemukan');
-  Object.assign(e, patch);
-  await setDoc(doc(db, 'staff', e.email), patch, { merge: true });
-  await saveList(list);
-}
-
-export async function hapusPetugas(id) {
-  const list = await loadLoginList({ segar: true }), e = list.find(x => x.id === id);
-  if (!e) return;
-  await deleteDoc(doc(db, 'staff', e.email));
-  await saveList(list.filter(x => x.id !== id));
-}
-
-// Petugas mengganti PIN-nya sendiri
-export async function gantiPinSendiri(lama, baru) {
-  if (!validPin(baru)) throw new Error('PIN baru harus 6 angka');
-  const u = auth.currentUser;
-  await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, lama));
-  await updatePassword(u, baru);
-}
+const form = document.getElementById("formSandi");
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (form.baru.value !== form.baru2.value) return toast("Kata sandi baru tidak sama.", "err");
+  aksi(document.getElementById("btnSandi"), async () => {
+    try { await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, form.lama.value)); }
+    catch (ex) { if (["auth/invalid-credential", "auth/wrong-password"].includes(ex.code)) throw new Error("Kata sandi lama salah."); throw ex; }
+    await updatePassword(user, form.baru.value);
+    catatLog("Akun", "Ganti kata sandi", "@" + profil.username);
+    form.reset();
+    toast("Kata sandi berhasil diganti");
+  });
+});
