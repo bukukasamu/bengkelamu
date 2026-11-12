@@ -1,0 +1,411 @@
+// Titik masuk aplikasi: login + peran, sidebar, sinkron data Firestore, shortcut keyboard.
+import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal)
+import './cari-pilihan.js';   // pilihan panjang: daftar baru muncul setelah mengetik
+import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, getDocs, getDocsFromCache, onSnapshot, query, where, orderBy, limit, writeBatch, updateDoc } from './firebase.js';
+import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
+import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal, viewSebelum } from './state.js';
+import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
+import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
+import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
+import { showNota } from './nota.js';
+import { pasangTombol, updateAplikasi } from './pwa.js';
+import { temaAktif, terapkanTema } from './tema.js';
+import { CABANG_UTAMA, cabangList, cabangById, namaCabang, multiCabang, cabAktif, diCabang, stokOf, stokTotal, watchCabang, loadCabang } from './cabang.js';
+import { onSearchEnter } from './kasir.js';
+import { setLoadedFrom } from './laporan.js';
+// Modul menu: cukup diimpor, masing-masing mendaftarkan tampilan & aksinya sendiri.
+import './beranda.js';
+import './chat.js';
+import { pantauChatBadge } from './chat.js';
+import './registrasi.js';
+import './pengingat.js';
+import './panduan.js';
+import './riwayat.js';
+import './insight.js';
+import './opname.js';
+import './keuangan.js';
+import './backup.js';
+import './hapus-semua.js';
+import { adaAbsenTertunda, cekAbsenTertunda } from './absensi.js';
+import { pantauPersetujuan, segarkanBadge } from './persetujuan.js';
+import { pantauMinta } from './cek-stok.js';
+import { setPhLoadedFrom } from './penghasilan.js';
+import { sah, lupakanTrx } from './data-trx.js';
+import { mulaiPresence, hentikanPresence, renderStatusSaya } from './presence.js';
+import { pasangNavHp, bukaLaci, tutupLaci } from './mobile-nav.js';
+import { bukaMenuProfil, simpanFotoProfil, muatProfilSaya } from './profil.js';
+import './order.js';
+import './bayar.js';
+import './mekanik.js';
+import './stok.js';
+import './pembelian.js';
+import './order-supplier.js';
+import './master.js';
+import './import-excel.js';
+import { pasangPenjaga, konfirmasiLogout } from './keluar.js';
+
+document.querySelectorAll('.app-ver').forEach(e => { e.textContent = 'versi ' + APP_VERSION; });
+document.querySelectorAll('.app-name').forEach(e => { e.textContent = APP_NAME.toUpperCase(); });
+
+/* ---------- SIDEBAR ---------- */
+function renderSidebar() {
+  let html = '', group = '';
+  MENUS.filter(m => can(m.id)).forEach(m => {
+    if (menuGroup(m) !== group) { group = menuGroup(m); html += `<div class="sb-group">${esc(group)}</div>`; }
+    html += `<button class="sb-link" type="button" data-view="${m.id}">${esc(menuLabel(m))}</button>`;
+  });
+  $('#side-nav').innerHTML = html;
+}
+const isMobile = () => window.matchMedia('(max-width: 900px)').matches;
+function toggleSidebar() {
+  if (isMobile()) {
+    if (document.body.classList.contains('sb-open')) tutupLaci(); else bukaLaci();
+  } else {
+    const hidden = document.body.classList.toggle('sb-hidden');
+    try { localStorage.setItem('amu-sb-hidden', hidden ? '1' : ''); } catch (e) {}
+  }
+}
+try { if (localStorage.getItem('amu-sb-hidden')) document.body.classList.add('sb-hidden'); } catch (e) {}
+$('#sb-toggle').addEventListener('click', toggleSidebar);
+pasangNavHp();
+$('#sb-backdrop').addEventListener('click', toggleSidebar);
+['#update-app', '#update-app-login'].forEach(sel => { const b = $(sel); b?.addEventListener('click', () => updateAplikasi(b)); });
+function refreshTombolTema() { document.querySelectorAll('[data-theme-toggle]').forEach(b => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); b.textContent = gelap ? '☀ Mode terang' : '☾ Mode gelap'; b.setAttribute('aria-pressed', gelap ? 'true' : 'false'); }); }
+document.querySelectorAll('[data-theme-toggle]').forEach(b => b.addEventListener('click', () => { const gelap = temaAktif() === 'gelap' || (temaAktif() === 'otomatis' && matchMedia('(prefers-color-scheme: dark)').matches); terapkanTema(gelap ? 'segar' : 'gelap'); refreshTombolTema(); }));
+refreshTombolTema();
+window.addEventListener('amu-profile-changed', renderProfil);
+// 5.21.0: klik foto profil membuka menu profil gaya media sosial
+$('#top-profile')?.addEventListener('click', () => bukaMenuProfil());
+$('#profile-file')?.addEventListener('change', async e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await simpanFotoProfil(f); });
+window.addEventListener('amu-update-ok', () => toast('Aplikasi sudah menggunakan versi terbaru'));
+window.addEventListener('amu-update-fail', () => toast('Update gagal. Periksa koneksi internet lalu coba lagi.'));
+$('#side-nav').addEventListener('click', e => { const b = e.target.closest('.sb-link'); if (b) go(b.dataset.view); });
+
+/* ---------- LOGIN ---------- */
+// Petugas: pilih nama + PIN 6 digit. Super admin: email + kata sandi.
+let loginMsg = '', unsubs = [], ready = {}, need = [], loginList = [], emailMode = false, pralogin = null;
+
+function setLoginMode(email) {
+  emailMode = email;
+  $('#login-pin-mode').hidden = email; $('#login-email-mode').hidden = !email;
+  $('#login-switch').textContent = email ? 'Login petugas' : 'Super admin';
+  $('#login-back').hidden = !email || !loginList.length;
+  $('#login-title').textContent = email ? 'Super admin' : 'Selamat datang';
+  $('#login-sub').textContent = email ? 'Masuk dengan email dan kata sandi.' : 'Pilih nama Anda lalu masukkan PIN.';
+  (email ? $('#login-email') : ($('#login-nama').value ? $('#login-pin') : $('#login-nama')))?.focus();
+}
+async function fillLoginList() {
+  try { [loginList] = await Promise.all([loadLoginList(), loadCabang()]); } catch (e) { loginList = loginList || []; }
+  // Dikelompokkan per peran; bila ada beberapa cabang, per cabang + peran (admin/pemilik tidak terikat cabang)
+  const multi = multiCabang(), groups = new Map();
+  const urut = multi ? [['', 'admin'], ...cabangList().flatMap(c => Object.keys(ROLES).filter(r => r !== 'admin').map(r => [c.id, r]))] : Object.keys(ROLES).map(r => ['', r]);
+  urut.forEach(k => groups.set(k.join('|'), []));
+  loginList.forEach(p => { const key = (multi && p.peran !== 'admin' ? (p.cabang || CABANG_UTAMA) : '') + '|' + p.peran; (groups.get(key) || groups.set(key, []).get(key)).push(p); });
+  const label = key => { const [c, r] = key.split('|'); return (c ? namaCabang(c) + ' · ' : '') + (ROLES[r] || r); };
+  let last = ''; try { last = localStorage.getItem('amu-login-id') || ''; } catch (e) {}
+  $('#login-nama').innerHTML = loginList.length
+    ? '<option value="">Pilih nama</option>' + [...groups.entries()].filter(([, l]) => l.length).map(([k, l]) => `<optgroup label="${esc(label(k))}">${l.map(p => `<option value="${esc(p.id)}" ${p.id === last ? 'selected' : ''}>${esc(p.nama)}</option>`).join('')}</optgroup>`).join('')
+    : '<option value="">Belum ada petugas</option>';
+  if (!loginList.length) setLoginMode(true);
+}
+const bootDone = () => { $('#boot')?.remove(); };
+function setBusy(b) { const btn = $('#login-btn'); btn.disabled = b; btn.innerHTML = b ? gearsSVG() + 'Memeriksa…' : 'Masuk'; }
+function showLogin(msg) {
+  bootDone(); setBusy(false);
+  $('#app-shell').hidden = true; $('#login-screen').hidden = false;
+  const m = msg || loginMsg; loginMsg = '';
+  $('#login-err').hidden = !m; $('#login-err').textContent = m || '';
+  $('#login-pin').value = ''; $('#login-pass').value = '';
+}
+$('#login-switch').addEventListener('click', () => setLoginMode(!emailMode));
+$('#login-back').addEventListener('click', () => setLoginMode(false));
+loadBrand();
+$('#login-pin').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); if (e.target.value.length === 6 && $('#login-nama').value) $('#login-form').requestSubmit(); });
+$('#login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  let email, pass;
+  if (emailMode) { email = $('#login-email').value.trim(); pass = $('#login-pass').value; if (!email || !pass) { showLogin('Isi email dan kata sandi.'); return; } }
+  else {
+    const p = loginList.find(x => x.id === $('#login-nama').value);
+    if (!p) { showLogin('Pilih nama petugas dulu.'); $('#login-nama').focus(); return; }
+    if (!validPin($('#login-pin').value)) { showLogin('PIN harus 6 angka.'); $('#login-pin').focus(); return; }
+    email = p.email; pass = $('#login-pin').value;
+    try { localStorage.setItem('amu-login-id', p.id); } catch (e) {}
+  }
+  setBusy(true); $('#login-err').hidden = true;
+  try { await signInWithEmailAndPassword(auth, email, pass); }
+  catch (err) {
+    const m = { 'auth/invalid-credential': emailMode ? 'Email atau kata sandi salah.' : 'PIN salah.', 'auth/wrong-password': 'PIN salah.', 'auth/too-many-requests': 'Terlalu banyak percobaan salah. Tunggu beberapa menit.', 'auth/network-request-failed': 'Tidak ada koneksi internet.' };
+    showLogin(m[err.code] || err.message); (emailMode ? $('#login-pass') : $('#login-pin')).focus();
+  }
+});
+$('#logout').addEventListener('click', async () => { if (await konfirmasiLogout()) { viewSebelum.length = 0; hentikanPresence(); signOut(auth); } });
+
+// Ganti PIN sendiri
+$('#ganti-pin').addEventListener('click', () => {
+  modal(`<h2>Ganti PIN</h2>
+   <label class="f" for="gp-lama">PIN sekarang<input id="gp-lama" type="password" inputmode="numeric" maxlength="6" class="num pin-input" data-autofocus></label>
+   <label class="f" for="gp-baru">PIN baru (6 angka)<input id="gp-baru" type="password" inputmode="numeric" maxlength="6" class="num pin-input"></label>
+   <label class="f" for="gp-ulang">Ulangi PIN baru<input id="gp-ulang" type="password" inputmode="numeric" maxlength="6" class="num pin-input"></label>
+   <div id="gp-err" class="err" hidden></div>
+   <div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn pri" type="button" data-act="gp-save">Simpan PIN</button></div>`);
+});
+actions['gp-save'] = async () => {
+  const lama = $('#gp-lama').value, baru = $('#gp-baru').value, err = m => { $('#gp-err').hidden = false; $('#gp-err').textContent = m; };
+  if (!validPin(baru)) return err('PIN baru harus 6 angka.');
+  if (baru !== $('#gp-ulang').value) return err('Ulangan PIN baru tidak sama.');
+  if (baru === lama) return err('PIN baru sama dengan PIN lama.');
+  try { await gantiPinSendiri(lama, baru); closeModal(); toast('PIN berhasil diganti'); }
+  catch (e) { err(e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' ? 'PIN sekarang salah.' : e.code === 'auth/too-many-requests' ? 'Terlalu banyak percobaan. Tunggu sebentar.' : errMsg(e)); }
+};
+
+onAuthStateChanged(auth, async u => {
+  unsubs.forEach(f => f()); unsubs = []; st.loaded = false; ready = {};
+  if (!u) { hentikanPresence(); st.petugas = null; st.role = null; showLogin(); fillLoginList(); return; }
+  try {
+    const email = (u.email || '').toLowerCase();
+    let sd;
+    // 5.19.0: data cabang & hak akses dibaca bersamaan dengan data petugas (dulu satu per satu → login lebih lama)
+    pralogin = Promise.all([loadCabang().catch(() => null), getDoc(doc(db, 'pengaturan', 'akses')).then(a => a.exists() ? a.data() : null).catch(() => undefined)]);
+    try { sd = await getDoc(doc(db, 'staff', email)); }
+    catch (e) {
+      // Tepat setelah login, token kadang belum terpasang ke koneksi database: coba sekali lagi
+      if (e.code !== 'permission-denied') throw e;
+      await u.getIdToken(true); await new Promise(r => setTimeout(r, 1200));
+      sd = await getDoc(doc(db, 'staff', email));
+    }
+    if (email === SUPER_ADMIN) {
+      st.petugas = { email, nama: 'Super Admin', ...(sd.exists() ? sd.data() : {}), peran: 'admin', super: true };
+    } else {
+      if (!sd.exists()) { loginMsg = 'Akun ini sudah tidak aktif. Minta admin memeriksa di Master Data → Petugas.'; await signOut(auth); return; }
+      st.petugas = { email, ...sd.data() };
+    }
+    st.role = ROLES[st.petugas.peran] ? st.petugas.peran : null;
+    if (!st.role) { loginMsg = 'Peran "' + (st.petugas.peran || '') + '" tidak dikenal. Peran yang valid: ' + Object.keys(ROLES).join(', ') + '.'; await signOut(auth); return; }
+  } catch (e) {
+    loginMsg = e.code === 'permission-denied'
+      ? 'Akses ke data petugas ditolak. Tutup tab lain aplikasi ini (termasuk tab Cek Servis), muat ulang halaman, lalu masuk lagi. Bila masih gagal, admin perlu publish ulang firestore.rules.'
+      : 'Tidak bisa membaca data petugas: ' + errMsg(e);
+    await signOut(auth); return;
+  }
+  // Cabang: karyawan terikat cabangnya; admin/pemilik bisa berpindah (pilihan terakhir diingat di perangkat ini)
+  const [, aksesAwal] = await (pralogin || Promise.all([loadCabang(), Promise.resolve(undefined)]));
+  if (st.role === 'admin') { let c = null; try { c = localStorage.getItem('amu-cabang'); } catch (e) {} st.cabang = cabangById(c) ? c : CABANG_UTAMA; }
+  else st.cabang = st.petugas.cabang || CABANG_UTAMA;
+  if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA;
+  bootDone(); $('#login-screen').hidden = true; $('#app-shell').hidden = false;
+  renderCabangBox();
+  renderProfil();
+  $('#who').textContent = st.petugas.nama || st.petugas.email;
+  $('#who-role').textContent = st.petugas.super ? 'Super Admin' : ROLES[st.role];
+  $('#ganti-pin').hidden = !isPinAccount(st.petugas.email);
+  if (aksesAwal === undefined) { try { const ak = await getDoc(doc(db, 'pengaturan', 'akses')); S.akses = ak.exists() ? ak.data() : null; } catch (e) { S.akses = null; } }
+  else S.akses = aksesAwal;
+  renderSidebar();
+  mulaiPresence(); renderStatusSaya(); muatProfilSaya();
+  pantauChatBadge();
+  let last = null; try { last = localStorage.getItem('amu-tab-' + st.role); } catch (e) {}
+  st.view = last && can(last) ? last : menuAwal();
+  if (adaAbsenTertunda() && can('absensi') && !st.petugas.super) st.view = 'absensi';
+  go(st.view);
+  $('#view').innerHTML = loaderHTML('Memuat data bengkel…');
+  subscribe();
+});
+
+/* ---------- SINKRON DATA (realtime) ---------- */
+function subscribe() {
+  const now = new Date();
+  const today = dkey(now), bulanIni = today.slice(0, 7); // transaksi realtime hanya hari ini; WO bulan berjalan tetap tersedia untuk riwayat
+  setLoadedFrom(today); setPhLoadedFrom(today);
+  // Satu query yang lambat/gagal tidak boleh membuat seluruh aplikasi berhenti di loading.
+  // Data yang tersedia tetap dipakai; listener akan mengisi data ketika koneksi pulih.
+  const fail = (e, k) => { console.warn('Data ' + (k || 'Firestore') + ' belum siap:', e); if (k) mark(k); };
+  need = ['parts', 'trx', 'wo', 'jasa', 'mekanik', 'settings', 'aturan'];
+  if (st.role !== 'admin') need.push('woAktif');
+  if (can('pembelian')) need.push('pembelian');
+  if (can('orderSupplier')) need.push('orderSupplier');
+  let bootstrapFallback = null;
+  const selesaiBootstrap = (parsial = false) => {
+    if (st.loaded) return;
+    st.loaded = true;
+    if (parsial) console.warn('AMU POS dibuka dengan data parsial; sumber yang belum siap:', need.filter(n => !ready[n]));
+    seedMaster(); go(st.view); cekAbsenTertunda(); pasangPenjaga();
+  };
+  // 5.19.0: setelah aplikasi terbuka, setiap data yang datang langsung memperbarui layar (digabung per ±60 ms
+  // supaya beberapa sumber yang datang bersamaan hanya menggambar ulang sekali).
+  const mark = k => {
+    ready[k] = true;
+    if (st.loaded) { jadwalRefresh(); if (k === 'jasa' || k === 'mekanik' || k === 'settings') seedMaster(); return; }
+    if (need.every(n => ready[n])) { clearTimeout(bootstrapFallback); selesaiBootstrap(); }
+  };
+  bootstrapFallback = setTimeout(() => selesaiBootstrap(true), 6000);
+  const sub = (q, k, fn) => unsubs.push(onSnapshot(q, s => { fn(s); terapkanCabang(); mark(k); }, e => fail(e, k)));
+  // Master relatif jarang berubah: baca sekali per sesi, bukan listener realtime global.
+  // 5.19.0: salinan di perangkat dipakai dulu (instan), lalu diperbarui dari server di belakang layar.
+  const once = (q, k, fn) => {
+    let dariCache = false;
+    getDocsFromCache(q).then(s => { if (s.empty || ready[k]) return; dariCache = true; fn(s); terapkanCabang(); mark(k); }).catch(() => {});
+    getDocs(q).then(s => { fn(s); terapkanCabang(); mark(k); }).catch(e => { if (!dariCache) fail(e, k); });
+  };
+  const perluParts = can('registrasi') || can('kasir') || can('stok') || can('cekstok') || can('order') || can('pembelian') || can('orderSupplier');
+  const perluJasa = can('registrasi') || can('bayar');
+  // Mekanik hanya membutuhkan pembacaan master untuk Cek Stok; one-time fetch membuat login lebih ringan.
+  // Kasir/Sparepart/Registrasi tetap realtime agar perubahan master langsung terlihat pada alur transaksi.
+  if (perluParts) (st.role === 'mekanik' ? once : sub)(collection(db, 'parts'), 'parts', s => { raw.parts = s.docs.map(d => d.data()); });
+  else { raw.parts = []; mark('parts'); }
+  if (perluJasa) once(collection(db, 'jasa'), 'jasa', s => { S.jasa = s.docs.map(d => ({ id: d.id, ...d.data() })); });
+  else { S.jasa = []; mark('jasa'); }
+  // Daftar mekanik dipakai untuk penugasan, performa, dan penghasilan; koleksinya biasanya kecil.
+  once(collection(db, 'mekanik'), 'mekanik', s => { raw.mekanik = s.docs.map(d => ({ id: d.id, ...d.data() })); });
+  sub(doc(db, 'meta', 'settings'), 'settings', s => { S.settings = s.exists() ? s.data() : {}; });
+  sub(doc(db, 'penghasilan', 'aturan'), 'aturan', s => { S.aturan = s.exists() ? s.data() : null; });
+  // Hak akses menu berubah (diatur super admin): perbarui menu tanpa perlu login ulang
+  unsubs.push(onSnapshot(doc(db, 'pengaturan', 'akses'), s => {
+    const baru = s.exists() ? s.data() : null; if (JSON.stringify(baru) === JSON.stringify(S.akses)) return;
+    S.akses = baru; renderSidebar(); pantauChatBadge(); segarkanBadge(); if (st.loaded && !can(st.view)) go(st.view); else document.querySelectorAll('.sb-link').forEach(b => { if (b.dataset.view === st.view) b.setAttribute('aria-current', 'page'); });
+  }, () => {}));
+  if (st.role === 'admin') {
+    // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
+    sub(query(collection(db, 'trx'), where('tgl', '>=', today)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    sub(query(collection(db, 'wo'), where('tgl', '>=', bulanIni + '-01'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
+    if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(300)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()); });
+    if (can('orderSupplier')) sub(query(collection(db, 'orderSupplier'), orderBy('diubah', 'desc'), limit(300)), 'orderSupplier', s => { raw.orderSupplier = s.docs.map(d => d.data()); });
+  } else {
+    // Karyawan: hanya data cabangnya. WO bulan berjalan + WO aktif; histori transaksi lama dimuat saat laporan dibuka.
+    const cab = cabAktif(), bulan = [bulanIni];
+    // Mode kompatibilitas: filter cabang tunggal + limit tidak membutuhkan composite index.
+    // Batas 500 menjaga login tetap cepat ketika histori cabang sangat besar.
+    // Tanggal/status disaring di perangkat agar login tidak gagal saat index belum selesai dibuat.
+    sub(query(collection(db, 'trx'), where('cabang', '==', cab), limit(500)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    let woBulan = [], woAktif = [];
+    const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
+    sub(query(collection(db, 'wo'), where('cabang', '==', cab), limit(500)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
+    // Tetap menandai listener kedua agar kebutuhan readiness lama tetap terpenuhi; data sudah berasal dari query cabang di atas.
+    ready.woAktif = true;
+    if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab), limit(100)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
+    if (can('orderSupplier')) sub(query(collection(db, 'orderSupplier'), where('cabang', '==', cab), limit(300)), 'orderSupplier', s => { raw.orderSupplier = s.docs.map(d => d.data()).sort((a, b) => String(b.diubah || b.tgl).localeCompare(String(a.diubah || a.tgl))); });
+  }
+  pantauPersetujuan(unsubs);
+  pantauMinta(unsubs);
+  unsubs.push(watchCabang(() => { if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA; renderCabangBox(); if (st.loaded) { terapkanCabang(); refresh(); } }));
+  // Pengaman 5.19.0: aplikasi dibuka paling lama 3,5 detik setelah login walaupun sebagian data masih di jalan
+  // (dulu 8 detik). Data yang menyusul langsung mengisi layar lewat listener realtime.
+  setTimeout(() => { if (!st.loaded) { console.warn('Startup cepat: membuka aplikasi dengan data yang tersedia; menyusul:', need.filter(n => !ready[n])); selesaiBootstrap(true); } }, 3500);
+}
+let refreshTimer = 0;
+function jadwalRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 60); }
+
+/* ---------- CABANG ----------
+   Data mentah semua cabang disimpan di "raw"; S.* berisi data cabang yang sedang dipakai.
+   S.woSemua / S.trxSemua tetap berisi semua cabang (untuk laporan gabungan dan pencarian konsumen). */
+const raw = { parts: [], trx: [], wo: [], mekanik: [], pembelian: [], orderSupplier: [] };
+function terapkanCabang() {
+  const cab = cabAktif(), ini = d => diCabang(d, cab);
+  // stokCab = stok per cabang (untuk Cek Stok & rincian cabang lain)
+  setParts(raw.parts.map(p => ({ ...p, stok: stokOf(p, cab), stokSemua: stokTotal(p), stokCab: { ...(p.stokC || {}), [CABANG_UTAMA]: +p.stok || 0 } })));
+  const sahTrx = raw.trx.filter(sah);
+  S.trxBatal = raw.trx.filter(t => !sah(t) && ini(t));
+  S.trxSemua = sahTrx; S.trx = sahTrx.filter(ini);
+  S.woSemua = raw.wo; S.wo = raw.wo.filter(ini);
+  S.mekanikSemua = raw.mekanik; S.mekanik = raw.mekanik.filter(ini);
+  S.pembelian = raw.pembelian.filter(ini);
+  S.orderSupplier = raw.orderSupplier.filter(ini);
+}
+function renderCabangBox() {
+  const el = $('#cabang-box'); if (!el) return;
+  if (!multiCabang() && cabAktif() === CABANG_UTAMA) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = st.role === 'admin'
+    ? `<label class="cabang-pilih"><span>Cabang</span><select id="cabang-pilih" aria-label="Pindah cabang">${cabangList().map(c => `<option value="${esc(c.id)}" ${c.id === cabAktif() ? 'selected' : ''}>${esc(c.nama)}</option>`).join('')}</select></label>`
+    : `<span class="cabang-tag" title="Cabang Anda">${esc(namaCabang(cabAktif()))}</span>`;
+}
+function renderProfil() {
+  const el = $('#top-profile'); if (!el || !st.petugas) return;
+  const nama = st.petugas.nama || st.petugas.email || 'Pengguna';
+  const inisial = nama.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
+  const foto = st.petugas.foto ? `<img src="${esc(st.petugas.foto)}" alt="Foto ${esc(nama)}">` : `<span>${esc(inisial)}</span>`;
+  el.hidden = false;
+  el.innerHTML = `<div class="top-avatar">${foto}</div><div class="top-profile-text"><b>${esc(nama)}</b><small>${esc(st.petugas.super ? 'Super Admin' : ROLES[st.role] || st.role || '')}</small></div>`;
+  renderStatusSaya();
+}
+document.addEventListener('change', e => {
+  if (e.target.id !== 'cabang-pilih') return;
+  st.cabang = e.target.value; try { localStorage.setItem('amu-cabang', st.cabang); } catch (err) {}
+  // draf yang sedang diisi milik cabang sebelumnya
+  st.regDraft = null; st.orderNo = null; st.orderDraft = null; st.bayarNo = null; st.bayarDraft = null; st.pbDraft = null; st.partEdit = null;
+  terapkanCabang(); go(st.view); toast('Pindah ke cabang ' + namaCabang(st.cabang));
+});
+
+// Admin pertama kali: isi jasa, mekanik, tipe motor default supaya registrasi langsung bisa dipakai
+let seedDicoba = false;
+async function seedMaster() {
+  // Jangan mengisi data awal sebelum jasa/mekanik/pengaturan benar-benar terbaca (startup cepat bisa dibuka dengan data parsial)
+  if (!ready.jasa || !ready.mekanik || !ready.settings) return;
+  if (!st.petugas?.super || seedDicoba || S.jasa.length || S.mekanik.length || S.settings.tipe || S.settings.dikosongkan) return;
+  seedDicoba = true;
+  try {
+    const b = writeBatch(db);
+    DEFAULT_JASA.forEach(([nama, harga], i) => b.set(doc(collection(db, 'jasa')), { nama, harga, aktif: true, urut: i }));
+    DEFAULT_MEKANIK.forEach(nama => b.set(doc(collection(db, 'mekanik')), { nama, email: '', aktif: true }));
+    b.set(doc(db, 'meta', 'settings'), { tipe: DEFAULT_TIPE }, { merge: true });
+    await b.commit();
+    toast('Data awal jasa, mekanik, dan tipe motor dibuat. Ubah di Master Data.');
+  } catch (e) { toast(errMsg(e)); }
+}
+
+/* ---------- HURUF KAPITAL OTOMATIS ----------
+   Semua isian teks diubah ke huruf kapital saat diketik (dijalankan sebelum handler lain).
+   Dikecualikan: email, kata sandi/PIN, angka, tanggal, dan isian bertanda data-nocaps. */
+const NO_CAPS = new Set(['email', 'password', 'number', 'date', 'file', 'checkbox', 'radio', 'range', 'color', 'time']);
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') return;
+  if (t.tagName === 'INPUT' && NO_CAPS.has(t.type)) return;
+  if (t.dataset.nocaps != null || t.id === 'chat-text' || t.getAttribute('inputmode') === 'numeric') return;
+  const up = t.value.toUpperCase(); if (up === t.value) return;
+  const a = t.selectionStart, b = t.selectionEnd; t.value = up;
+  try { t.setSelectionRange(a, b); } catch (err) {}
+}, true);
+
+/* ---------- EVENT ---------- */
+$('#modal-root').addEventListener('click', e => { if (e.target.dataset.close) closeModal(); });
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (el && actions[el.dataset.act]) actions[el.dataset.act](el);
+});
+document.addEventListener('input', e => inputHandlers.forEach(h => h(e)));
+document.addEventListener('change', e => changeHandlers.forEach(h => h(e)));
+
+function fk(k) {
+  if (!st.loaded) return;
+  if (k === 'cetak') { showNota(st.lastNota || [...S.trx].reverse().find(t => t.kasir === (st.petugas.nama || st.petugas.email)) || S.trx[S.trx.length - 1]); return; }
+  let a = fkeys[st.view] && fkeys[st.view][k];
+  if (typeof a === 'function') a = a();
+  if (a && actions[a]) actions[a]({ dataset: {} });
+  else toast(k === 'baru' ? 'Tidak ada data baru di halaman ini' : k === 'cari' ? 'Tidak ada pencarian di halaman ini' : 'Tidak ada yang perlu disimpan di halaman ini');
+}
+$('#fk-baru').onclick = () => fk('baru');
+$('#fk-simpan').onclick = () => fk('simpan');
+$('#fk-cetak').onclick = () => fk('cetak');
+if ($('#fk-cari')) $('#fk-cari').onclick = () => fk('cari');
+
+document.addEventListener('keydown', e => {
+  if ($('#app-shell').hidden) return;
+  if (e.key === 'Enter' && e.target.classList?.contains('row-click')) { actions[e.target.dataset.act]?.(e.target); return; }
+  if (e.key === 'Escape') { if ($('#modal-root').innerHTML) closeModal(); else if (document.body.classList.contains('sb-open')) toggleSidebar(); return; }
+  if (e.key === 'Enter' && e.target.id === 'k-q') { e.preventDefault(); onSearchEnter(e.target); return; }
+  if (e.key === 'Enter' && e.target.id === 'r-cari') { e.preventDefault(); actions['reg-cari'](); return; }
+  if (e.key === 'F1') { e.preventDefault(); fk('baru'); }
+  if (e.key === 'F2') { e.preventDefault(); fk('simpan'); }
+  if (e.key === 'F3') { e.preventDefault(); fk('cari'); }
+  if (e.key === 'F8') { e.preventDefault(); fk('cetak'); }
+});
+
+/* ---------- JAM ---------- */
+const tick = () => { $('#clock').textContent = new Date().toLocaleString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); };
+tick(); setInterval(tick, 30000);
+
+// Pasang aplikasi (PWA) di HP / PC
+const petunjukPasang = t => modal(`<h3>Pasang aplikasi</h3><p style="margin:0">${esc(t)}</p><div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-close="1" data-autofocus>Mengerti</button></div>`);
+pasangTombol($('#pasang-app'), petunjukPasang);
+pasangTombol($('#pasang-login'), petunjukPasang);
