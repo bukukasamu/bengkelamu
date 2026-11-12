@@ -1,257 +1,143 @@
-// Halaman depan (publik)
-// Kiri : identitas dayah, login (cukup kata sandi setelah pertama kali), tombol Install, tulisan Pengelola di kaki.
-// Kanan: jadwal sholat (lampu berkedip saat waktu sholat tiba) & mading. Kaki: teks berjalan.
-// Jadwal mengajar teungku TIDAK tampil di sini (internal: menu "Jadwal Teungku").
-import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, doc, getDoc, getDocs, collection } from "./firebase.js";
-import {
-  ambilProfil, ambilTampilan, tampilanCache, logoDayah, beranda, simpan, esc, PERAN, pasangFooter, pesanError,
-  today, tambahHari, hariDari, sekarang, WIB_MS, tglPanjang, normUsername, usernameValid,
-  siapkanHalamanPublik, sinkronJamHTTP, pasangAplikasi, bisaInstallLangsung, sudahTerpasang, toast, ikon, sembunyikanPemuat, tampilError, aksi
-} from "./common.js";
-import { hitungSholat, jamDariMenit, NAMA_WAKTU, LOKASI_BAWAAN } from "./sholat.js";
+// Menu Beranda: ringkasan hari ini, grafik 7 hari, antrian bengkel, stok menipis.
+import { $, esc, rp, dkey, HARI, toast, errMsg, modal } from './util.js';
+import { S, st, views, actions, go, can, mekanikAktif, bolehKotak } from './state.js';
+import { AKTIF, statusPill, jenisBadge, mekanikNama, sibukOleh, durasi, fmtDur } from './wo-common.js';
+import { trxIn, sums } from './stats.js';
+import { db, doc, writeBatch } from './firebase.js';
+import { SEED_PARTS } from './seed.js';
+import { perluMigrasi, jalankanMigrasi } from './migrasi.js';
+import { perluBackup, umurBackup } from './backup.js';
+import { mintaPassword } from './otorisasi.js';
 
-siapkanHalamanPublik();
-pasangFooter(document.getElementById("kakiKiri"));
-// Pintu Super Admin: tulisan kecil di samping "Panduan"
-document.querySelector("#kakiKiri .kaki")?.insertAdjacentHTML("beforeend", ` · <a class="lnk-pengelola" id="btnPengelola" href="#" role="button">Pengelola</a>`);
-const $ = (id) => document.getElementById(id);
-
-// ===================== Identitas dayah =====================
-let tampilan = tampilanCache();
-function pasangTampilan(t) {
-  tampilan = t;
-  $("namaDayah").textContent = t.nama;
-  $("namaArab").textContent = t.namaArab || "";
-  $("namaArab").hidden = !t.namaArab;
-  $("alamatDayah").textContent = t.alamat || "";
-  $("taglineDayah").textContent = t.tagline || "";
-  $("logoDayah").src = logoDayah(t);
-  document.title = t.nama;
-  if (t.foto) $("panelKiri").style.backgroundImage =
-    `linear-gradient(to bottom, rgba(5,30,18,.6), rgba(5,30,18,.92)), url("${t.foto}")`;
-}
-pasangTampilan(tampilan);
-ambilTampilan().then(pasangTampilan);
-
-// Tanggal masehi & hijriah
-const tglHari = new Date(Date.parse(today() + "T12:00:00Z"));
-let hijri = "";
-try { hijri = new Intl.DateTimeFormat("id-ID-u-ca-islamic-umalqura", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(tglHari).replace(/\s*(SH|AH|H)$/, "") + " H"; } catch { /* abaikan */ }
-$("tanggalHariIni").textContent = tglPanjang(today()) + (hijri ? " · " + hijri : "");
-
-// ===================== Login =====================
-const form = $("formLogin"), err = $("err"), btn = $("btnMasuk");
-let mode = "biasa", sedangLogin = false;
-$("lihatSandi").innerHTML = ikon("mata", 18);
-$("lihatSandi").onclick = () => form.password.type = form.password.type === "password" ? "text" : "password";
-if (new URLSearchParams(location.search).has("nonaktif")) err.textContent = "Akun Anda nonaktif. Hubungi pengelola dayah.";
-
-const akunTersimpan = () => simpan.get("akunTersimpan");
-function tampilLogin() {
-  const a = mode === "biasa" ? akunTersimpan() : null;
-  $("kotakLogin").classList.toggle("pengelola", mode === "pengelola");
-  $("judulLogin").textContent = mode === "pengelola" ? "Ruang Pengelola" : a ? "Masuk" : "Masuk";
-  $("subLogin").textContent = mode === "pengelola" ? "Masuk sebagai pengelola sistem" : a ? "Cukup masukkan kata sandi Anda" : "Untuk teungku & pengurus dayah";
-  $("akunIngat").hidden = !a;
-  $("boxUsername").hidden = !!a;
-  form.username.required = !a;
-  if (a) {
-    $("inisial").textContent = (a.nama || a.u).replace(/^(tgk\.?|teungku|ustaz(ah)?)\s+/i, "").trim().charAt(0).toUpperCase();
-    $("namaIngat").textContent = a.nama || a.u;
-    $("userIngat").textContent = "@" + a.u;
-    form.username.value = a.u;
-  } else if (mode === "pengelola") form.username.value = "";
-  $("btnBatalPengelola").hidden = mode !== "pengelola";
-  $("kotakLogin").hidden = false;
-  $("sudahMasuk").hidden = true;
-  form.password.value = "";
-  err.textContent = "";
-}
-tampilLogin();
-$("btnGantiAkun").onclick = () => { simpan.del("akunTersimpan"); form.username.value = ""; tampilLogin(); form.username.focus(); };
-$("btnPengelola").onclick = (e) => { e.preventDefault(); mode = "pengelola"; tampilLogin(); form.username.focus(); $("kotakLogin").scrollIntoView({ behavior: "smooth", block: "center" }); };
-$("btnBatalPengelola").onclick = () => { mode = "biasa"; tampilLogin(); };
-
-getDoc(doc(db, "config", "setup")).then(s => { if (!s.exists()) $("infoSetup").hidden = false; }).catch(() => {});
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user || sedangLogin) return;
-  const p = await ambilProfil(user.uid).catch(() => null);
-  if (!p?.aktif || p.dihapus) { await signOut(auth).catch(() => {}); return; }
-  if (mode === "pengelola") return;
-  $("kotakLogin").hidden = true;
-  $("sudahMasuk").hidden = false;
-  $("sudahMasukNama").textContent = `${p.nama} · ${PERAN[p.role] || p.role}`;
-  $("btnKeAplikasi").href = beranda(p.role);
-});
-
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  err.textContent = "";
-  const u = normUsername(form.username.value);
-  const salah = "Kata sandi salah.";
-  if (!usernameValid(u)) { err.textContent = mode === "pengelola" ? "Username atau kata sandi salah." : "Username tidak dikenal."; return; }
-  sedangLogin = true;
-  btn.disabled = true; btn.innerHTML = `<span class="putar"></span>Memproses...`;
-  try {
-    const map = await getDoc(doc(db, "usernames", u));
-    if (!map.exists()) throw { code: "auth/invalid-credential" };
-    const cred = await signInWithEmailAndPassword(auth, map.data().email, form.password.value);
-    const p = await ambilProfil(cred.user.uid);
-    const isSA = p?.role === "superadmin";
-    // Akun pengelola hanya lewat Ruang Pengelola; akun lain hanya lewat login biasa
-    if (!p || (mode === "biasa" && isSA) || (mode === "pengelola" && !isSA)) {
-      await signOut(auth); err.textContent = mode === "pengelola" ? "Username atau kata sandi salah." : salah; return;
-    }
-    if (!p.aktif || p.dihapus) { await signOut(auth); err.textContent = "Akun Anda nonaktif. Hubungi pengelola dayah."; return; }
-    if (!isSA) simpan.set("akunTersimpan", { u, nama: p.nama });
-    simpan.set("profil", { uid: cred.user.uid, ...p }, true);
-    location.replace(beranda(p.role));
-  } catch (ex) {
-    const kode = ex?.code || "";
-    err.textContent = ["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(kode)
-      ? (mode === "pengelola" || !akunTersimpan() ? "Username atau kata sandi salah." : salah) : pesanError(ex);
-  } finally {
-    sedangLogin = false;
-    btn.disabled = false; btn.textContent = "Masuk";
+function chartSVG() {
+  const days = [], now = new Date();
+  for (let b = 6; b >= 0; b--) {
+    const d = new Date(now); d.setDate(d.getDate() - b);
+    const s = sums(trxIn(dkey(d), dkey(d)));
+    days.push({ key: dkey(d), lbl: b === 0 ? 'Hari ini' : HARI[d.getDay()] + ' ' + d.getDate(), part: s.part, jasa: s.jasa });
   }
-});
-
-// ===================== Install aplikasi (PWA) =====================
-// Android & komputer (Chrome/Edge/Samsung Internet): tombol langsung membuka dialog install bawaan browser.
-// iPhone/iPad: Apple tidak mengizinkan tombol install, jadi ditampilkan 2 langkah singkat.
-const ua = navigator.userAgent;
-const isIOS = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-const isAndroid = /android/i.test(ua);
-const dalamAplikasiLain = /FBAN|FBAV|Instagram|Line\/|WhatsApp|; wv\)|TikTok|Telegram/i.test(ua);
-const btnInstall = $("btnInstall"), modalInstall = $("modalInstall");
-$("installKet").textContent = isIOS ? "Untuk iPhone / iPad" : isAndroid ? "Ketuk sekali, langsung terpasang" : "Klik sekali, langsung terpasang";
-if (sudahTerpasang()) btnInstall.hidden = true;
-const simbol = (n) => `<span class="simbol">${ikon(n, 16)}</span>`;
-function tampilPetunjuk() {
-  let sub, langkah;
-  if (isIOS) {
-    sub = "Di iPhone, Apple hanya mengizinkan lewat tombol Bagikan Safari.";
-    langkah = [`Ketuk tombol <b>Bagikan</b> ${simbol("bagikan")} di bawah layar Safari.`,
-      `Gulir, pilih <b>Tambah ke Layar Utama</b> ${simbol("tambahKotak")}.`, "Ketuk <b>Tambah</b>. Logo dayah muncul di layar utama."];
-  } else if (dalamAplikasiLain) {
-    sub = "Anda membuka link dari aplikasi lain (WhatsApp/Facebook/dll.).";
-    langkah = [`Ketuk menu ${simbol("titikTiga")} di pojok kanan atas.`, "Pilih <b>Buka di Chrome</b> / <b>Buka di browser</b>.",
-      "Di Chrome, ketuk lagi tombol <b>Install Aplikasi</b>."];
-  } else {
-    sub = "Browser ini belum menampilkan tombol install otomatis.";
-    langkah = [isAndroid ? `Ketuk menu ${simbol("titikTiga")} Chrome di pojok kanan atas.` : `Klik ikon install ${simbol("unduh")} di ujung kanan kolom alamat, atau menu ${simbol("titikTiga")}.`,
-      "Pilih <b>Instal aplikasi</b> / <b>Tambahkan ke layar utama</b>.",
-      "Bila tidak ada pilihan itu, buka situs ini di <b>Chrome</b> atau <b>Edge</b>. Bila aplikasi sudah terpasang, buka dari layar utama."];
+  const max = Math.max(...days.map(d => d.part + d.jasa), 1);
+  const step = [100000, 250000, 500000, 1000000, 2000000, 5000000, 10000000, 25000000].find(s => s * 4 >= max) || 50000000, top = step * 4;
+  const W = 640, H = 230, L = 58, R = 10, T = 12, B = 30, cw = (W - L - R) / 7, bw = Math.min(46, cw * .55);
+  const y = v => T + (H - T - B) * (1 - v / top);
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = step * i;
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v >= 1e6 ? (v / 1e6).toLocaleString('id-ID') + ' jt' : v / 1000 + ' rb'}</text>`;
   }
-  $("installSub").textContent = sub;
-  $("installIsi").innerHTML = `<ol class="install-langkah">${langkah.map(l => `<li><div>${l}</div></li>`).join("")}</ol>`;
-  modalInstall.classList.add("open");
-}
-btnInstall.onclick = async () => {
-  if (!isIOS && bisaInstallLangsung()) { await pasangAplikasi(); return; }
-  if (!isIOS && !dalamAplikasiLain) {
-    // Dialog install kadang baru siap 1–2 detik setelah halaman dibuka
-    btnInstall.disabled = true;
-    await new Promise(r => { const t = setTimeout(r, 1500); document.addEventListener("bisa-install", () => { clearTimeout(t); r(); }, { once: true }); });
-    btnInstall.disabled = false;
-    if (bisaInstallLangsung()) { await pasangAplikasi(); return; }
-  }
-  tampilPetunjuk();
-};
-$("btnTutupInstall").onclick = () => modalInstall.classList.remove("open");
-modalInstall.addEventListener("click", (e) => { if (e.target === modalInstall) modalInstall.classList.remove("open"); });
-$("btnSalinLink").onclick = async () => {
-  try { await navigator.clipboard.writeText(location.origin + location.pathname.replace(/index\.html$/, "")); toast("Link disalin. Tempel di Chrome / Safari."); }
-  catch { toast(location.origin, "info"); }
-};
-
-// ===================== Pengumuman: mading & teks berjalan =====================
-$("judulMading").innerHTML = `${ikon("pin", 20)} Mading Dayah`;
-const modalGambar = $("modalGambar");
-modalGambar.addEventListener("click", () => modalGambar.classList.remove("open"));
-$("mading").addEventListener("click", (e) => { if (e.target.tagName === "IMG") { $("gambarBesar").src = e.target.src; modalGambar.classList.add("open"); } });
-
-function pasangMarquee(items) {
-  const teks = items.length ? items : [
-    `<b>Ahlan wa sahlan</b> di ${esc(tampilan.nama)}`,
-    `${esc(tglPanjang(today()))}${hijri ? " · " + esc(hijri) : ""}`
-  ];
-  const jalur = $("jalurBerjalan");
-  jalur.innerHTML = teks.map(t => `<span>${t}</span>`).join("");
-  jalur.style.setProperty("--durasi", Math.max(20, jalur.textContent.length / 5.5) + "s");
-  $("marquee").hidden = false;
-  document.body.classList.add("ada-marquee");
-}
-getDocs(collection(db, "pengumuman")).then(snap => {
-  const kini = today();
-  const aktif = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    .filter(p => p.aktif !== false && (!p.mulai || p.mulai <= kini) && (!p.sampai || kini <= p.sampai))
-    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0) || (b.mulai || "").localeCompare(a.mulai || ""));
-  pasangMarquee(aktif.filter(p => p.jenis === "berjalan").map(p => `<b>${esc(p.judul)}</b>${p.isi ? " — " + esc(p.isi) : ""}`));
-  const mading = aktif.filter(p => p.jenis === "mading");
-  if (mading.length) {
-    $("madingWrap").hidden = false;
-    $("mading").innerHTML = mading.map(p => `<article class="mading-item">
-        ${p.gambar ? `<img src="${p.gambar}" alt="">` : ""}
-        <div class="isi"><b>${esc(p.judul)}</b><p>${esc(p.isi || "")}</p>${p.mulai ? `<small>${esc(tglPanjang(p.mulai))}</small>` : ""}</div></article>`).join("");
-  }
-}).catch(() => pasangMarquee([]));
-
-// ===================== Jadwal sholat (publik) =====================
-// Lampu hijau berkedip saat waktu sholat fardhu tiba (selama beberapa menit, diatur Super Admin).
-const sh = () => tampilan.sholat || {};
-const NAMA_JUMAT = (id, tgl) => id === "zuhur" && hariDari(tgl) === 5 ? "Jumat" : NAMA_WAKTU.find(w => w.id === id).nama;
-const ikonWaktu = { imsak: "bulan", subuh: "bulan", terbit: "matahari", dhuha: "matahari", zuhur: "matahari", asar: "matahari", maghrib: "bulan", isya: "bulan" };
-let cacheHari = { tgl: null, jadwal: null, besok: null }, tandaSholat = "";
-function jadwalHariIni() {
-  const t = today();
-  if (cacheHari.tgl !== t || cacheHari.kunci !== JSON.stringify(sh())) {
-    const L = { lat: Number.isFinite(sh().lat) ? sh().lat : LOKASI_BAWAAN.lat, lng: Number.isFinite(sh().lng) ? sh().lng : LOKASI_BAWAAN.lng, koreksi: sh().koreksi || {} };
-    cacheHari = { tgl: t, kunci: JSON.stringify(sh()), jadwal: hitungSholat(t, L), besok: hitungSholat(tambahHari(t, 1), L) };
-    $("lokasiSholat").innerHTML = `${ikon("lokasi", 14)} ${esc(sh().kota || (Number.isFinite(sh().lat) ? tampilan.nama : LOKASI_BAWAAN.kota))}`;
-  }
-  return cacheHari;
-}
-const duaDigit = (n) => String(Math.floor(n)).padStart(2, "0");
-function gambarSholat() {
-  const { tgl, jadwal, besok } = jadwalHariIni();
-  const kini = ((sekarang() + WIB_MS) % 86400000) / 60000;          // menit sejak 00:00 WIB (pecahan)
-  const lama = Number.isFinite(sh().lampu) ? sh().lampu : 15;
-  $("jamSekarang").textContent = `${duaDigit(kini / 60)}.${duaDigit(kini % 60)}`;
-  const fardhu = NAMA_WAKTU.filter(w => w.fardhu);
-  const aktif = fardhu.find(w => kini >= jadwal[w.id] && kini < jadwal[w.id] + lama);
-  let berikut = fardhu.find(w => jadwal[w.id] > kini);
-  const menitBerikut = berikut ? jadwal[berikut.id] : besok.subuh + 1440;
-  if (!berikut) berikut = fardhu[0];
-  const sisa = Math.max(0, (menitBerikut - kini) * 60);
-  // Sorotan
-  $("sholatSorot").innerHTML = aktif
-    ? `<div class="sorot aktif"><span class="lampu nyala besar"></span><div><b>Waktu sholat ${NAMA_JUMAT(aktif.id, tgl)} telah tiba</b>
-         <small>${jamDariMenit(jadwal[aktif.id])} WIB · Mari menunaikan sholat berjamaah</small></div></div>`
-    : `<div class="sorot"><span class="lampu"></span><div><small>Menuju ${menitBerikut >= 1440 ? "Subuh besok" : NAMA_JUMAT(berikut.id, tgl)} · ${jamDariMenit(menitBerikut)} WIB</small>
-         <b class="hitung-mundur">${duaDigit(sisa / 3600)}:${duaDigit((sisa % 3600) / 60)}:${duaDigit(sisa % 60)}</b></div></div>`;
-  // Kotak waktu (digambar ulang hanya bila keadaan berubah)
-  const keadaan = NAMA_WAKTU.map(w => {
-    const t = jadwal[w.id];
-    if (w.fardhu && aktif?.id === w.id) return "jalan";
-    if (kini >= t) return "lewat";
-    return w.id === berikut.id && menitBerikut < 1440 ? "berikut" : "nanti";
+  days.forEach((d, i) => {
+    const x = L + cw * i + (cw - bw) / 2, hp = y(0) - y(d.part), hj = y(0) - y(d.jasa);
+    g += `<rect x="${x}" y="${y(d.part)}" width="${bw}" height="${hp}" fill="var(--accent)" rx="2"><title>${d.lbl}: part ${rp(d.part)}</title></rect>`;
+    g += `<rect x="${x}" y="${y(d.part) - hj}" width="${bw}" height="${hj}" fill="var(--jasa)" rx="2"><title>${d.lbl}: jasa ${rp(d.jasa)}</title></rect>`;
+    g += `<text x="${x + bw / 2}" y="${H - 10}" text-anchor="middle"${i === 6 ? ' style="fill:var(--ink);font-weight:500"' : ''}>${d.lbl}</text>`;
+    g += `<rect class="bar-hit" x="${L + cw * i}" y="${T}" width="${cw}" height="${H - T}" fill="transparent" data-act="hr-hari" data-d="${d.key}"><title>${d.lbl}: ${rp(d.part + d.jasa)} · klik untuk lihat nota</title></rect>`;
   });
-  const tanda = tgl + keadaan.join() + JSON.stringify(jadwal);
-  if (tanda === tandaSholat) return;
-  tandaSholat = tanda;
-  $("sholatGrid").innerHTML = NAMA_WAKTU.map((w, i) => {
-    const k = keadaan[i];
-    return `<div class="waktu ${k} ${w.fardhu ? "fardhu" : "sunnah"}">
-      <div class="atas">${ikon(ikonWaktu[w.id], 16)}<span>${NAMA_JUMAT(w.id, tgl)}</span>
-        ${w.fardhu ? `<span class="lampu ${k === "jalan" ? "nyala" : k === "lewat" ? "selesai" : ""}"></span>` : ""}</div>
-      <b>${jamDariMenit(jadwal[w.id])}</b>
-      <small>${k === "jalan" ? "Sedang berlangsung" : k === "berikut" ? "Berikutnya" : k === "lewat" ? (w.fardhu ? "Sudah lewat" : "") : ""}</small></div>`;
-  }).join("");
+  return `<div style="overflow-x:auto"><svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" style="min-width:420px;display:block" role="img" aria-label="Omzet 7 hari terakhir">${g}</svg></div>`;
 }
-try { gambarSholat(); } catch (ex) { $("sholatGrid").innerHTML = `<p class="error-box">Jadwal sholat gagal dihitung: ${esc(pesanError(ex))}</p>`; }
-setInterval(() => { try { gambarSholat(); } catch { /* abaikan */ } }, 1000);
-ambilTampilan().then(t => { tampilan = t; tandaSholat = ""; gambarSholat(); }).catch(() => {});
-sembunyikanPemuat();
-sinkronJamHTTP().then(() => { tandaSholat = ""; gambarSholat(); });
+
+// 5.19.0: kartu sapaan bergradasi di atas Beranda — salam sesuai jam, nama, cabang, tanggal, dan tombol pintas
+// yang hanya muncul untuk menu yang boleh dibuka peran ini.
+function heroHTML(s, nAktif) {
+  const j = new Date().getHours(), salam = j < 11 ? 'Selamat pagi' : j < 15 ? 'Selamat siang' : j < 18 ? 'Selamat sore' : 'Selamat malam';
+  const nama = String(st.petugas?.nama || 'Petugas').split(/\s+/).slice(0, 2).join(' ');
+  const tgl = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const ringkas = [bolehKotak('omzet') ? `omzet ${rp(s.total)}` : '', bolehKotak('motor') ? `${nAktif} motor di bengkel` : ''].filter(Boolean).join(' · ');
+  const pintas = [['registrasi', 'Motor masuk'], ['kasir', 'Jual part'], ['bayar', 'Pembayaran'], ['cekstok', 'Cek stok'], ['chat', 'Chat']].filter(([v]) => can(v)).slice(0, 4);
+  return `<section class="hero" aria-label="Sapaan"><div class="hero-txt"><span class="hero-eyebrow">${esc(tgl)}</span><h2>${salam}, ${esc(nama)} 👋</h2><p>${ringkas ? 'Hari ini: ' + esc(ringkas) + '.' : 'Semoga pekerjaan hari ini lancar.'}</p></div>${pintas.length ? `<div class="hero-act">${pintas.map(([v, l], i) => `<button class="btn${i === 0 ? ' pri' : ''}" type="button" data-act="hr-go" data-v="${v}">${l}</button>`).join('')}</div>` : ''}</section>`;
+}
+
+function renderBeranda() {
+  const t = dkey(new Date()), s = sums(trxIn(t, t));
+  const low = S.parts.filter(p => p.min > 0 && p.stok <= p.min);
+  const poQty = {}; (S.orderSupplier || []).filter(o => ['menunggu_persetujuan', 'Dipesan', 'Datang sebagian'].includes(o.status)).forEach(o => (o.items || []).forEach(x => { poQty[x.kode] = (poQty[x.kode] || 0) + Math.max(0, (+x.qty || 0) - (+x.datang || 0)); }));
+  const woToday = S.wo.filter(w => w.tgl.slice(0, 10) === t);
+  const aktif = S.wo.filter(w => AKTIF.includes(w.status));
+  const seedBox = S.parts.length || !can('stok') ? '' : `<div class="panel"><h3>Database part masih kosong</h3><p style="margin:0">Upload data part dari Excel (ekspor DMS Yamaha atau template sendiri), atau isi 20 part contoh untuk mencoba.</p><div class="row">${can('stok') ? '<button class="btn pri" type="button" data-act="import-open">Import dari Excel</button>' : ''}<button class="btn" type="button" data-act="seed">Isi 20 part contoh</button></div></div>`;
+  const migrasiBox = st.petugas?.super && perluMigrasi() ? `<div class="panel migrasi"><h3>Pembaruan data versi 4 diperlukan</h3><p style="margin:0">Sekali saja: nota/WO/pembelian lama diberi kode cabang (untuk kunci data per cabang), gaji pokok dipindah ke tempat privat, dan aturan insentif dipindah ke pengaturan khusus super admin. Lakukan <b>sebelum</b> publish <code>firestore.rules</code> versi 4.</p><div class="row"><button class="btn pri" type="button" data-act="migrasi-run">Perbarui data sekarang</button><span class="small muted" id="migrasi-info"></span></div></div>` : '';
+  const bu = umurBackup();
+  const backupBox = st.petugas?.super && !perluMigrasi() && perluBackup() ? `<div class="panel migrasi"><h3>${bu == null ? 'Data belum pernah di-backup' : 'Backup terakhir ' + bu + ' hari lalu'}</h3><p style="margin:0">Unduh backup seluruh data minimal seminggu sekali dan simpan di Google Drive + flashdisk/laptop.</p><div class="row"><button class="btn pri" type="button" data-act="go-backup">Backup sekarang</button></div></div>` : '';
+  $('#view').innerHTML = `<div class="grid">${heroHTML(s, aktif.length)}${migrasiBox}${backupBox}${seedBox}
+   ${['omzet', 'part', 'motor', 'stok'].some(bolehKotak) ? `<div class="tiles">
+    ${bolehKotak('omzet') ? `<button class="tile click" type="button" data-act="hr-trx"><span class="lbl">Omzet hari ini</span><span class="val">${rp(s.total)}</span><span class="sub">${s.n} transaksi · lihat nota</span></button>` : ''}
+    ${bolehKotak('part') ? (bolehKotak('partRp') ? `<button class="tile click" type="button" data-act="hr-part"><span class="lbl">Part terjual</span><span class="val">${s.qty} pcs</span><span class="sub">${rp(s.part)} · lihat item</span></button>` : `<div class="tile"><span class="lbl">Part terjual hari ini</span><span class="val">${s.qty} pcs</span></div>`) : ''}
+    ${bolehKotak('motor') ? `<button class="tile click" type="button" data-act="hr-wo"><span class="lbl">Motor masuk bengkel</span><span class="val">${woToday.length} unit</span><span class="sub">${aktif.length} belum lunas · lihat daftar</span></button>` : ''}
+    ${bolehKotak('stok') ? `<button class="tile click" type="button" data-act="go-low"><span class="lbl">Stok menipis</span><span class="val" style="color:${low.length ? 'var(--bad)' : 'inherit'}">${low.length} item</span><span class="sub">dari ${S.parts.length.toLocaleString('id-ID')} part</span></button>` : ''}
+   </div>` : '<div class="panel"><div class="small muted">Gunakan menu di samping untuk mulai bekerja.</div></div>'}
+   ${bolehKotak('omzet') ? `<div class="panel"><div class="row spread"><h3>Omzet 7 hari terakhir</h3><div class="legend"><span><i style="background:var(--accent)"></i>Sparepart</span><span><i style="background:var(--jasa)"></i>Jasa servis</span></div></div>${chartSVG()}</div>` : ''}
+   ${bolehKotak('motor') ? `<div class="panel"><h3>Status mekanik</h3><div class="mek-list">${mekanikAktif().map(m => { const w = sibukOleh(m); return `<button type="button" class="mek mek-btn${w ? ' busy' : ''}" data-act="hr-mek" data-id="${esc(m.id)}" title="Lihat performa ${esc(m.nama)}"><span>${esc(m.nama)}</span>${w ? `<span class="small">mengerjakan <span class="mono">${esc(w.nopol)}</span> <span class="pill p-info">Sibuk</span></span>` : '<span class="pill p-good">Kosong</span>'}</button>`; }).join('') || '<div class="small muted">Belum ada data mekanik.</div>'}</div></div>` : ''}
+   <div class="grid g2">
+    ${bolehKotak('motor') ? `<div class="panel"><div class="row spread"><h3>Antrian bengkel</h3>${can('registrasi') ? '<button class="btn sm" data-act="go-registrasi" type="button">Registrasi</button>' : ''}</div>
+     ${aktif.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nopol</th><th>Motor</th><th>Mekanik</th><th>Status</th></tr></thead><tbody>${aktif.map(w => `<tr class="row-click" tabindex="0" data-act="hr-woopen" data-no="${esc(w.no)}" title="Buka motor ini"><td class="mono">${esc(w.nopol)}<br>${jenisBadge(w)}</td><td>${esc(w.tipe)}</td><td>${esc(mekanikNama(w) || '–')}</td><td>${statusPill(w.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada motor dalam antrian.</div>'}
+    </div>` : ''}
+    ${bolehKotak('stok') ? `<div class="panel"><div class="row spread"><h3>Perlu dipesan ulang</h3><button class="btn sm" data-act="go-low" type="button">Lihat semua</button></div>
+     ${low.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Kode</th><th>Part</th><th class="r">Stok</th><th class="r">Min</th><th>Status</th></tr></thead><tbody>${low.slice(0, 15).map(p => `<tr class="row-click" tabindex="0" data-act="hr-partedit" data-k="${esc(p.kode)}" title="Buka part ini"><td class="mono">${esc(p.kode)}</td><td>${esc(p.nama)}</td><td class="r"><span class="pill p-bad">${p.stok}</span></td><td class="r num">${p.min}</td><td>${poQty[p.kode] ? `<span class="pill p-info">Sudah dipesan · ${poQty[p.kode]}</span>` : '<span class="small muted">Belum dipesan</span>'}</td></tr>`).join('')}</tbody></table></div>${low.length > 15 ? `<p class="small muted" style="margin:0">+${low.length - 15} part lainnya</p>` : ''}` : '<div class="empty">Semua stok aman.</div>'}
+    </div>` : ''}
+   </div></div>`;
+}
+
+async function seedParts() {
+  if (S.parts.length || st.saving) return; st.saving = true;
+  try { const b = writeBatch(db); SEED_PARTS.forEach(p => b.set(doc(db, 'parts', p.kode), p)); await b.commit(); toast('20 part contoh ditambahkan'); }
+  catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
+}
+
+views.beranda = renderBeranda;
+actions['seed'] = seedParts;
+actions['go-registrasi'] = () => go('registrasi');
+actions['hr-go'] = el => go(el.dataset.v);
+
+/* ---- Rincian hari ini (klik kotak di beranda) ---- */
+const hariIni = () => { const t = dkey(new Date()); return trxIn(t, t).sort((a, b) => b.tgl.localeCompare(a.tgl)); };
+const tutup = '<div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-close="1">Tutup</button></div>';
+// Item sparepart terjual hari ini, digabung per part (servis + penjualan langsung)
+actions['hr-part'] = () => {
+  const g = {};
+  hariIni().forEach(t => t.items.forEach(x => { const r = g[x.kode] = g[x.kode] || { kode: x.kode, nama: x.nama, qty: 0, nilai: 0, nota: [] }; r.qty += x.qty; r.nilai += x.qty * x.harga; r.nota.push(t.no); }));
+  const rows = Object.values(g).sort((a, b) => b.qty - a.qty), tq = rows.reduce((a, r) => a + r.qty, 0), tn = rows.reduce((a, r) => a + r.nilai, 0);
+  modal(`<div class="row spread"><h2>Part terjual hari ini</h2><span class="small muted">${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}</span></div>
+   ${rows.length ? `<div class="tw"><table><thead><tr><th>Part</th><th class="r">Qty</th><th class="r">Nilai</th><th class="r">Stok kini</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.nama)}<br><span class="small muted mono">${esc(r.kode)}</span> <span class="small muted">· ${[...new Set(r.nota)].map(esc).join(', ')}</span></td><td class="r num">${r.qty}</td><td class="r num">${rp(r.nilai)}</td><td class="r num">${S.map.get(r.kode)?.stok ?? '–'}</td></tr>`).join('')}<tr><td><b>Total</b></td><td class="r num"><b>${tq}</b></td><td class="r num"><b>${rp(tn)}</b></td><td></td></tr></tbody></table></div>` : '<div class="empty">Belum ada part terjual hari ini.</div>'}${tutup}`, 'wide');
+};
+// Daftar nota hari ini; klik untuk membuka nota
+actions['hr-trx'] = () => actions['hr-hari']({ dataset: {} });
+// Klik batang grafik / kotak omzet: nota pada tanggal itu
+actions['hr-hari'] = el => {
+  const d = el.dataset.d || dkey(new Date()), l = trxIn(d, d).sort((a, b) => b.tgl.localeCompare(a.tgl)), s = sums(l);
+  const judul = d === dkey(new Date()) ? 'Transaksi hari ini' : 'Transaksi ' + new Date(d + 'T00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+  modal(`<div class="row spread"><h2>${judul}</h2><span class="small muted">${s.n} nota · ${rp(s.total)}</span></div>
+   ${l.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nota</th><th>Jam</th><th>Pelanggan</th><th>Item</th><th class="r">Total</th></tr></thead><tbody>${l.map(t => `<tr class="row-click" tabindex="0" data-act="nota" data-no="${esc(t.no)}"><td class="mono small">${esc(t.no)}</td><td class="num">${esc(t.tgl.slice(11, 16))}</td><td>${esc(t.pelanggan)}${t.nopol ? `<br><span class="small muted mono">${esc(t.nopol)}</span>` : ''}</td><td class="small">${t.items.map(x => esc(x.nama) + ' ×' + x.qty).join(', ') || (t.jasa || []).map(j => esc(j.nama)).join(', ')}</td><td class="r num">${rp(t.total)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada transaksi hari ini.</div>'}${tutup}`, 'wide');
+};
+// Motor masuk hari ini + yang masih di bengkel
+actions['hr-wo'] = () => {
+  const t = dkey(new Date()), l = S.wo.filter(w => w.tgl.slice(0, 10) === t || AKTIF.includes(w.status)).reverse();
+  modal(`<h2>Motor di bengkel hari ini</h2>
+   ${l.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nopol</th><th>Motor</th><th>Mekanik</th><th>Status</th><th class="r">Lama dikerjakan</th></tr></thead><tbody>${l.map(w => `<tr class="row-click" tabindex="0" data-act="hr-woopen" data-no="${esc(w.no)}"><td class="mono">${esc(w.nopol)}<br>${jenisBadge(w)}</td><td>${esc(w.tipe)}<br><span class="small muted">${esc(w.nama || '')}</span></td><td>${esc(mekanikNama(w) || '–')}</td><td>${statusPill(w.status)}</td><td class="r num">${fmtDur(durasi(w)?.kerja ?? null)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada motor masuk hari ini.</div>'}${tutup}`, 'wide');
+};
+actions['go-stok'] = () => go('stok');
+actions['go-backup'] = () => go('backup');
+actions['go-low'] = () => {
+  if (can('stok')) { st.stokLow = true; go('stok'); return; }
+  const low = S.parts.filter(p => p.min > 0 && p.stok <= p.min);
+  modal(`<h2>Stok menipis</h2>${low.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Part</th><th class="r">Stok</th><th class="r">Min</th></tr></thead><tbody>${low.map(p => `<tr><td>${esc(p.nama)}<br><span class="small muted mono">${esc(p.kode)}</span></td><td class="r"><span class="pill p-bad">${p.stok}</span></td><td class="r num">${p.min}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Semua stok aman.</div>'}<div class="row" style="justify-content:flex-end"><button class="btn pri" type="button" data-close="1">Tutup</button></div>`, 'wide');
+};
+
+// Klik motor di antrian: buka di Pembayaran (kasir/admin), atau riwayat motor untuk peran lain
+actions['hr-woopen'] = el => {
+  const w = S.wo.find(x => x.no === el.dataset.no); if (!w) return;
+  if (document.querySelector('.modal')) document.getElementById('modal-root').innerHTML = '';
+  if (can('bayar') && AKTIF.includes(w.status)) { go('bayar'); actions['bay-pick']?.({ dataset: { no: w.no } }); }
+  else if (can('riwayat')) actions['rw-buka']({ dataset: { np: w.nopol } });
+};
+// Klik mekanik: performa mekanik itu
+actions['hr-mek'] = el => { if (!can('mekanik')) return; st.mekSel = el.dataset.id; go('mekanik'); };
+// Klik part yang perlu dipesan: buka data part di Stok Part
+actions['hr-partedit'] = el => { if (!can('stok')) { actions['go-low'](); return; } go('stok'); actions['part-edit']?.({ dataset: { k: el.dataset.k } }); };
+
+actions['migrasi-run'] = async el => {
+  if (!(await mintaPassword('Perbarui data ke versi 4', 'Membaca semua nota, WO, dan pembelian sekali untuk diberi kode cabang.'))) return;
+  const info = () => document.getElementById('migrasi-info');
+  if (el) el.disabled = true;
+  try {
+    const r = await jalankanMigrasi(t => { if (info()) info().textContent = t; });
+    toast(`Data diperbarui: ${r.trx} nota, ${r.wo} WO, ${r.pembelian} pembelian, ${r.gaji} data gaji dipindah.`);
+  } catch (e) { toast('Pembaruan gagal: ' + errMsg(e)); if (el) el.disabled = false; }
+};

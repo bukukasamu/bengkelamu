@@ -1,15 +1,10 @@
-// =====================================================
-//  KONFIGURASI FIREBASE — proyek "dayahdigital"
-//  File ini TIDAK diunggah ke GitHub (lihat .gitignore).
-//  Di GitHub Pages, file ini dibuat otomatis dari Secret FIREBASE_CONFIG
-//  oleh .github/workflows/deploy.yml.
-//  Dipakai untuk mencoba aplikasi di komputer sendiri.
-// =====================================================
+// Konfigurasi Firebase web app "bengkel-amu".
+// apiKey Firebase untuk web memang boleh terlihat publik; keamanan data diatur oleh firestore.rules.
 export const firebaseConfig = {
-  apiKey: "AIzaSyAesgUQDDj02za_t8c-M0bS1BfigYi-AYI",
-  authDomain: "dayahdigital.firebaseapp.com",
-  projectId: "dayahdigital",
-  storageBucket: "dayahdigital.firebasestorage.app",
-  messagingSenderId: "1063252068248",
-  appId: "1:1063252068248:web:7247d625903539aa494ded"
+  apiKey: "AIzaSyBMiSdU-7JJ7SanTw3TnUa2i-yN3SeBXIQ",
+  authDomain: "bengkel-amu.firebaseapp.com",
+  projectId: "bengkel-amu",
+  storageBucket: "bengkel-amu.firebasestorage.app",
+  messagingSenderId: "592446410081",
+  appId: "1:592446410081:web:1a92e3dc6f6bdda7094920"
 };
