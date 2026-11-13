@@ -71,10 +71,11 @@ function layout(pdf, rows, logo, draw, preset, ukuran) {
       if (draw) { pdf.setFontSize((preset.body - 0.5) * sc); pdf.text('   ' + r.sub, M, y); pdf.text(r.r, W - M, y, { align: 'right' }); } y += LH; continue;
     }
     pdf.setFont('helvetica', r.bold ? 'bold' : 'normal'); pdf.setFontSize((r.bold ? 10.5 : preset.body) * sc);
-    const rw = pdf.getTextWidth(String(r.r)) + 5, ls = pdf.splitTextToSize(String(r.l), W - 2 * M - rw);
-    if (draw && r.bold) { pdf.setFillColor(...P.soft); pdf.roundedRect(M - 2, y - 5.2, W - 2 * M + 4, ls.length * LH + 3, 1.6, 1.6, 'F'); pdf.setTextColor(...P.ink); }
-    if (draw) { pdf.text(ls, M, y); pdf.text(String(r.r), W - M, y, { align: 'right' }); pdf.setTextColor(25); }
-    y += ls.length * LH + (r.bold ? 2 : 0);
+    const usable = W - 2 * M, rightW = Math.max(24, usable * 0.48), leftW = usable - rightW - 4;
+    const ls = pdf.splitTextToSize(String(r.l), leftW), rs = pdf.splitTextToSize(String(r.r), rightW), rows = Math.max(ls.length, rs.length);
+    if (draw && r.bold) { pdf.setFillColor(...P.soft); pdf.roundedRect(M - 2, y - 5.2, usable + 4, rows * LH + 3, 1.6, 1.6, 'F'); pdf.setTextColor(...P.ink); }
+    if (draw) { pdf.text(ls, M, y); pdf.text(rs, W - M, y, { align: 'right' }); pdf.setTextColor(25); }
+    y += rows * LH + (r.bold ? 2 : 0);
   }
   return y + M;
 }
