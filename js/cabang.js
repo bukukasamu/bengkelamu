@@ -21,7 +21,7 @@ export const cabangQuery = cab => (cab === CABANG_UTAMA || cab === 'PUSAT') ? ['
 export const multiCabang = () => cabangList().length > 1;
 // Cabang yang sedang dipakai di aplikasi petugas
 export const cabAktif = () => st.cabang || CABANG_UTAMA;
-export const diCabang = (d, cab = cabAktif()) => cabangOf(d) === cab;
+export const diCabang = (d, cab = cabAktif()) => cabangQuery(cab).includes(cabangOf(d));
 
 /* ---- Stok per cabang ----
    Cabang utama memakai kolom lama "stok" (data lama tetap benar); cabang lain di peta stokC: { KODE_CABANG: jumlah }. */

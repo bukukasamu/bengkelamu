@@ -9,7 +9,7 @@ import { loadXLSX } from './import-excel.js';
 import { ambilTrx, bulanAntara } from './data-trx.js';
 import { ambilPengeluaran } from './keuangan.js';
 import { getDoc, doc } from './firebase.js';
-import { cabAktif, cabangOf, namaCabang, multiCabang, cabangList } from './cabang.js';
+import { cabAktif, cabangOf, diCabang, namaCabang, multiCabang, cabangList } from './cabang.js';
 import { isRole } from './state.js';
 
 // Admin/pemilik bisa melihat laporan gabungan semua cabang
@@ -80,7 +80,7 @@ function applyFilter(list) {
   if (f.type === 'kode') return list.filter(t => t.items.some(x => x.kode === f.value));
   if (f.type === 'mekanik') return list.filter(t => t.mekanik === f.value);
   if (f.type === 'kasir') return list.filter(t => (t.kasir || '') === f.value);
-  if (f.type === 'cabang') return list.filter(t => cabangOf(t) === f.value);
+  if (f.type === 'cabang') return list.filter(t => diCabang(t, f.value));
   if (f.type === 'rek') return list.filter(t => (t.transfer || 0) > 0 && (t.rekeningId || '?') === f.value);
   return list;
 }
@@ -89,7 +89,7 @@ const filterLabel = f => FILTERS[f.type]?.label || (f.type === 'cabang' ? 'Caban
 async function source(from, to) {
   if (from >= loadedFrom) return trxIn(from, to, gabungan() ? S.trxSemua : S.trx);
   // Periode di luar data realtime: ambil sekali dari server
-  return (await ambilTrx(from, to)).filter(t => gabungan() || cabangOf(t) === cabAktif());
+  return (await ambilTrx(from, to)).filter(t => gabungan() || diCabang(t, cabAktif()));
 }
 
 let terakhir = null;
