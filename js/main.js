@@ -278,9 +278,10 @@ function subscribe() {
     // Tanggal/status disaring di perangkat agar login tidak gagal saat index belum selesai dibuat.
     const trxSources = new Map();
     const gabungTrx = (k, docs) => { trxSources.set(k, docs); lupakanTrx(); raw.trx = [...new Map([...trxSources.values()].flat().map(t => [t.no, t])).values()].filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); };
-    sub(query(collection(db, 'trx'), where('cabang', 'in', cabangQuery(cab)), limit(500)), 'trx', s => gabungTrx('cabang', s.docs.map(d => d.data())));
-    // Nota lama yang cabangnya belum konsisten tetap terlihat oleh Kasir yang membuatnya.
-    if (st.role === 'kasir' && idPetugas()) sub(query(collection(db, 'trx'), where('kasirId', '==', idPetugas()), limit(500)), 'trxOwner', s => gabungTrx('pemilik', s.docs.map(d => d.data())));
+    // Query satu per satu supaya rules Firestore dapat membuktikan cabang secara pasti.
+    // Untuk Pusat dibaca dua alias resmi: UTM dan PUSAT. Tidak ada fallback ke
+    // kasirId karena fallback itu dapat membuat Kasir hanya melihat nota miliknya.
+    cabangQuery(cab).forEach(kodeCabang => sub(query(collection(db, 'trx'), where('cabang', '==', kodeCabang), limit(500)), 'trx-' + kodeCabang, s => gabungTrx('cabang-' + kodeCabang, s.docs.map(d => d.data()))));
     let woBulan = [], woAktif = [];
     const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
     sub(query(collection(db, 'wo'), where('cabang', 'in', cabangQuery(cab)), limit(500)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
