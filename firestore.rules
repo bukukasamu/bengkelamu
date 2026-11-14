@@ -18,7 +18,9 @@ service cloud.firestore {
     // Admin/pemilik & super admin melihat semua cabang; karyawan lain hanya cabangnya sendiri.
     function semuaCabang() { return isSuper() || hasRole(['admin']); }
     function myCab() { return me().get('cabang', 'UTM'); }
-    function bolehCabang(c) { return semuaCabang() || (isStaff() && c == myCab()); }
+    // Cabang utama pernah tersimpan sebagai UTM maupun PUSAT pada data lama.
+    function cabangPusat(c) { return c in ['UTM', 'PUSAT']; }
+    function bolehCabang(c) { return semuaCabang() || (isStaff() && ((cabangPusat(c) && cabangPusat(myCab())) || c == myCab())); }
 
     // Perubahan stok part oleh karyawan hanya boleh untuk stok cabangnya sendiri
     // (cabang utama = kolom stok, cabang lain = stokC.KODE)
@@ -112,7 +114,7 @@ service cloud.firestore {
     // Nota: dibuat kasir/admin di cabangnya. Isi nota tidak bisa diubah; pembatalan hanya diajukan
     // (status "diminta") oleh kasir/admin dan disetujui/ditolak oleh super admin. Nota tidak bisa dihapus.
     match /trx/{id} {
-      allow read: if isStaff() && bolehCabang(resource.data.cabang);
+      allow read: if isStaff() && bolehCabang(resource.data.get('cabang', 'UTM'));
       allow create: if hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang);
       // Karyawan hanya boleh mengubah: pengajuan batal (status "diminta", dan hanya bila belum pernah / pernah ditolak)
       // serta status klaim KSG. Isi nota lainnya tidak bisa diubah.
@@ -137,7 +139,7 @@ service cloud.firestore {
       allow delete: if isSuper();
     }
     match /wo/{id} {
-      allow read: if isStaff() && bolehCabang(resource.data.cabang);
+      allow read: if isStaff() && bolehCabang(resource.data.get('cabang', 'UTM'));
       allow create: if hasRole(['admin', 'registrasi']) && bolehCabang(request.resource.data.cabang);
       allow update: if isSuper() || (isStaff() && bolehCabang(resource.data.cabang) && request.resource.data.get('cabang', '') == resource.data.get('cabang', ''));
       allow delete: if hasRole(['admin']);

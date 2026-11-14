@@ -314,7 +314,7 @@ main{width:100%}
 .grid>*,#view>*{min-width:0}
 .sidebar{height:100dvh}
 @media (min-width:1500px){main{max-width:1480px}}
-@media (max-width:900px){.wolist{max-height:264px}}
+@media (max-width:900px){.wolist{max-height:none;overflow:visible}}
 @media (max-width:640px){
   /* 16px: iPhone tidak memperbesar layar otomatis saat kolom diketik */
   input,select,textarea{font-size:16px;padding:9px 10px}
@@ -331,6 +331,7 @@ main{width:100%}
   .btn.sm{min-height:34px}
   /* Tabel lebar digeser ke samping, bukan dipadatkan sampai teks terpotong-potong */
   .tw table:has(th:nth-child(5)){min-width:620px}
+  body[data-view="beranda"] .grid.g2 .tw table{min-width:460px}
   td.mono,td .mono{white-space:nowrap}
   .seg{max-width:100%;overflow-x:auto}
   .seg button{white-space:nowrap;flex-shrink:0}

@@ -15,6 +15,9 @@ export const cabangList = (termasukNonaktif = false) => { const l = daftar.lengt
 export const cabangById = id => cabangList(true).find(c => c.id === (id || CABANG_UTAMA));
 export const namaCabang = id => cabangById(id)?.nama || id || 'PUSAT';
 export const cabangOf = d => (d && d.cabang) || CABANG_UTAMA;
+// Data lama pernah memakai nama cabang "PUSAT", sedangkan kode resmi cabang utama adalah "UTM".
+// Query petugas utama harus membaca kedua bentuk agar transaksi lama tidak hilang dari laporan.
+export const cabangQuery = cab => (cab === CABANG_UTAMA || cab === 'PUSAT') ? ['UTM', 'PUSAT'] : [cab];
 export const multiCabang = () => cabangList().length > 1;
 // Cabang yang sedang dipakai di aplikasi petugas
 export const cabAktif = () => st.cabang || CABANG_UTAMA;

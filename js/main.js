@@ -10,7 +10,7 @@ import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
 import { showNota } from './nota.js';
 import { pasangTombol, updateAplikasi } from './pwa.js';
 import { temaAktif, terapkanTema } from './tema.js';
-import { CABANG_UTAMA, cabangList, cabangById, namaCabang, multiCabang, cabAktif, diCabang, stokOf, stokTotal, watchCabang, loadCabang } from './cabang.js';
+import { CABANG_UTAMA, cabangList, cabangById, namaCabang, multiCabang, cabAktif, cabangQuery, diCabang, stokOf, stokTotal, watchCabang, loadCabang } from './cabang.js';
 import { onSearchEnter } from './kasir.js';
 import { setLoadedFrom } from './laporan.js';
 // Modul menu: cukup diimpor, masing-masing mendaftarkan tampilan & aksinya sendiri.
@@ -276,10 +276,10 @@ function subscribe() {
     // Mode kompatibilitas: filter cabang tunggal + limit tidak membutuhkan composite index.
     // Batas 500 menjaga login tetap cepat ketika histori cabang sangat besar.
     // Tanggal/status disaring di perangkat agar login tidak gagal saat index belum selesai dibuat.
-    sub(query(collection(db, 'trx'), where('cabang', '==', cab), limit(500)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    sub(query(collection(db, 'trx'), where('cabang', 'in', cabangQuery(cab)), limit(500)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
     let woBulan = [], woAktif = [];
     const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
-    sub(query(collection(db, 'wo'), where('cabang', '==', cab), limit(500)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
+    sub(query(collection(db, 'wo'), where('cabang', 'in', cabangQuery(cab)), limit(500)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
     // Tetap menandai listener kedua agar kebutuhan readiness lama tetap terpenuhi; data sudah berasal dari query cabang di atas.
     ready.woAktif = true;
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab), limit(100)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });

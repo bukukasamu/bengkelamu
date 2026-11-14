@@ -3,7 +3,7 @@
 // (cabang + bulan = tanpa indeks tambahan di Firestore, dan sesuai aturan kunci cabang).
 import { db, collection, getDocs, query, where } from './firebase.js';
 import { st } from './state.js';
-import { cabAktif } from './cabang.js';
+import { cabAktif, cabangQuery } from './cabang.js';
 import { memo, lupakan } from './memo.js';
 
 // 5.19.0: hasil pengambilan nota disimpan 60 detik di memori; dibersihkan otomatis setiap ada perubahan nota realtime.
@@ -24,8 +24,8 @@ async function ambilTrxLangsung(from, to) {
     list = s.docs.map(d => d.data());
   } else {
     const bln = bulanAntara(from, to), hasil = [];
-    for (let i = 0; i < bln.length; i += 10) {
-      const s = await getDocs(query(collection(db, 'trx'), where('cabang', '==', cabAktif()), where('bulan', 'in', bln.slice(i, i + 10))));
+    for (const cab of cabangQuery(cabAktif())) for (let i = 0; i < bln.length; i += 10) {
+      const s = await getDocs(query(collection(db, 'trx'), where('cabang', '==', cab), where('bulan', 'in', bln.slice(i, i + 10))));
       s.docs.forEach(d => hasil.push(d.data()));
     }
     list = hasil.filter(t => t.tgl.slice(0, 10) >= from && t.tgl.slice(0, 10) <= to);
