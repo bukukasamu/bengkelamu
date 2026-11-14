@@ -1,4 +1,4 @@
-// Pembaruan data ke versi 6 (dijalankan sekali oleh super admin):
+// Pembaruan data ke versi 7 (dijalankan oleh super admin):
 // 1. Nota, WO, dan pembelian lama diberi kolom cabang + bulan (+ aktif untuk WO) supaya bisa dikunci per cabang.
 // 2. Gaji pokok & komisi dipindah dari data mekanik/petugas (yang bisa dibaca karyawan lain) ke gaji/{kunci} (privat).
 // 3. Aturan insentif dipindah dari meta/settings (bisa diubah admin) ke penghasilan/aturan (hanya super admin).
@@ -7,7 +7,7 @@ import { S } from './state.js';
 import { CABANG_UTAMA } from './cabang.js';
 import { nopolKey } from './cari-kendaraan.js';
 
-export const VERSI_DATA = 6;
+export const VERSI_DATA = 7;
 const AKTIF = ['Antri', 'Dikerjakan', 'Ditunda', 'Selesai'];
 export const perluMigrasi = () => (S.settings.versiData || 0) < VERSI_DATA;
 
@@ -32,7 +32,10 @@ export async function jalankanMigrasi(onProgress) {
         const k = nopolKey(d.nopol), v = servis.get(k) || { pertama: d.tgl, terakhir: d.tgl };
         if (d.tgl < v.pertama) v.pertama = d.tgl; if (d.tgl > v.terakhir) v.terakhir = d.tgl; servis.set(k, v);
       }
-      if (!d.cabang) patch.cabang = CABANG_UTAMA;
+      // Versi 7 memeriksa ulang nota yang sudah pernah dimigrasikan. Nota
+      // tanpa cabang atau memakai label tampilan PUSAT dinormalisasi ke UTM
+      // agar query Kasir dan laporan memakai satu kode resmi.
+      if (!d.cabang || d.cabang === 'PUSAT') patch.cabang = CABANG_UTAMA;
       const t = String(tglDari(d) || '');
       if (!d.bulan && t.length >= 7) patch.bulan = t.slice(0, 7);
       if (nama === 'wo' && d.aktif === undefined) patch.aktif = AKTIF.includes(d.status);
