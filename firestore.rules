@@ -30,6 +30,17 @@ service cloud.firestore {
       return (!d.hasAny(['stok']) || myCab() == 'UTM')
         && (!d.hasAny(['stokC']) || request.resource.data.get('stokC', {}).diff(resource.data.get('stokC', {})).affectedKeys().hasOnly([myCab()]));
     }
+    function bolehHargaMaster() { return isSuper() || (hasRole(['sparepart']) && cabangPusat(myCab())); }
+    function ubahHargaMaster() { return request.resource.data.diff(resource.data).affectedKeys().hasAny(['beli', 'jual', 'addPrice']); }
+    function pesananPartValid() {
+      let id = request.resource.data.get('pesananPartId', '');
+      return id != ''
+        && exists(/databases/$(database)/documents/pesananPart/$(id))
+        && ((cabangPusat(get(/databases/$(database)/documents/pesananPart/$(id)).data.get('cabang', '')) && cabangPusat(request.resource.data.get('cabang', '')))
+            || get(/databases/$(database)/documents/pesananPart/$(id)).data.get('cabang', '') == request.resource.data.get('cabang', ''))
+        && get(/databases/$(database)/documents/pesananPart/$(id)).data.get('status', '') in ['menunggu_pembayaran', 'dikembalikan'];
+    }
+    function bolehBuatNota() { return isSuper() || hasRole(['admin']) || (hasRole(['kasir']) && (request.resource.data.get('jenis', '') != 'PART' || pesananPartValid())); }
 
     // ---------- Gaji pribadi ----------
     // Kunci gaji karyawan: loginId (petugas) atau 'M:' + id mekanik.
@@ -64,9 +75,9 @@ service cloud.firestore {
     // ---------- Data bersama semua cabang ----------
     match /parts/{id} {
       allow read: if isStaff();
-      allow create: if hasRole(['admin', 'sparepart']);
-      allow update: if semuaCabang()
-        || (hasRole(['sparepart']) && stokCabangSendiri())
+      allow create: if hasRole(['admin', 'sparepart']) && (!request.resource.data.get('addPrice', 0) || bolehHargaMaster());
+      allow update: if ((semuaCabang() && (!ubahHargaMaster() || isSuper()))
+        || (hasRole(['sparepart']) && stokCabangSendiri() && (!ubahHargaMaster() || bolehHargaMaster()))
         || (hasRole(['kasir']) && stokCabangSendiri() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stok', 'stokC']));
       allow delete: if hasRole(['admin']);
     }
@@ -116,7 +127,7 @@ service cloud.firestore {
     // (status "diminta") oleh kasir/admin dan disetujui/ditolak oleh super admin. Nota tidak bisa dihapus.
     match /trx/{id} {
       allow read: if (isStaff() && bolehCabang(resource.data.get('cabang', 'UTM'))) || notaMilikKasir(resource.data);
-      allow create: if hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang);
+      allow create: if bolehBuatNota() && bolehCabang(request.resource.data.cabang);
       // Karyawan hanya boleh mengubah: pengajuan batal (status "diminta", dan hanya bila belum pernah / pernah ditolak)
       // serta status klaim KSG. Isi nota lainnya tidak bisa diubah.
       allow update: if isSuper() || (hasRole(['admin', 'kasir']) && bolehCabang(resource.data.cabang)

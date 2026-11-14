@@ -1,4 +1,4 @@
-// Pembaruan data ke versi 7 (dijalankan oleh super admin):
+// Pembaruan data ke versi 8 (dijalankan oleh super admin):
 // 1. Nota, WO, dan pembelian lama diberi kolom cabang + bulan (+ aktif untuk WO) supaya bisa dikunci per cabang.
 // 2. Gaji pokok & komisi dipindah dari data mekanik/petugas (yang bisa dibaca karyawan lain) ke gaji/{kunci} (privat).
 // 3. Aturan insentif dipindah dari meta/settings (bisa diubah admin) ke penghasilan/aturan (hanya super admin).
@@ -7,7 +7,7 @@ import { S } from './state.js';
 import { CABANG_UTAMA } from './cabang.js';
 import { nopolKey } from './cari-kendaraan.js';
 
-export const VERSI_DATA = 7;
+export const VERSI_DATA = 8;
 const AKTIF = ['Antri', 'Dikerjakan', 'Ditunda', 'Selesai'];
 export const perluMigrasi = () => (S.settings.versiData || 0) < VERSI_DATA;
 
@@ -22,6 +22,10 @@ async function tulisBatch(ops, onProgress, label) {
 
 export async function jalankanMigrasi(onProgress) {
   const ringkas = {}, servis = new Map();   // nopolKey -> { pertama, terakhir } dari nota servis lama
+  // WO menjadi sumber cabang paling tepercaya untuk nota servis lama.
+  onProgress?.('Membaca referensi cabang WO…');
+  const woCabang = new Map();
+  (await getDocs(collection(db, 'wo'))).docs.forEach(x => { const d = x.data(); if (d.no) woCabang.set(d.no, d.cabang || CABANG_UTAMA); });
   // 1. Kolom cabang & bulan
   for (const [nama, tglDari] of [['trx', d => d.tgl], ['wo', d => d.tgl], ['pembelian', d => d.input || d.tglInvoice]]) {
     onProgress?.('Membaca ' + nama + '…');
@@ -32,10 +36,11 @@ export async function jalankanMigrasi(onProgress) {
         const k = nopolKey(d.nopol), v = servis.get(k) || { pertama: d.tgl, terakhir: d.tgl };
         if (d.tgl < v.pertama) v.pertama = d.tgl; if (d.tgl > v.terakhir) v.terakhir = d.tgl; servis.set(k, v);
       }
-      // Versi 7 memeriksa ulang nota yang sudah pernah dimigrasikan. Nota
-      // tanpa cabang atau memakai label tampilan PUSAT dinormalisasi ke UTM
-      // agar query Kasir dan laporan memakai satu kode resmi.
-      if (!d.cabang || d.cabang === 'PUSAT') patch.cabang = CABANG_UTAMA;
+      // Versi 8 mencocokkan nota servis ke cabang WO sumbernya. Untuk nota
+      // lama tanpa WO, cabang kosong/PUSAT dinormalisasi ke kode resmi UTM.
+      const cabangWO = nama === 'trx' && d.wo ? woCabang.get(d.wo) : '';
+      const cabangBenar = cabangWO || (!d.cabang || d.cabang === 'PUSAT' ? CABANG_UTAMA : d.cabang);
+      if (cabangBenar !== d.cabang) patch.cabang = cabangBenar;
       const t = String(tglDari(d) || '');
       if (!d.bulan && t.length >= 7) patch.bulan = t.slice(0, 7);
       if (nama === 'wo' && d.aktif === undefined) patch.aktif = AKTIF.includes(d.status);

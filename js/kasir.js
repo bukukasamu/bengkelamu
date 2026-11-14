@@ -4,7 +4,7 @@ import { $, esc, rp, stamp, toast, errMsg, konfirmasi, modal, closeModal } from 
 import { S, st, part, hargaJualPart, emptyCart, namaPetugas, idPetugas, views, refreshers, actions, inputHandlers, changeHandlers, fkeys, isRole } from './state.js';
 import { db, doc, runTransaction, serverTimestamp, collection, addDoc, getDoc, getDocs, query, where, updateDoc } from './firebase.js';
 import { counterRef, nextNumber } from './numbering.js';
-import { cabAktif, stokOf, stokField } from './cabang.js';
+import { cabAktif, cabangQuery, stokOf, stokField } from './cabang.js';
 import { catatMutasi, dataMutasi, mintaCatatan } from './kontrol.js';
 import { mintaPassword } from './otorisasi.js';
 import { showNota } from './nota.js';
@@ -31,14 +31,14 @@ export function searchParts(q, n = 8) {
 let pesananList = [], returList = [];
 async function muatPesanan() {
   try {
-    const s = await getDocs(query(collection(db, 'pesananPart'), where('cabang', '==', cabAktif())));
+    const s = await getDocs(query(collection(db, 'pesananPart'), where('cabang', 'in', cabangQuery(cabAktif()))));
     pesananList = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => ['menunggu_pembayaran', 'dikembalikan'].includes(x.status)).sort((a, b) => String(b.dibuat || '').localeCompare(String(a.dibuat || '')));
   } catch (e) { pesananList = []; console.warn('Pesanan part', e); }
   renderPesanan();
 }
 async function muatRetur() {
   try {
-    const s = await getDocs(query(collection(db, 'returPart'), where('cabang', '==', cabAktif())));
+    const s = await getDocs(query(collection(db, 'returPart'), where('cabang', 'in', cabangQuery(cabAktif()))));
     returList = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => ['diajukan', 'disetujui', 'ditolak'].includes(x.status)).sort((a, b) => String(b.tgl || '').localeCompare(String(a.tgl || '')));
   } catch (e) { returList = []; console.warn('Retur part', e); }
   renderRetur();
@@ -89,9 +89,8 @@ function printPesanan(o) {
 function renderKasir() {
   const c = st.cart, spare = bagianSparepart();
   $('#view').innerHTML = `<div class="grid g-kasir">
-   <div class="panel"><h3>${spare ? 'Input pesanan konsumen' : 'Cari part / pesanan'}</h3>
-    <label class="f" for="k-q">Scan barcode / ketik kode, nama, atau tipe motor<input id="k-q" placeholder="mis. brake pad, 2DP, YML-SM08" autocomplete="off"></label>
-    <div class="results" id="k-res"></div><p class="small muted" style="margin:0">Tekan Enter untuk menambahkan hasil teratas, seperti saat scan barcode.</p>
+   <div class="panel"><h3>${spare ? 'Input pesanan konsumen' : 'Pesanan dari Sparepart'}</h3>
+    ${spare ? `<label class="f" for="k-q">Scan barcode / ketik kode, nama, atau tipe motor<input id="k-q" placeholder="mis. brake pad, 2DP, YML-SM08" autocomplete="off"></label><div class="results" id="k-res"></div><p class="small muted" style="margin:0">Tekan Enter untuk menambahkan hasil teratas, seperti saat scan barcode.</p>` : '<div class="note small">Kasir hanya menerima pembayaran. Part pribadi harus dibuat lebih dahulu oleh Sparepart melalui Pesanan Part Pribadi.</div>'}
     <div id="k-pesanan" style="margin-top:12px"></div><div id="k-retur"></div>
    </div>
    <div class="panel"><div class="row spread"><h3>${spare ? 'Pesanan part pribadi' : 'Penjualan sparepart / pembayaran pesanan'}</h3><span class="small muted">${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
@@ -110,7 +109,7 @@ const hargaJualCart = p => hargaJualPart(p);
 const cartTotal = () => { const sub = st.cart.items.reduce((a, x) => a + x.qty * hargaJualCart(part(x.kode)), 0); return { sub, total: Math.max(0, sub - (st.cart.diskon || 0)) }; };
   function renderCart() { if (!$('#k-cart')) return; const items = st.cart.items; $('#k-cart').innerHTML = items.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Part</th><th>Qty</th><th class="r">Harga</th><th class="r">Add Price master / Jumlah</th><th></th></tr></thead><tbody>${items.map(x => { const p = part(x.kode), harga = hargaJualCart(p); return `<tr><td>${esc(p.nama)}<br><span class="small muted mono">${esc(p.kode)}</span></td><td><span class="qty"><button type="button" data-act="dec" data-k="${esc(p.kode)}">−</button><span class="num" style="min-width:22px;text-align:center">${x.qty}</span><button type="button" data-act="inc" data-k="${esc(p.kode)}">+</button></span></td><td class="r num">${rp(harga)}</td><td class="r num">${p.addPrice || 0}%<br>${rp(harga * x.qty)}</td><td><button class="btn sm ghost" type="button" data-act="rm" data-k="${esc(p.kode)}">✕</button></td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty" style="border:1px dashed var(--line);border-radius:6px">Keranjang kosong. Pilih part di sebelah kiri.</div>'; renderKTot(); }
 function renderKTot() { if (!$('#k-tot')) return; const c = st.cart, { sub, total } = cartTotal(); $('#k-tot').innerHTML = `<div class="totals"><span class="muted">Subtotal</span><span class="num">${rp(sub)}</span><span class="muted">Diskon</span><span class="num">${c.diskon ? '−' + rp(c.diskon) : rp(0)}</span><span style="font-weight:600">Total</span><span class="big num">${rp(total)}</span>${bagianSparepart() ? '' : payTotals(c.pay, total)}</div>`; }
-function addToCart(k) { const p = part(k), it = st.cart.items.find(x => x.kode === k), q = (it ? it.qty : 0) + 1; if (q > tersedia(p)) { tawarkanCabangLain(p, 'Stok ' + p.nama + ' tidak cukup untuk pesanan ini.'); return; } it ? it.qty++ : st.cart.items.push({ kode: k, qty: 1 }); renderCart(); }
+function addToCart(k) { if (!bagianSparepart()) return toast('Kasir hanya memproses pesanan dari Sparepart.'); const p = part(k), it = st.cart.items.find(x => x.kode === k), q = (it ? it.qty : 0) + 1; if (q > tersedia(p)) { tawarkanCabangLain(p, 'Stok ' + p.nama + ' tidak cukup untuk pesanan ini.'); return; } it ? it.qty++ : st.cart.items.push({ kode: k, qty: 1 }); renderCart(); }
 function pilihPesanan(o) { st.cart.items = (o.items || []).map(x => ({ kode: x.kode, qty: x.qty })); st.cart.pelanggan = o.nama || ''; st.cart.hp = o.hp || ''; st.cart.pesananId = o.id; st.cart.diskon = +o.diskon || 0; if (!bagianSparepart()) st.cart.pay = emptyPay(); renderKasir(); }
 async function simpanPesanan() {
   const c = st.cart, { total } = cartTotal(); if (!c.items.length) return toast('Keranjang masih kosong'); if (!c.pelanggan.trim()) return toast('Nama pemesan wajib diisi'); if (!c.hp.trim()) return toast('Nomor HP pemesan wajib diisi');
@@ -129,7 +128,7 @@ async function batalPesananOk(el) {
 async function kembalikanPesanan(o) { modal(`<h3>Kembalikan pesanan ke Sparepart</h3><p class="small">${esc(o.nama)} · ${esc(o.kode || o.id)}</p><label class="f" for="pp-cat">Catatan ketidaksesuaian<textarea id="pp-cat" placeholder="Mis. jumlah salah / part tidak sesuai" data-autofocus></textarea></label><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-close="1">Batal</button><button class="btn warn" type="button" data-act="pp-kembali-ok" data-id="${esc(o.id)}">Kembalikan</button></div>`); }
 async function kembaliOk(el) { const cat = $('#pp-cat')?.value.trim(); if (!cat) return toast('Isi alasan ketidaksesuaian'); try { await updateDoc(doc(db, 'pesananPart', el.dataset.id), { status: 'dikembalikan', catatanKasir: cat, dikembalikan: stamp(new Date()), dikembalikanOleh: namaPetugas() }); closeModal(); toast('Pesanan dikembalikan ke Sparepart'); muatPesanan(); } catch (e) { toast(errMsg(e)); } }
 async function saveSale() {
-  if (bagianSparepart()) return simpanPesanan(); if (st.saving) return; const c = st.cart; if (!c.items.length) return toast('Keranjang masih kosong'); const chk = payStatus(c.pay, cartTotal().total); if (chk.err) return toast(chk.err); const qty = c.items.reduce((a, x) => a + x.qty, 0); if (!(await konfirmasi('Terima pembayaran sparepart?', `${qty} pcs · total <b>${rp(cartTotal().total)}</b>${chk.kembali ? ' · kembali <b>' + rp(chk.kembali) + '</b>' : ''}.<br>Pastikan barang, jumlah, nama, dan harga sudah sesuai. Setelah bayar barang tidak dapat dikembalikan.`, { ya: 'Ya, simpan & cetak nota' }))) return; st.saving = true;
+  if (bagianSparepart()) return simpanPesanan(); if (st.saving) return; const c = st.cart; if (!c.pesananId) return toast('Kasir hanya memproses pesanan dari Sparepart. Pilih Pesanan Part Pribadi terlebih dahulu.'); if (!c.items.length) return toast('Keranjang masih kosong'); const chk = payStatus(c.pay, cartTotal().total); if (chk.err) return toast(chk.err); const qty = c.items.reduce((a, x) => a + x.qty, 0); if (!(await konfirmasi('Terima pembayaran sparepart?', `${qty} pcs · total <b>${rp(cartTotal().total)}</b>${chk.kembali ? ' · kembali <b>' + rp(chk.kembali) + '</b>' : ''}.<br>Pastikan barang, jumlah, nama, dan harga sudah sesuai. Setelah bayar barang tidak dapat dikembalikan.`, { ya: 'Ya, simpan & cetak nota' }))) return; st.saving = true;
   try { const diskon = c.diskon || 0; const t = await runTransaction(db, async tx => { const cab = cabAktif(), cs = await tx.get(counterRef(cab)), refs = c.items.map(x => doc(db, 'parts', x.kode)), ps = await Promise.all(refs.map(r => tx.get(r))); const items = c.items.map((x, i) => { if (!ps[i].exists()) throw new Error('Part ' + x.kode + ' sudah dihapus'); const p = ps[i].data(); if (stokOf(p, cab) < x.qty) throw new Error('Stok ' + p.nama + ' tinggal ' + stokOf(p, cab)); const addPrice = +p.addPrice || 0, harga = hargaJualPart(p); return { kode: p.kode, nama: p.nama, qty: x.qty, harga, hargaDasar: p.jual, addPrice, beli: p.beli || 0 }; }); const total = Math.max(0, items.reduce((a, x) => a + x.qty * x.harga, 0) - diskon), pay = payStatus(c.pay, total); if (pay.err) throw new Error(pay.err); const { no, counter } = nextNumber(cs, 'PJ', cab), trx = { no, cabang: cab, tgl: stamp(new Date()), jenis: 'PART', pelanggan: c.pelanggan.trim() || 'Umum', hp: c.hp.trim() || '', nopol: '', items, jasa: [], diskon, total, ...payRecord(c.pay, total), kasir: namaPetugas(), kasirId: idPetugas(), pesananPartId: c.pesananId || '' }; tx.set(counterRef(cab), counter); items.forEach((x, i) => { tx.update(refs[i], { [stokField(cab)]: stokOf(ps[i].data(), cab) - x.qty }); catatMutasi(tx, dataMutasi(cab, x.kode, x.nama, -x.qty, 'jual', no)); }); tx.set(doc(db, 'trx', no), { ...trx, bulan: trx.tgl.slice(0, 7), dibuat: serverTimestamp() }); if (c.pesananId) tx.update(doc(db, 'pesananPart', c.pesananId), { status: 'dibayar', trx: no, dibayar: trx.tgl, dibayarOleh: namaPetugas() }); return trx; }); st.lastNota = t; st.cart = emptyCart(); renderKasir(); showNota(t); } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 registerPay('k', { get: () => st.cart.pay, total: () => cartTotal().total, onChange: renderKTot });
