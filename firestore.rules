@@ -20,8 +20,9 @@ service cloud.firestore {
     function semuaCabang() { return isSuper() || hasRole(['admin']); }
     function myCab() { return me().get('cabang', 'UTM'); }
     // Cabang utama pernah tersimpan sebagai UTM maupun PUSAT pada data lama.
-    function cabangPusat(c) { return c in ['UTM', 'PUSAT']; }
-    function bolehCabang(c) { return semuaCabang() || (isStaff() && ((cabangPusat(c) && cabangPusat(myCab())) || c == myCab())); }
+    function cabangPusat(c) { return c == 'UTM' || c == 'PUSAT'; }
+    function cabangSama(c) { return c == myCab() || (cabangPusat(c) && cabangPusat(myCab())); }
+    function bolehCabang(c) { return semuaCabang() || (isStaff() && cabangSama(c)); }
 
     // Perubahan stok part oleh karyawan hanya boleh untuk stok cabangnya sendiri
     // (cabang utama = kolom stok, cabang lain = stokC.KODE)
@@ -126,7 +127,10 @@ service cloud.firestore {
     // Nota: dibuat kasir/admin di cabangnya. Isi nota tidak bisa diubah; pembatalan hanya diajukan
     // (status "diminta") oleh kasir/admin dan disetujui/ditolak oleh super admin. Nota tidak bisa dihapus.
     match /trx/{id} {
-      allow read: if (isStaff() && bolehCabang(resource.data.get('cabang', 'UTM'))) || notaMilikKasir(resource.data);
+      // Semua user dalam cabang yang sama membaca kumpulan nota yang sama.
+      // Jangan memakai fallback kasirId di aturan query: itu membuat query list
+      // cabang tidak dapat dibuktikan Firestore dan berakhir 0/parsial.
+      allow read: if isStaff() && bolehCabang(resource.data.get('cabang', 'UTM'));
       allow create: if bolehBuatNota() && bolehCabang(request.resource.data.cabang);
       // Karyawan hanya boleh mengubah: pengajuan batal (status "diminta", dan hanya bila belum pernah / pernah ditolak)
       // serta status klaim KSG. Isi nota lainnya tidak bisa diubah.
@@ -140,7 +144,11 @@ service cloud.firestore {
     match /pesananPart/{id} {
       allow read: if isStaff() && bolehCabang(resource.data.cabang);
       allow create: if hasRole(['admin', 'sparepart']) && bolehCabang(request.resource.data.cabang);
-      allow update: if isSuper() || (hasRole(['admin', 'sparepart', 'kasir']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang);
+      allow update: if isSuper()
+        || (hasRole(['admin', 'sparepart']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang)
+        || (hasRole(['kasir']) && bolehCabang(resource.data.cabang) && request.resource.data.cabang == resource.data.cabang
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'trx', 'dibayar', 'dibayarOleh', 'catatanKasir', 'dikembalikan', 'dikembalikanOleh'])
+            && request.resource.data.status in ['dibayar', 'dikembalikan']);
       allow delete: if isSuper();
     }
     // Retur setelah pembayaran: diajukan Kasir/admin, disetujui hanya super admin.

@@ -1,4 +1,4 @@
-// Pembaruan data ke versi 9 (dijalankan oleh super admin):
+// Pembaruan data ke versi 8 (dijalankan satu kali oleh super admin):
 // 1. Nota, WO, dan pembelian lama diberi kolom cabang + bulan (+ aktif untuk WO) supaya bisa dikunci per cabang.
 // 2. Gaji pokok & komisi dipindah dari data mekanik/petugas (yang bisa dibaca karyawan lain) ke gaji/{kunci} (privat).
 // 3. Aturan insentif dipindah dari meta/settings (bisa diubah admin) ke penghasilan/aturan (hanya super admin).
@@ -7,9 +7,11 @@ import { S } from './state.js';
 import { CABANG_UTAMA } from './cabang.js';
 import { nopolKey } from './cari-kendaraan.js';
 
-export const VERSI_DATA = 9;
+export const VERSI_DATA = 8;
 const AKTIF = ['Antri', 'Dikerjakan', 'Ditunda', 'Selesai'];
-export const perluMigrasi = () => (S.settings.versiData || 0) < VERSI_DATA;
+// Data produksi sudah memakai cabang; migrasi bukan bagian dari alur realtime.
+// Fungsi tetap diekspor untuk kompatibilitas modul lama, tetapi tidak memunculkan prompt.
+export const perluMigrasi = () => false;
 
 async function tulisBatch(ops, onProgress, label) {
   for (let i = 0; i < ops.length; i += 400) {

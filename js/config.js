@@ -3,7 +3,7 @@ export const APP_NAME = 'Aceh Mandiri Utama';
 export const APP_SUB = 'Sparepart & Bengkel Yamaha';
 // 5.20.0: jumlah kolom KSG (KSG ke-1 s.d. ke-12) di Master Data → Tarif KSG dan pilihan registrasi
 export const KSG_JUMLAH = 12;
-export const APP_VERSION = '5.29.0';
+export const APP_VERSION = '5.30.1';
 
 // Alamat web resmi. Link yang dikirim ke konsumen (WA, QR) mengikuti alamat yang sedang dibuka;
 // GitHub Pages otomatis mengalihkan bukukasamu.github.io/bengkelamu ke alamat ini setelah domain aktif.
