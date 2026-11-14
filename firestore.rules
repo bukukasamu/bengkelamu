@@ -75,10 +75,10 @@ service cloud.firestore {
     // ---------- Data bersama semua cabang ----------
     match /parts/{id} {
       allow read: if isStaff();
-      allow create: if hasRole(['admin', 'sparepart']) && (!request.resource.data.get('addPrice', 0) || bolehHargaMaster());
-      allow update: if ((semuaCabang() && (!ubahHargaMaster() || isSuper()))
+      allow create: if hasRole(['admin', 'sparepart']) && (request.resource.data.get('addPrice', 0) == 0 || bolehHargaMaster());
+      allow update: if (semuaCabang() && (!ubahHargaMaster() || isSuper())
         || (hasRole(['sparepart']) && stokCabangSendiri() && (!ubahHargaMaster() || bolehHargaMaster()))
-        || (hasRole(['kasir']) && stokCabangSendiri() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stok', 'stokC']));
+        || (hasRole(['kasir']) && stokCabangSendiri() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stok', 'stokC'])));
       allow delete: if hasRole(['admin']);
     }
     // Data konsumen & kendaraan: boleh ditambah/diubah karyawan (KM, jadwal oli & status pengingat bebas dicatat), tetapi perubahan data pribadi WAJIB disertai
