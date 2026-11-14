@@ -13,6 +13,7 @@ service cloud.firestore {
     function isStaff() { return isSuper() || (signedIn() && emailKu() != '' && exists(staffDoc())); }
     function me() { return get(staffDoc()).data; }
     function hasRole(roles) { return isSuper() || (signedIn() && emailKu() != '' && exists(staffDoc()) && me().peran in roles); }
+    function notaMilikKasir(d) { return hasRole(['kasir']) && d.get('kasirId', '') == me().get('loginId', emailKu()); }
 
     // ---------- Kunci cabang ----------
     // Admin/pemilik & super admin melihat semua cabang; karyawan lain hanya cabangnya sendiri.
@@ -114,7 +115,7 @@ service cloud.firestore {
     // Nota: dibuat kasir/admin di cabangnya. Isi nota tidak bisa diubah; pembatalan hanya diajukan
     // (status "diminta") oleh kasir/admin dan disetujui/ditolak oleh super admin. Nota tidak bisa dihapus.
     match /trx/{id} {
-      allow read: if isStaff() && bolehCabang(resource.data.get('cabang', 'UTM'));
+      allow read: if (isStaff() && bolehCabang(resource.data.get('cabang', 'UTM'))) || notaMilikKasir(resource.data);
       allow create: if hasRole(['admin', 'kasir']) && bolehCabang(request.resource.data.cabang);
       // Karyawan hanya boleh mengubah: pengajuan batal (status "diminta", dan hanya bila belum pernah / pernah ditolak)
       // serta status klaim KSG. Isi nota lainnya tidak bisa diubah.

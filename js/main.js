@@ -3,7 +3,7 @@ import './angka.js';   // kolom angka berformat titik ribuan (dimuat paling awal
 import './cari-pilihan.js';   // pilihan panjang: daftar baru muncul setelah mengetik
 import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, collection, doc, getDoc, getDocs, getDocsFromCache, onSnapshot, query, where, orderBy, limit, writeBatch, updateDoc } from './firebase.js';
 import { $, esc, dkey, toast, modal, closeModal, errMsg } from './util.js';
-import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal, viewSebelum } from './state.js';
+import { S, st, setParts, views, actions, inputHandlers, changeHandlers, fkeys, go, refresh, can, menuLabel, menuGroup, menuAwal, viewSebelum, idPetugas, namaPetugas } from './state.js';
 import { APP_NAME, APP_VERSION, ROLES, MENUS, HOME, DEFAULT_JASA, DEFAULT_MEKANIK, DEFAULT_TIPE, SUPER_ADMIN } from './config.js';
 import { loadLoginList, isPinAccount, validPin, gantiPinSendiri } from './akun.js';
 import { loadBrand, loaderHTML, gearsSVG } from './brand.js';
@@ -276,7 +276,11 @@ function subscribe() {
     // Mode kompatibilitas: filter cabang tunggal + limit tidak membutuhkan composite index.
     // Batas 500 menjaga login tetap cepat ketika histori cabang sangat besar.
     // Tanggal/status disaring di perangkat agar login tidak gagal saat index belum selesai dibuat.
-    sub(query(collection(db, 'trx'), where('cabang', 'in', cabangQuery(cab)), limit(500)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
+    const trxSources = new Map();
+    const gabungTrx = (k, docs) => { trxSources.set(k, docs); lupakanTrx(); raw.trx = [...new Map([...trxSources.values()].flat().map(t => [t.no, t])).values()].filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); };
+    sub(query(collection(db, 'trx'), where('cabang', 'in', cabangQuery(cab)), limit(500)), 'trx', s => gabungTrx('cabang', s.docs.map(d => d.data())));
+    // Nota lama yang cabangnya belum konsisten tetap terlihat oleh Kasir yang membuatnya.
+    if (st.role === 'kasir' && idPetugas()) sub(query(collection(db, 'trx'), where('kasirId', '==', idPetugas()), limit(500)), 'trxOwner', s => gabungTrx('pemilik', s.docs.map(d => d.data())));
     let woBulan = [], woAktif = [];
     const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
     sub(query(collection(db, 'wo'), where('cabang', 'in', cabangQuery(cab)), limit(500)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
