@@ -1,4 +1,4 @@
-// Pembaruan data ke versi 5 (dijalankan sekali oleh super admin):
+// Pembaruan data ke versi 6 (dijalankan sekali oleh super admin):
 // 1. Nota, WO, dan pembelian lama diberi kolom cabang + bulan (+ aktif untuk WO) supaya bisa dikunci per cabang.
 // 2. Gaji pokok & komisi dipindah dari data mekanik/petugas (yang bisa dibaca karyawan lain) ke gaji/{kunci} (privat).
 // 3. Aturan insentif dipindah dari meta/settings (bisa diubah admin) ke penghasilan/aturan (hanya super admin).
@@ -7,7 +7,7 @@ import { S } from './state.js';
 import { CABANG_UTAMA } from './cabang.js';
 import { nopolKey } from './cari-kendaraan.js';
 
-export const VERSI_DATA = 5;
+export const VERSI_DATA = 6;
 const AKTIF = ['Antri', 'Dikerjakan', 'Ditunda', 'Selesai'];
 export const perluMigrasi = () => (S.settings.versiData || 0) < VERSI_DATA;
 
