@@ -267,28 +267,48 @@ function subscribe() {
   if (st.role === 'admin') {
     // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
     sub(query(collection(db, 'trx'), where('tgl', '>=', today)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
-    sub(query(collection(db, 'wo'), where('tgl', '>=', bulanIni + '-01'), orderBy('tgl', 'desc'), limit(400)), 'wo', s => { raw.wo = s.docs.map(d => d.data()).reverse(); });
+    // 5.21.1: WO bulan berjalan tanpa limit(400) (yang memotong WO tertua bulan ini) + WO aktif dari bulan lalu, sama seperti karyawan.
+    let aWoBulan = [], aWoAktif = [], aWoSiap = 0, aOk1 = false, aOk2 = false;
+    const aGabung = () => { const m = new Map(); [...aWoBulan, ...aWoAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); terapkanCabang(); };
+    const aSiap = () => { if (++aWoSiap >= 2) mark('wo'); };
+    unsubs.push(onSnapshot(query(collection(db, 'wo'), where('bulan', '==', bulanIni)), s => { aWoBulan = s.docs.map(d => d.data()); aGabung(); if (!aOk1) { aOk1 = true; aSiap(); } else jadwalRefresh(); }, e => { fail(e); if (!aOk1) { aOk1 = true; aSiap(); } }));
+    unsubs.push(onSnapshot(query(collection(db, 'wo'), where('aktif', '==', true)), s => { aWoAktif = s.docs.map(d => d.data()); aGabung(); if (!aOk2) { aOk2 = true; aSiap(); } else jadwalRefresh(); }, e => { fail(e); if (!aOk2) { aOk2 = true; aSiap(); } }));
     if (can('pembelian')) sub(query(collection(db, 'pembelian'), orderBy('input', 'desc'), limit(300)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()); });
     if (can('orderSupplier')) sub(query(collection(db, 'orderSupplier'), orderBy('diubah', 'desc'), limit(300)), 'orderSupplier', s => { raw.orderSupplier = s.docs.map(d => d.data()); });
   } else {
     // Karyawan: hanya data cabangnya. WO bulan berjalan + WO aktif; histori transaksi lama dimuat saat laporan dibuka.
     const cab = cabAktif(), bulan = [bulanIni];
-    // Mode kompatibilitas: filter cabang tunggal + limit tidak membutuhkan composite index.
-    // Batas 500 menjaga login tetap cepat ketika histori cabang sangat besar.
-    // Tanggal/status disaring di perangkat agar login tidak gagal saat index belum selesai dibuat.
+    // 5.21.1: query TIDAK boleh memakai limit() tanpa orderBy. Firestore mengurutkan menurut ID dokumen
+    // (nomor nota naik), jadi limit(500) hanya mengambil 500 nota TERLAMA dan nota hari ini terpotong
+    // setelah cabang punya >500 nota. Sekarang query langsung dibatasi ke hari ini (cabang + tgl, index ada di
+    // firestore.indexes.json); bila index belum dipublikasikan, jatuh ke cabang + bulan (dua kesamaan, tanpa index).
     const trxSources = new Map();
     const gabungTrx = (k, docs) => { trxSources.set(k, docs); lupakanTrx(); raw.trx = [...new Map([...trxSources.values()].flat().map(t => [t.no, t])).values()].filter(t => String(t.tgl || '').slice(0, 10) >= today).sort((a, b) => a.tgl.localeCompare(b.tgl)); };
     // Query satu per satu supaya rules Firestore dapat membuktikan cabang secara pasti.
     // Untuk Pusat dibaca dua alias resmi: UTM dan PUSAT. Tidak ada fallback ke
     // kasirId karena fallback itu dapat membuat Kasir hanya melihat nota miliknya.
-    cabangQuery(cab).forEach(kodeCabang => sub(query(collection(db, 'trx'), where('cabang', '==', kodeCabang), limit(500)), 'trx-' + kodeCabang, s => gabungTrx('cabang-' + kodeCabang, s.docs.map(d => d.data()))));
+    cabangQuery(cab).forEach(kodeCabang => {
+      const kunci = 'trx-' + kodeCabang, terima = s => gabungTrx('cabang-' + kodeCabang, s.docs.map(d => d.data()));
+      unsubs.push(onSnapshot(query(collection(db, 'trx'), where('cabang', '==', kodeCabang), where('tgl', '>=', today)), s => { terima(s); terapkanCabang(); mark(kunci); }, e => {
+        console.warn('Index trx cabang+tgl belum siap, memakai cabang+bulan:', e);
+        unsubs.push(onSnapshot(query(collection(db, 'trx'), where('cabang', '==', kodeCabang), where('bulan', '==', bulanIni)), s => { s = { docs: s.docs.filter(d => String(d.data().tgl || '').slice(0, 10) >= today) }; terima(s); terapkanCabang(); mark(kunci); }, e2 => fail(e2, kunci)));
+      }));
+    });
     let woBulan = [], woAktif = [];
     const gabungWo = () => { const m = new Map(); [...woBulan, ...woAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); };
-    sub(query(collection(db, 'wo'), where('cabang', 'in', cabangQuery(cab)), limit(500)), 'wo', s => { const all = s.docs.map(d => d.data()); woBulan = all.filter(w => String(w.bulan || w.tgl || '').slice(0, 7) === bulanIni); woAktif = all.filter(w => w.aktif === true); gabungWo(); });
+    // WO bulan berjalan dan WO aktif (termasuk dari bulan lalu) diambil lewat query terpisah tanpa limit yang memotong data.
+    let woSiap = 0;
+    const woTerima = () => { if (++woSiap >= 2) mark('wo'); };
+    let woBulanOk = false, woAktifOk = false;
+    unsubs.push(onSnapshot(query(collection(db, 'wo'), where('cabang', 'in', cabangQuery(cab)), where('bulan', '==', bulanIni)), s => { woBulan = s.docs.map(d => d.data()); gabungWo(); terapkanCabang(); if (!woBulanOk) { woBulanOk = true; woTerima(); } else jadwalRefresh(); }, e => { fail(e); if (!woBulanOk) { woBulanOk = true; woTerima(); } }));
+    unsubs.push(onSnapshot(query(collection(db, 'wo'), where('cabang', 'in', cabangQuery(cab)), where('aktif', '==', true)), s => { woAktif = s.docs.map(d => d.data()); gabungWo(); terapkanCabang(); if (!woAktifOk) { woAktifOk = true; woTerima(); } else jadwalRefresh(); }, e => { fail(e); if (!woAktifOk) { woAktifOk = true; woTerima(); } }));
     // Tetap menandai listener kedua agar kebutuhan readiness lama tetap terpenuhi; data sudah berasal dari query cabang di atas.
     ready.woAktif = true;
-    if (can('pembelian')) sub(query(collection(db, 'pembelian'), where('cabang', '==', cab), limit(100)), 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
-    if (can('orderSupplier')) sub(query(collection(db, 'orderSupplier'), where('cabang', '==', cab), limit(300)), 'orderSupplier', s => { raw.orderSupplier = s.docs.map(d => d.data()).sort((a, b) => String(b.diubah || b.tgl).localeCompare(String(a.diubah || a.tgl))); });
+    // limit() tanpa orderBy mengambil dokumen TERLAMA (urut ID); ambil yang terbaru dulu (index cabang+input / cabang+diubah di
+    // firestore.indexes.json). Bila index belum dipublikasikan, jatuh ke query lama tanpa urutan.
+    const terbaru = (kol, field, n, k, fn) => unsubs.push(onSnapshot(query(collection(db, kol), where('cabang', '==', cab), orderBy(field, 'desc'), limit(n)), s => { fn(s); terapkanCabang(); mark(k); }, e => { console.warn('Index ' + kol + ' belum siap:', e); sub(query(collection(db, kol), where('cabang', '==', cab), limit(n)), k, fn); }));
+    if (can('pembelian')) terbaru('pembelian', 'input', 100, 'pembelian', s => { raw.pembelian = s.docs.map(d => d.data()).sort((a, b) => String(b.input).localeCompare(String(a.input))); });
+    if (can('orderSupplier')) terbaru('orderSupplier', 'diubah', 300, 'orderSupplier', s => { raw.orderSupplier = s.docs.map(d => d.data()).sort((a, b) => String(b.diubah || b.tgl).localeCompare(String(a.diubah || a.tgl))); });
   }
   pantauPersetujuan(unsubs);
   pantauMinta(unsubs);

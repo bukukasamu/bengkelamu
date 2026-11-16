@@ -6,7 +6,7 @@
 import { $, esc, rp, dkey, stamp, toast, errMsg, modal, closeModal, konfirmasi } from './util.js';
 import { S, st, views, refreshers, actions, changeHandlers, inputHandlers, namaPetugas, idPetugas, isRole } from './state.js';
 import { db, doc, collection, getDoc, getDocs, setDoc, addDoc, deleteDoc, query, where, writeBatch, deleteField } from './firebase.js';
-import { cabAktif, namaCabang, multiCabang, cabangOf } from './cabang.js';
+import { cabAktif, namaCabang, multiCabang, cabangOf, diCabang } from './cabang.js';
 import { trxIn, sums } from './stats.js';
 import { ambilTrx } from './data-trx.js';
 import { mintaPassword, isSuper } from './otorisasi.js';
@@ -47,7 +47,7 @@ const bankMasuk = list => list.reduce((a, x) => a + (+x.bankDelta || 0), 0);
 const labelMutasi = x => x.jenis === 'SETOR_BANK' ? 'Setor cash ke bank' : x.jenis === 'TARIK_BANK' ? 'Tarik bank ke laci' : x.jenis === 'KLAIM_KSG' ? 'Klaim KSG masuk bank' : x.jenis;
 
 /* ---------- Tampilan utama ---------- */
-let kasDoc = null, kasList = [], keluarHari = [], keluarBulan = [], mutasiKasHari = [], mutasiKasBulan = [];
+let kasNota = [], kasDoc = null, kasList = [], keluarHari = [], keluarBulan = [], mutasiKasHari = [], mutasiKasBulan = [];
 async function renderKas() {
   const tabs = [['kas', 'Kas harian'], ['keluar', 'Pengeluaran']];
   $('#view').innerHTML = `<div class="panel"><div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-act="keu-tab" data-t="${k}" aria-selected="${k === KU.tab}">${l}</button>`).join('')}</div><div id="keu-body">${loaderHTML('Memuat…')}</div></div>`;
@@ -62,11 +62,13 @@ async function muatKas() {
   const cab = cabAktif(), ym = KU.tgl.slice(0, 7);
   const [s, list, kel, mut] = await Promise.all([getDoc(doc(db, 'kas', kasId(cab, KU.tgl))), ambilKasBulan([blnSebelum(ym), ym], cab), ambilPengeluaran([ym], cab), ambilMutasiKas([blnSebelum(ym), ym], cab)]);
   kasDoc = s.exists() ? { id: s.id, ...s.data() } : null;
+  // Nota hari itu: data realtime hanya memuat HARI INI, jadi tanggal lain diambil dari server (kalau tidak, penjualan cash tanggal lampau tampil 0).
+  kasNota = KU.tgl >= dkey(new Date()) ? trxIn(KU.tgl, KU.tgl, S.trx) : (await ambilTrx(KU.tgl, KU.tgl)).filter(t => diCabang(t, cab));
   kasList = list; keluarHari = kel.filter(p => p.tgl === KU.tgl); mutasiKasBulan = mut; mutasiKasHari = mut.filter(p => p.tgl === KU.tgl);
 }
 // Penjualan cash hari itu dari nota yang sudah dimuat (dua bulan terakhir)
 function hitungKas() {
-  const nota = trxIn(KU.tgl, KU.tgl, S.trx), sm = sums(nota);
+  const nota = KU.tgl >= dkey(new Date()) ? trxIn(KU.tgl, KU.tgl, S.trx) : kasNota, sm = sums(nota);
   const keluarTunai = keluarHari.filter(tunai).reduce((a, p) => a + (+p.jumlah || 0), 0);
   const awal = +kasDoc?.uangAwal || 0, cashMutasi = deltaCashHari(mutasiKasHari);
   return { nota: nota.length, cash: sm.cash, transfer: sm.transfer, keluarTunai, keluarLain: keluarHari.filter(p => !tunai(p)).reduce((a, p) => a + (+p.jumlah || 0), 0), cashMutasi, awal, harus: awal + sm.cash - keluarTunai + cashMutasi };

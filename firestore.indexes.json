@@ -73,6 +73,34 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "pembelian",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cabang",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "input",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "orderSupplier",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cabang",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "diubah",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
