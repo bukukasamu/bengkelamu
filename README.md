@@ -1,15 +1,16 @@
-# Aceh Mandiri Utama POS · versi 5.21.1
+# Aceh Mandiri Utama POS · versi 5.30.2
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
 
-## 5.21.1 — Perbaikan nota hari ini tidak lengkap di login Kasir/karyawan
+## 5.30.2 — Perbaikan nota hari ini tidak lengkap di login Kasir/karyawan
 - **Penyebab:** query nota realtime karyawan memakai `limit(500)` tanpa `orderBy`. Firestore mengurutkan menurut ID dokumen (nomor nota naik), sehingga yang terambil 500 nota **terlama**; setelah cabang punya >500 nota, nota hari ini terpotong dan Laporan/Beranda (omzet, part terjual) kurang. Motor masuk (WO) benar karena datanya lebih sedikit, tetapi query WO punya cacat yang sama.
 - `js/main.js`: nota kini diambil langsung per cabang + tanggal hari ini (fallback cabang + bulan bila index belum siap); WO diambil per cabang + bulan berjalan dan per cabang + aktif tanpa `limit`; pembelian & order supplier mengambil yang **terbaru** (`orderBy desc`) dengan fallback.
 - Admin/super admin: WO bulan berjalan tak lagi dipotong `limit(400)` dan WO aktif bulan lalu ikut dimuat (sama seperti karyawan).
 - `js/keuangan.js`: Kas harian untuk tanggal lampau mengambil nota tanggal itu dari server (sebelumnya penjualan cash tampil 0 karena data realtime hanya hari ini).
+- `js/registrasi.js`: status **Dikerjakan** (dan **Selesai**) wajib punya mekanik. Sebelumnya kotak Status manual (admin/Registrasi) bisa menyimpan Dikerjakan tanpa mekanik; kini ditolak saat memilih status dan saat menyimpan.
 - `firestore.indexes.json`: tambah index `pembelian (cabang, input desc)` dan `orderSupplier (cabang, diubah desc)`.
 - **Wajib:** deploy ulang `firestore.indexes.json` (`firebase deploy --only firestore:indexes`), lalu tekan Update aplikasi di tiap perangkat.
 

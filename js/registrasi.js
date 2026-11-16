@@ -312,6 +312,8 @@ async function save(opts = {}) {
   const tetapDitunda = w.status === 'Ditunda' && !w._lanjut && stored && stored.mekanikId === w.mekanikId;
   let status = w.status;
   if (!w._manual && w.status !== 'Selesai' && !tetapDitunda) status = mek ? 'Dikerjakan' : 'Antri';
+  // Status Dikerjakan / Selesai wajib punya mekanik (status manual lewat kotak "Status" dulu bisa lolos tanpa mekanik)
+  if (['Dikerjakan', 'Selesai'].includes(status) && !mek && !(status === 'Selesai' && (stored?.mekanikId || stored?.mekanik))) { toast('Pilih nama mekanik dulu sebelum status ' + status); delete w._lanjut; $('#r-mek')?.focus(); return; }
   // Mekanik hanya boleh 1 motor yang sedang dikerjakan
   if (mek && status === 'Dikerjakan') {
     const busy = sibukOleh(mek, w.no);
@@ -547,7 +549,7 @@ changeHandlers.push(e => {
     w.jasa = t.checked ? [...normJasa(w).filter(j => j.nama !== n), { nama: n, harga: +t.dataset.harga || 0 }] : normJasa(w).filter(j => j.nama !== n);
     renderRegistrasi();
   }
-  if (t.id === 'r-status') { w.status = t.value; w._manual = true; renderRegistrasi(); }
+  if (t.id === 'r-status') { if (['Dikerjakan', 'Selesai'].includes(t.value) && !mekanikById(w.mekanikId) && !(t.value === 'Selesai' && (findWo(w.no)?.mekanikId || findWo(w.no)?.mekanik))) { toast('Pilih nama mekanik dulu, baru ubah status ke ' + t.value); t.value = w.status; $('#r-mek')?.focus(); return; } w.status = t.value; w._manual = true; renderRegistrasi(); }
   if (t.id === 'r-stnkSama') { w.stnkSama = t.checked; if (!t.checked && !w.namaStnk) w.namaStnk = w.nama; const n = $('#r-namaStnk'); n.disabled = t.checked; n.value = t.checked ? w.nama : w.namaStnk; if (!t.checked) n.focus(); }
   if (t.id === 'r-nopol' && !w.no) { t.value = t.value.trim().toUpperCase(); w.nopol = t.value; const g = woAktifNopol(w.nopol); if (g) peringatanGanda(g); else { lookupKendaraan(w.nopol); isiInfoKm(); } }
 });

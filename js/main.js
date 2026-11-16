@@ -267,7 +267,7 @@ function subscribe() {
   if (st.role === 'admin') {
     // Admin & super admin: semua cabang (disaring di perangkat saat pindah cabang)
     sub(query(collection(db, 'trx'), where('tgl', '>=', today)), 'trx', s => { lupakanTrx(); raw.trx = s.docs.map(d => d.data()).sort((a, b) => a.tgl.localeCompare(b.tgl)); });
-    // 5.21.1: WO bulan berjalan tanpa limit(400) (yang memotong WO tertua bulan ini) + WO aktif dari bulan lalu, sama seperti karyawan.
+    // 5.30.2: WO bulan berjalan tanpa limit(400) (yang memotong WO tertua bulan ini) + WO aktif dari bulan lalu, sama seperti karyawan.
     let aWoBulan = [], aWoAktif = [], aWoSiap = 0, aOk1 = false, aOk2 = false;
     const aGabung = () => { const m = new Map(); [...aWoBulan, ...aWoAktif].forEach(w => m.set(w.no, w)); raw.wo = [...m.values()].sort((a, b) => a.tgl.localeCompare(b.tgl)); terapkanCabang(); };
     const aSiap = () => { if (++aWoSiap >= 2) mark('wo'); };
@@ -278,7 +278,7 @@ function subscribe() {
   } else {
     // Karyawan: hanya data cabangnya. WO bulan berjalan + WO aktif; histori transaksi lama dimuat saat laporan dibuka.
     const cab = cabAktif(), bulan = [bulanIni];
-    // 5.21.1: query TIDAK boleh memakai limit() tanpa orderBy. Firestore mengurutkan menurut ID dokumen
+    // 5.30.2: query TIDAK boleh memakai limit() tanpa orderBy. Firestore mengurutkan menurut ID dokumen
     // (nomor nota naik), jadi limit(500) hanya mengambil 500 nota TERLAMA dan nota hari ini terpotong
     // setelah cabang punya >500 nota. Sekarang query langsung dibatasi ke hari ini (cabang + tgl, index ada di
     // firestore.indexes.json); bila index belum dipublikasikan, jatuh ke cabang + bulan (dua kesamaan, tanpa index).
