@@ -9,10 +9,50 @@ import { pantauKey, logStatus } from './wo-common.js';
 
 /* ---------- Kartu stok ----------
    Setiap perubahan stok dicatat di koleksi mutasi: { tgl, cabang, kode, nama, qty (+ masuk / − keluar), jenis, ref, ket, petugas } */
-export const JENIS_MUTASI = { jual: 'Penjualan', servis: 'Servis', beli: 'Pembelian', 'transfer-keluar': 'Transfer keluar', 'transfer-masuk': 'Transfer masuk', retur: 'Retur part', opname: 'Stok opname', batal: 'Batal nota', awal: 'Stok awal', import: 'Import Excel' };
+export const JENIS_MUTASI = { jual: 'Penjualan', servis: 'Servis', beli: 'Pembelian', 'transfer-keluar': 'Transfer keluar', 'transfer-masuk': 'Transfer masuk', 'transfer-kembali': 'Transfer dibatalkan (stok kembali)', 'koreksi-transfer': 'Koreksi transfer', 'batal-beli': 'Batal pembelian', retur: 'Retur part', opname: 'Stok opname', batal: 'Batal nota', awal: 'Stok awal', import: 'Import Excel' };
 export const dataMutasi = (cabang, kode, nama, qty, jenis, ref = '', ket = '') => ({ tgl: stamp(new Date()), cabang, kode, nama, qty, jenis, ref, ket, petugas: namaPetugas() });
 // tx: transaksi atau batch Firestore
 export const catatMutasi = (tx, m) => tx.set(doc(collection(db, 'mutasi')), m);
+
+/* ---------- 5.31.0: asal stok (input sendiri vs dari transfer) ----------
+   Setiap mutasi dikelompokkan supaya mudah dibedakan di Kartu stok, Stok Part, dan Riwayat Stok. */
+export const ASAL = {
+  sendiri: { label: 'Input sendiri', pendek: 'Input sendiri', pill: 'p-warn', ket: 'Pembelian supplier, stok awal part baru, atau import Excel yang dicatat cabang ini' },
+  transfer: { label: 'Dari transfer', pendek: 'Transfer masuk', pill: 'p-info', ket: 'Kiriman dari cabang lain yang sudah ditekan Terima' },
+  keluar: { label: 'Transfer keluar', pendek: 'Transfer keluar', pill: 'p-muted', ket: 'Dikirim ke cabang lain, atau kiriman yang dibatalkan dan stoknya kembali' },
+  jual: { label: 'Terjual', pendek: 'Terjual', pill: 'p-good', ket: 'Penjualan part dan pemakaian servis' },
+  koreksi: { label: 'Koreksi', pendek: 'Koreksi', pill: 'p-bad', ket: 'Stok opname, batal nota, retur, batal pembelian, koreksi transfer' }
+};
+const KELOMPOK = { beli: 'sendiri', awal: 'sendiri', import: 'sendiri', 'transfer-masuk': 'transfer', 'transfer-keluar': 'keluar', 'transfer-kembali': 'keluar', jual: 'jual', servis: 'jual' };
+export const asalMutasi = m => KELOMPOK[m?.jenis] || 'koreksi';
+export const pillAsal = m => { const a = ASAL[asalMutasi(m)]; return `<span class="pill ${a.pill}" title="${esc(a.ket)}">${esc(a.pendek)}</span>`; };
+const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const HARI_P = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+export const tglDari = s => { const d = new Date(String(s || '').replace(' ', 'T')); return isNaN(d) ? null : d; };
+// "2026-11-24 21:45" → "Sel, 24 Nov 2026 · 21.45"
+export function fmtWaktu(s, { jam = true } = {}) {
+  const d = tglDari(s); if (!d) return String(s || '–');
+  return `${HARI_P[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}` + (jam && String(s).length > 10 ? ' · ' + String(s).slice(11, 16).replace(':', '.') : '');
+}
+// Kemungkinan dobel: di cabang yang sama, part yang sama punya "Transfer masuk" dan "Input sendiri" (pembelian/stok awal/import)
+// dengan jumlah sama dalam rentang ±HARI_DOBEL hari. Pembelian/transfer yang sudah dibatalkan tidak dihitung.
+export const HARI_DOBEL = 14;
+export function cariDobel(list) {
+  const batalRef = new Set(list.filter(m => m.jenis === 'batal-beli' || m.jenis === 'koreksi-transfer').map(m => m.ref));
+  const hasil = new Map(), perKode = new Map();
+  list.forEach(m => { if (m.qty > 0 && !batalRef.has(m.ref) && (asalMutasi(m) === 'sendiri' || asalMutasi(m) === 'transfer')) { if (!perKode.has(m.kode)) perKode.set(m.kode, []); perKode.get(m.kode).push(m); } });
+  perKode.forEach(arr => {
+    const tf = arr.filter(m => asalMutasi(m) === 'transfer'), sd = arr.filter(m => asalMutasi(m) === 'sendiri'), pakai = new Set();
+    tf.forEach(t => {
+      const dt = tglDari(t.tgl); if (!dt) return;
+      const cocok = sd.filter(x => !pakai.has(x) && Math.abs((tglDari(x.tgl) || 0) - dt) <= HARI_DOBEL * 864e5).sort((a, b) => (a.qty === t.qty ? 0 : 1) - (b.qty === t.qty ? 0 : 1) || Math.abs(tglDari(a.tgl) - dt) - Math.abs(tglDari(b.tgl) - dt))[0];
+      if (!cocok || cocok.qty !== t.qty) return;
+      pakai.add(cocok);
+      hasil.set(t, cocok); hasil.set(cocok, t);
+    });
+  });
+  return hasil;   // Map mutasi → pasangannya
+}
 
 export async function kartuStok(kode) {
   const p = S.map.get(kode); if (!p) return;
@@ -24,8 +64,11 @@ export async function kartuStok(kode) {
     const l = s.docs.map(d => d.data()).sort((a, b) => b.tgl.localeCompare(a.tgl)).slice(0, 200);
     let saldo = p.stok;
     const rows = l.map(m => { const r = { ...m, saldo }; saldo -= m.qty; return r; });
+    const dobel = cariDobel(rows), jml = k => rows.filter(m => asalMutasi(m) === k).reduce((a, m) => a + m.qty, 0);
     const el = $('#ks-isi'); if (!el) return;
-    el.innerHTML = rows.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Referensi</th><th class="r">Masuk</th><th class="r">Keluar</th><th class="r">Saldo</th><th>Petugas</th></tr></thead><tbody>${rows.map(m => `<tr><td class="small">${esc(m.tgl)}</td><td>${esc(JENIS_MUTASI[m.jenis] || m.jenis)}${m.ket ? `<div class="small muted">${esc(m.ket)}</div>` : ''}</td><td class="mono small">${esc(m.ref || '')}</td><td class="r num">${m.qty > 0 ? m.qty : ''}</td><td class="r num">${m.qty < 0 ? -m.qty : ''}</td><td class="r num"><b>${m.saldo}</b></td><td class="small">${esc(m.petugas || '')}</td></tr>`).join('')}</tbody></table></div><p class="small muted" style="margin:0">Saldo dihitung mundur dari stok sekarang. Mutasi sebelum versi 4.0 tidak tercatat.</p>` : 'Belum ada mutasi tercatat untuk part ini di cabang ini.';
+    el.innerHTML = rows.length ? `<div class="tiles" style="margin:8px 0"><div class="tile"><span class="lbl">Input sendiri</span><span class="val">${jml('sendiri')} pcs</span><span class="sub">pembelian / stok awal</span></div><div class="tile"><span class="lbl">Dari transfer</span><span class="val">${jml('transfer')} pcs</span><span class="sub">transfer masuk diterima</span></div><div class="tile"><span class="lbl">Keluar</span><span class="val">${-(jml('jual') + jml('keluar'))} pcs</span><span class="sub">terjual + transfer keluar</span></div></div>
+      ${dobel.size ? `<div class="err small"><b>Kemungkinan dobel:</b> part ini punya Transfer masuk dan Input sendiri dengan jumlah sama dalam ±${HARI_DOBEL} hari (baris bertanda ⚠). Bila barangnya memang dari transfer, ajukan <b>Batalkan pembelian</b> di menu Pembelian Stok, atau koreksi lewat Stok opname.</div>` : ''}
+      <div class="tw"><table class="bernomor"><thead><tr><th>Tanggal &amp; hari</th><th>Asal</th><th>Jenis</th><th>Referensi</th><th class="r">Masuk</th><th class="r">Keluar</th><th class="r">Saldo</th><th>Petugas</th></tr></thead><tbody>${rows.map(m => `<tr${dobel.has(m) ? ' class="row-dobel"' : ''}><td class="small">${esc(fmtWaktu(m.tgl))}</td><td>${pillAsal(m)}${dobel.has(m) ? ` <span class="pill p-bad" title="Pasangan: ${esc(dobel.get(m).ref || '')}">⚠ dobel?</span>` : ''}</td><td>${esc(JENIS_MUTASI[m.jenis] || m.jenis)}${m.ket ? `<div class="small muted">${esc(m.ket)}</div>` : ''}</td><td class="mono small">${esc(m.ref || '')}</td><td class="r num">${m.qty > 0 ? m.qty : ''}</td><td class="r num">${m.qty < 0 ? -m.qty : ''}</td><td class="r num"><b>${m.saldo}</b></td><td class="small">${esc(m.petugas || '')}</td></tr>`).join('')}</tbody></table></div><p class="small muted" style="margin:0">Saldo dihitung mundur dari stok sekarang. Mutasi sebelum versi 4.0 tidak tercatat. Riwayat semua part sekaligus: menu <b>Riwayat Stok</b>.</p>` : 'Belum ada mutasi tercatat untuk part ini di cabang ini.';
   } catch (e) { const el = $('#ks-isi'); if (el) el.textContent = 'Gagal memuat: ' + errMsg(e); }
 }
 

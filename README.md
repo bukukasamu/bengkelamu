@@ -1,9 +1,44 @@
-# Aceh Mandiri Utama POS · versi 5.30.2
+# Aceh Mandiri Utama POS · versi 5.31.0
 
 Copyright SRISP 2026
 
 Aplikasi web sparepart dan bengkel Yamaha untuk Aceh Mandiri Utama.
 Data tersimpan di **Cloud Firestore** (realtime, dipakai beberapa komputer sekaligus), login memakai **Firebase Authentication**.
+
+## 5.31.0 — Riwayat Stok, asal barang (input sendiri vs transfer), cegah & koreksi stok dobel, kode part di nota
+Latar belakang: petugas cabang mencatat barang kiriman pusat di **Pembelian Stok** dan juga menekan **Terima** transfer, sehingga stok bertambah dua kali, muncul hutang supplier palsu, dan harga beli rata-rata berubah. Dulu tidak ada cara melihat asal barang secara ringkas dan tidak ada cara membatalkan.
+
+**Melihat & membedakan**
+- Menu baru **Riwayat Stok** (`js/riwayat-stok.js`, grup Sparepart, peran Admin & Sparepart): semua mutasi stok cabang per periode dengan **tanggal & hari**, label asal **Input sendiri** (beli/awal/import) atau **Dari transfer** (transfer-masuk), nomor PB/TF yang bisa diklik, petugas; tab **Ringkasan per part** dan **Transfer antar cabang** (riwayat lengkap, saringan arah/status); export Excel.
+- **Kemungkinan dobel** (`cariDobel` di `js/kontrol.js`): part yang sama di cabang yang sama punya Input sendiri dan Dari transfer dengan qty sama dalam ±14 hari (yang sudah dibatalkan tidak dihitung). Tampil di Riwayat Stok, Kartu stok, dan Stok Part beserta saran koreksi.
+- **Kartu stok**: kolom Tanggal & hari, Asal, ringkasan Input sendiri / Dari transfer / Keluar.
+- **Stok Part**: kolom **Asal masuk** (`Input n`, `TF n`, `⚠ dobel?`) + filter Asal masuk + tombol Riwayat stok.
+
+**Mencegah**
+- Pembelian Stok (preview) dan terima barang dari PO memeriksa transfer ke cabang ini yang berisi part sama (status dikirim, atau diterima ≤14 hari) → kotak **⚠ Awas stok dobel!** dan wajib centang/konfirmasi "barang dari supplier". Nomor TF yang dikonfirmasi disimpan di `pembelian.konfirmasiBukanTransfer`.
+- Kiriman yang belum diterima dipantau realtime (`js/transfer.js`): angka di menu Stok Part/Pembelian/Riwayat Stok, notifikasi, dan kotak **📦 Kiriman menunggu diterima** di Stok Part, Pembelian, Riwayat Stok. Catatan di Pembelian: hanya untuk barang supplier.
+
+**Mengoreksi (tanpa menghapus data)**
+- Transfer: **Tolak** (penerima, status `ditolak`), **Batalkan kirim / Kembalikan ke stok** (pengirim, status `dibatalkan`, mutasi `transfer-kembali`), **Ajukan pembatalan** transfer diterima → disetujui Super Admin (mutasi `koreksi-transfer` di kedua cabang).
+- Pembelian yang sudah masuk stok: **Ajukan pembatalan** → disetujui Super Admin (catatan + password): stok dikurangi, harga beli rata-rata dikembalikan, status `Batal` (tidak dihitung hutang/pembelian, invoice boleh dipakai lagi), mutasi `batal-beli`. Super Admin bisa langsung membatalkan. Filter **Dibatalkan** di Pembelian.
+- Menu **Persetujuan**: bagian baru Pembatalan pembelian stok & Pembatalan transfer stok (ikut dihitung di angka menu).
+
+**Nota**
+- Nota part/servis mencetak **Kode: …** di bawah nama part (layar, struk 75 mm, folio, PDF, WhatsApp, halaman cek servis).
+
+**Info update**
+- `js/update-info.js`: jendela "Aplikasi sudah diperbarui" muncul **sekali per perangkat per versi** (localStorage `amu-info-update`), dengan tombol ke panduan & Riwayat Stok. Panduan (`js/panduan.js`, `PANDUAN.md`) diperbarui: topik Apa yang baru, Fungsi menu, Sparepart (8 langkah baru), Kasir, Admin, Super Admin, Masalah umum.
+
+**Perbaikan lain**
+- Pembelian: draft baru menyimpan `cabang` sejak awal (sebelumnya draft baru yang langsung diterima memakai cabang utama — stok bisa masuk ke Pusat atau ditolak rules di cabang). Penerimaan memakai cabang dari dokumen tersimpan.
+- Pembelian: part sama di beberapa baris (harga berbeda) tidak lagi saling menimpa stok saat diterima.
+- Hak akses menu: menu yang ditambahkan setelah checklist disimpan kini mengikuti peran bawaannya (sesuai keterangan `_menu`), jadi **Riwayat Stok** langsung muncul.
+- Badge permintaan barang (Cek Stok) tidak lagi menghapus badge transfer.
+
+**Wajib setelah update**
+1. Publish ulang `firestore.rules` (aturan `transfer` baru: terima/tolak oleh tujuan, batal kirim oleh asal, ajukan pembatalan; baca transfer memakai alias UTM/PUSAT).
+2. Deploy `firestore.indexes.json` (index baru `mutasi (cabang, tgl)`). Tanpa index, Riwayat Stok tetap jalan dengan cara lambat.
+3. Tekan **Update aplikasi** di tiap perangkat (cache SW `amu-5.31.0`).
 
 ## 5.30.2 — Perbaikan nota hari ini tidak lengkap di login Kasir/karyawan
 - **Penyebab:** query nota realtime karyawan memakai `limit(500)` tanpa `orderBy`. Firestore mengurutkan menurut ID dokumen (nomor nota naik), sehingga yang terambil 500 nota **terlama**; setelah cabang punya >500 nota, nota hari ini terpotong dan Laporan/Beranda (omzet, part terjual) kurang. Motor masuk (WO) benar karena datanya lebih sedikit, tetapi query WO punya cacat yang sama.
@@ -817,6 +852,9 @@ js/
   mekanik.js          Performa Mekanik
   kasir.js            Penjualan Sparepart
   stok.js             Stok Part
+  transfer.js         transfer antar cabang: status, terima/tolak/batal, pengajuan pembatalan, kiriman menunggu (5.31.0)
+  riwayat-stok.js     menu Riwayat Stok + asal barang per part + kemungkinan dobel (5.31.0)
+  update-info.js      jendela info update sekali per versi (5.31.0)
   pembelian.js        Pembelian Stok
   laporan.js          Laporan Penjualan
   master.js           Master Data

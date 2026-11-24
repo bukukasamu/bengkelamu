@@ -114,7 +114,7 @@ async function kirimDariMinta(el) {
 /* ---------- Badge permintaan masuk di menu ---------- */
 let nMasuk = 0;
 function segarkanBadgeMinta() {
-  ['cekstok', 'stok'].forEach(v => { const el = document.querySelector(`.sb-link[data-view="${v}"]`); if (!el) return; el.querySelector('.sb-badge')?.remove(); if (nMasuk) el.insertAdjacentHTML('beforeend', ` <span class="sb-badge">${nMasuk}</span>`); });
+  ['cekstok', 'stok'].forEach(v => { const el = document.querySelector(`.sb-link[data-view="${v}"]`); if (!el) return; el.querySelector('.sb-badge:not(.tf-badge)')?.remove(); if (nMasuk) el.insertAdjacentHTML('beforeend', ` <span class="sb-badge">${nMasuk}</span>`); });
 }
 let unsubMinta = null;
 // Admin pindah cabang: permintaan masuk yang dipantau ikut cabang yang baru

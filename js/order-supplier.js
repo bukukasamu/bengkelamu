@@ -120,6 +120,12 @@ async function receiveGo() {
   if (!chosen.length) return toast('Centang minimal satu barang dan isi jumlah datang');
   if (new Set(chosen.map(x => x.supplier)).size > 1) return toast('Terima barang per supplier agar nomor invoice dan Pembelian Stok tidak tercampur');
   const noInv = ($('#po-inv')?.value || '').trim(); if (!noInv) return toast('Isi nomor invoice supplier');
+  // 5.31.0: peringatan stok dobel bila part yang sama sedang/baru dikirim dari cabang lain
+  try {
+    const { transferSerupa } = await import('./pembelian.js'), { namaCabang } = await import('./cabang.js'), { fmtWaktu } = await import('./kontrol.js');
+    const hit = await transferSerupa(chosen, cabAktif());
+    if (hit.length && !(await konfirmasi('⚠ Awas stok dobel', `Part berikut sedang / baru saja dikirim dari cabang lain ke cabang ini:<br>${hit.map(h => `<b class="mono">${esc(h.t.no)}</b> dari ${esc(namaCabang(h.t.dari))} (${esc(fmtWaktu(h.t.tgl))}, ${h.t.status === 'dikirim' ? 'belum diterima' : 'sudah diterima'}): ${h.items.map(x => esc(x.nama) + ' ×' + x.qty).join(', ')}`).join('<br>')}<br><br>Bila barang yang datang adalah <b>kiriman cabang lain</b>, tekan <b>Batal</b> lalu tekan Terima di Stok Part. Lanjutkan hanya bila barang ini benar-benar dari supplier.`, { ya: 'Ya, ini dari supplier', bahaya: true }))) return;
+  } catch (e) { /* pemeriksaan tidak wajib */ }
   if (!(await konfirmasi('Terima barang dan tambah stok?', `${chosen.length} jenis barang akan dibuatkan Pembelian Stok. Part baru di PO akan dibuat otomatis di master dengan harga jual 0; silakan lengkapi harga jualnya nanti.`, { ya: 'Ya, tambah ke stok' }))) return;
   st.saving = true;
   try {
@@ -135,7 +141,7 @@ async function receiveGo() {
       const updates = (curPo.items || []).map(x => { const got = chosen.filter(y => y.kode === x.kode && y.supplier === x.supplier).reduce((a, y) => a + y.q, 0); return { ...x, datang: Math.min(+x.qty || 0, (+x.datang || 0) + got) }; });
       const status = updates.every(x => (+x.datang || 0) >= (+x.qty || 0)) ? 'Selesai' : 'Datang sebagian'; tx.update(poRef, { items: updates, total: totalOf(updates), status, terakhirDatang: stamp(new Date()), terakhirDiterimaOleh: namaPetugas() });
     });
-    Object.assign(o, (await getDocs(query(collection(db, 'orderSupplier'), where('cabang', '==', cabAktif())))).docs.map(d => d.data()).find(x => x.no === o.no) || {}); closeModal(); toast(`Barang dari ${o.no} masuk ke Pembelian Stok dan stok bertambah`); renderPage();
+    Object.assign(o, (await getDocs(query(collection(db, 'orderSupplier'), where('cabang', '==', cabAktif())))).docs.map(d => d.data()).find(x => x.no === o.no) || {}); closeModal(); toast(`Barang dari ${o.no} masuk ke Pembelian Stok dan stok bertambah`); renderPage(); window.dispatchEvent(new CustomEvent('amu-stok-berubah'));
   } catch (e) { toast(errMsg(e)); } finally { st.saving = false; }
 }
 

@@ -1,4 +1,4 @@
-// Menu Persetujuan. Super admin: pembatalan nota, stok opname, dan layar absen.
+// Menu Persetujuan. Super admin: pembatalan nota, stok opname, PO, pembatalan pembelian & transfer (5.31.0), dan layar absen.
 // Admin (pemilik/kepala cabang): hanya permintaan aktivasi layar absen.
 import { $, esc, rp, stamp, toast, errMsg, konfirmasi } from './util.js';
 import { st, views, refreshers, actions, go, namaPetugas } from './state.js';
@@ -6,10 +6,12 @@ import { db, collection, doc, query, where, onSnapshot, setDoc, updateDoc } from
 import { namaCabang, multiCabang } from './cabang.js';
 import { setujuiBatal, tolakBatal } from './kontrol.js';
 import { showNota } from './nota.js';
+import { fmtWaktu } from './kontrol.js';
+import { itemsTf, pcsTf } from './transfer.js';
 
-let batal = [], opname = [], po = [], layar = [], layarSemua = [];
+let batal = [], opname = [], po = [], layar = [], layarSemua = [], batalPb = [], batalTf = [];
 export function segarkanBadge() {
-  const n = batal.length + opname.length + po.length + layar.length, el = document.querySelector('.sb-link[data-view="persetujuan"]');
+  const n = batal.length + opname.length + po.length + layar.length + batalPb.length + batalTf.length, el = document.querySelector('.sb-link[data-view="persetujuan"]');
   if (el) el.innerHTML = 'Persetujuan' + (n ? ` <span class="sb-badge">${n}</span>` : '');
 }
 export function pantauPersetujuan(unsubs) {
@@ -20,6 +22,9 @@ export function pantauPersetujuan(unsubs) {
   unsubs.push(onSnapshot(query(collection(db, 'trx'), where('batal.status', '==', 'diminta')), s => { batal = s.docs.map(d => d.data()); badge(); }, () => {}));
   unsubs.push(onSnapshot(query(collection(db, 'opname'), where('status', '==', 'diajukan')), s => { opname = s.docs.map(d => ({ id: d.id, ...d.data() })); badge(); }, () => {}));
   unsubs.push(onSnapshot(query(collection(db, 'orderSupplier'), where('status', '==', 'menunggu_persetujuan')), s => { po = s.docs.map(d => ({ id: d.id, ...d.data() })); badge(); }, () => {}));
+  // 5.31.0: pengajuan pembatalan pembelian (sudah masuk stok) dan transfer (sudah diterima)
+  unsubs.push(onSnapshot(query(collection(db, 'pembelian'), where('batal.status', '==', 'diminta')), s => { batalPb = s.docs.map(d => d.data()).filter(p => p.status === 'Diterima'); badge(); }, () => {}));
+  unsubs.push(onSnapshot(query(collection(db, 'transfer'), where('batal.status', '==', 'diminta')), s => { batalTf = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => t.status === 'diterima'); badge(); }, () => {}));
 }
 
 const waktuMinta = l => l.tglMinta?.toDate ? l.tglMinta.toDate().toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : (typeof l.tglMinta === 'string' ? l.tglMinta : '');
@@ -31,7 +36,13 @@ const layarHTML = () => `<div class="panel"><h3>Aktivasi layar QR absen (${layar
 function renderPersetujuan() {
   if (!st.petugas?.super) { $('#view').innerHTML = `<div class="grid">${layarHTML()}</div>`; return; }
   const poHTML = `<div class="panel"><h3>Order ke Supplier (${po.length})</h3><p class="small muted" style="margin:0">Periksa daftar belanja sebelum dikirim. Satu PO dapat berisi beberapa supplier.</p>${po.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>No PO</th><th>Cabang</th><th>Dibuat oleh</th><th>Supplier</th><th class="r">Item</th><th class="r">Perkiraan</th><th></th></tr></thead><tbody>${po.map(o => `<tr><td class="mono">${esc(o.no)}</td><td>${esc(o.cabang || '')}</td><td class="small">${esc(o.dibuatOleh || '')}<br>${esc(o.tgl || '')}</td><td class="small">${esc([...new Set((o.items || []).map(x => x.supplier))].join(', '))}</td><td class="r num">${(o.items || []).length}</td><td class="r num">${rp(o.total)}</td><td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="ps-po-tolak" data-id="${esc(o.id)}">Kembalikan</button> <button class="btn sm pri" type="button" data-act="ps-po-setujui" data-id="${esc(o.id)}">Setujui &amp; kirim</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Tidak ada PO yang menunggu persetujuan.</div>'}</div>`;
-  $('#view').innerHTML = `<div class="grid">${layar.length ? layarHTML() : ''}${poHTML}
+  const stokHTML = `<div class="panel"><h3>Pembatalan pembelian stok (${batalPb.length})</h3><p class="small muted" style="margin:0">Disetujui: stok cabang dikurangi kembali, harga beli rata-rata dikembalikan, invoice tidak dihitung hutang. Biasanya untuk barang kiriman transfer yang tercatat lagi sebagai pembelian (stok dobel).</p>
+    ${batalPb.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>No</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th>Supplier / invoice</th><th>Barang</th><th>Diajukan</th><th>Alasan</th><th></th></tr></thead><tbody>${batalPb.map(p => `<tr><td class="mono"><button class="link-btn" type="button" data-act="ps-pb-buka" data-no="${esc(p.no)}">${esc(p.no)}</button></td>${multiCabang() ? `<td class="small">${esc(namaCabang(p.cabang))}</td>` : ''}<td class="small">${esc(p.supplier || '')}<br><span class="mono">${esc(p.noInvoice || '')}</span> · ${rp(p.total)}</td><td class="small">${(p.items || []).map(x => `${esc(x.nama)} <span class="mono muted">${esc(x.kode)}</span> ×${x.qty}`).join('<br>')}</td><td class="small">${esc(p.batal?.oleh || '')}<br>${esc(fmtWaktu(p.batal?.tgl))}</td><td class="small">${esc(p.batal?.alasan || '')}</td><td class="r"><span class="row" style="gap:4px;justify-content:flex-end"><button class="btn sm" type="button" data-act="ps-pb-tolak" data-no="${esc(p.no)}">Tolak</button><button class="btn sm danger" type="button" data-act="ps-pb-setujui" data-no="${esc(p.no)}">Setujui</button></span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada pengajuan.</div>'}
+   </div>
+   <div class="panel"><h3>Pembatalan transfer stok (${batalTf.length})</h3><p class="small muted" style="margin:0">Disetujui: stok cabang tujuan dikurangi dan stok cabang asal dikembalikan. Setujui hanya bila barang memang kembali / tidak pernah sampai.</p>
+    ${batalTf.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>No</th><th>Dari → Ke</th><th>Barang</th><th>Diajukan</th><th>Alasan</th><th></th></tr></thead><tbody>${batalTf.map(t => `<tr><td class="mono">${esc(t.no)}<div class="small muted">${esc(fmtWaktu(t.tglTerima || t.tgl))}</div></td><td class="small">${esc(namaCabang(t.dari))} → ${esc(namaCabang(t.ke))}</td><td class="small">${itemsTf(t).map(x => `${esc(x.nama)} ×${x.qty}`).join('<br>')}<div class="small muted">${pcsTf(t)} pcs</div></td><td class="small">${esc(t.batal?.oleh || '')}<br>${esc(fmtWaktu(t.batal?.tgl))}</td><td class="small">${esc(t.batal?.alasan || '')}</td><td class="r"><span class="row" style="gap:4px;justify-content:flex-end"><button class="btn sm" type="button" data-act="ps-tf-tolak" data-id="${esc(t.id)}">Tolak</button><button class="btn sm danger" type="button" data-act="ps-tf-setujui" data-id="${esc(t.id)}">Setujui</button></span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada pengajuan.</div>'}
+   </div>`;
+  $('#view').innerHTML = `<div class="grid">${layar.length ? layarHTML() : ''}${poHTML}${stokHTML}
    <div class="panel"><h3>Pembatalan nota (${batal.length})</h3>
     ${batal.length ? `<div class="tw"><table class="bernomor"><thead><tr><th>Nota</th>${multiCabang() ? '<th>Cabang</th>' : ''}<th>Pelanggan</th><th class="r">Total</th><th>Diajukan</th><th>Alasan</th><th></th></tr></thead><tbody>${batal.map((t, i) => `<tr><td class="mono"><button class="link-btn" type="button" data-act="ps-nota" data-i="${i}">${esc(t.no)}</button><div class="small muted">${esc(t.tgl)}</div></td>${multiCabang() ? `<td class="small">${esc(namaCabang(t.cabang))}</td>` : ''}<td>${esc(t.pelanggan || 'Umum')}${t.nopol ? `<div class="small muted mono">${esc(t.nopol)}</div>` : ''}</td><td class="r num">${rp(t.total)}</td><td class="small">${esc(t.batal.oleh)}<br>${esc(t.batal.tgl)}</td><td class="small">${esc(t.batal.alasan)}</td><td class="r" style="white-space:nowrap"><button class="btn sm" type="button" data-act="ps-tolak" data-no="${esc(t.no)}">Tolak</button> <button class="btn sm pri" type="button" data-act="ps-setujui" data-no="${esc(t.no)}">Setujui</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Tidak ada pengajuan pembatalan.</div>'}
    </div>
@@ -42,6 +53,11 @@ function renderPersetujuan() {
 views.persetujuan = renderPersetujuan;
 refreshers.persetujuan = () => {};
 Object.assign(actions, {
+  'ps-pb-buka': async el => { const m = await import('./pembelian.js'); m.bukaPembelian(el.dataset.no); },
+  'ps-pb-setujui': async el => { const p = batalPb.find(x => x.no === el.dataset.no); if (!p) return; const m = await import('./pembelian.js'); await m.setujuiBatalPembelian(p); },
+  'ps-pb-tolak': async el => { const p = batalPb.find(x => x.no === el.dataset.no); if (!p) return; const m = await import('./pembelian.js'); await m.tolakBatalPembelian(p); },
+  'ps-tf-setujui': async el => { const t = batalTf.find(x => x.id === el.dataset.id); if (!t) return; const m = await import('./transfer.js'); await m.setujuiBatalTransfer(t); },
+  'ps-tf-tolak': async el => { const t = batalTf.find(x => x.id === el.dataset.id); if (!t) return; const m = await import('./transfer.js'); await m.tolakBatalTransfer(t); },
   'ps-setujui': async el => { await setujuiBatal(el.dataset.no); },
   'ps-tolak': async el => { await tolakBatal(el.dataset.no); },
   'ps-nota': el => showNota(batal[+el.dataset.i]),

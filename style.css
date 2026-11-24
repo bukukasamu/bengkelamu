@@ -1036,6 +1036,7 @@ main .loader{animation:fade-in .25s ease-out .18s both}
 .sb-link[data-view="pesananPart"],.bn-item[data-view="pesananPart"],.ms-item[data-view="pesananPart"],.pt-ic[data-view="pesananPart"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 2h12l2 5H4zM4 7v13h16V7M9 11h6'/%3E%3C/svg%3E")}
 .sb-link[data-view="stok"],.bn-item[data-view="stok"],.ms-item[data-view="stok"],.pt-ic[data-view="stok"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8l-9-5-9 5 9 5zM3 8v8l9 5 9-5V8M12 13v8'/%3E%3C/svg%3E")}
 .sb-link[data-view="opname"],.bn-item[data-view="opname"],.ms-item[data-view="opname"],.pt-ic[data-view="opname"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5h6M9 3h6v4H9zM5 5h2v16h10V5h2M9 12l2 2 4-4'/%3E%3C/svg%3E")}
+.sb-link[data-view="riwayatStok"],.bn-item[data-view="riwayatStok"],.ms-item[data-view="riwayatStok"],.pt-ic[data-view="riwayatStok"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2'/%3E%3C/svg%3E")}
 .sb-link[data-view="pembelian"],.bn-item[data-view="pembelian"],.ms-item[data-view="pembelian"],.pt-ic[data-view="pembelian"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7h13v10H3zM16 10h3l2 3v4h-5M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4'/%3E%3C/svg%3E")}
 .sb-link[data-view="laporan"],.bn-item[data-view="laporan"],.ms-item[data-view="laporan"],.pt-ic[data-view="laporan"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E")}
 .sb-link[data-view="kas"],.bn-item[data-view="kas"],.ms-item[data-view="kas"],.pt-ic[data-view="kas"]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7h15a3 3 0 0 1 3 3v7a2 2 0 0 1-2 2H3zM3 7l12-4v4M17 13h.01'/%3E%3C/svg%3E")}
@@ -1341,3 +1342,19 @@ button.top-profile:focus-visible{outline:2px solid #fff;outline-offset:2px}
   .btn:active,.pf-item:active,.sb-link:active{transform:scale(.98)}
 }
 @media (max-width:900px){.sidebar{z-index:50}.sb-backdrop:not([hidden]){z-index:49}}
+
+/* 5.31.0 — Riwayat stok, asal barang, kemungkinan dobel, transfer */
+.p-muted{background:rgba(120,130,150,.18);color:var(--muted,#6b7280)}
+.row-dobel td{background:var(--bad-bg)!important}
+.dobel-saran{color:var(--bad);font-weight:500}
+.asal-sel{display:inline-flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;text-decoration:none}
+.asal-sel .pill{font-size:.72rem}
+.tf-banner{border-left:4px solid var(--accent)}
+.tf-peringatan{margin:8px 0}
+.rs-bantuan .pill{margin:0 2px}
+.tile.click.aktif{outline:2px solid var(--accent);outline-offset:-2px}
+.struk .s-kode{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem;color:#5b6474}
+.upd-pop h2{margin:0 0 4px}
+.upd-pop .upd-ver{display:inline-block;background:linear-gradient(135deg,var(--g2,#1d5ad8),var(--g3,#6a3df0));color:#fff;border-radius:999px;padding:2px 12px;font-weight:700;font-size:.8rem}
+.upd-pop ul{margin:8px 0 8px 18px;padding:0;line-height:1.55}
+.upd-pop li{margin-bottom:6px}

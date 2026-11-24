@@ -227,11 +227,22 @@ service cloud.firestore {
       allow update: if isSuper();   // hanya untuk pemulihan dari backup
       allow delete: if isSuper();
     }
-    // Transfer stok: dikirim cabang asal, diterima cabang tujuan
+    // Transfer stok: dikirim cabang asal, diterima cabang tujuan.
+    // 5.31.0: cabang tujuan boleh Terima/Tolak; cabang asal boleh Batalkan kirim / Kembalikan ke stok (dikirim/ditolak → dibatalkan);
+    // kedua cabang boleh mengajukan pembatalan transfer yang sudah diterima (hanya kolom "batal"). Persetujuan pembatalan = super admin.
+    function ubahHanya(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
     match /transfer/{id} {
-      allow read: if isStaff() && (semuaCabang() || resource.data.dari == myCab() || resource.data.ke == myCab());
+      allow read: if isStaff() && (semuaCabang() || cabangSama(resource.data.dari) || cabangSama(resource.data.ke));
       allow create: if hasRole(['admin', 'sparepart']) && bolehCabang(request.resource.data.dari);
-      allow update: if hasRole(['admin', 'sparepart']) && (semuaCabang() || resource.data.ke == myCab());
+      allow update: if semuaCabang()
+        || (hasRole(['sparepart']) && cabangSama(resource.data.ke) && resource.data.status == 'dikirim'
+            && request.resource.data.status in ['diterima', 'ditolak']
+            && ubahHanya(['status', 'penerima', 'tglTerima', 'alasanTolak', 'ditolakOleh', 'tglTolak']))
+        || (hasRole(['sparepart']) && cabangSama(resource.data.dari) && resource.data.status in ['dikirim', 'ditolak']
+            && request.resource.data.status == 'dibatalkan'
+            && ubahHanya(['status', 'alasanBatal', 'dibatalkanOleh', 'tglBatal']))
+        || (hasRole(['sparepart']) && (cabangSama(resource.data.ke) || cabangSama(resource.data.dari)) && resource.data.status == 'diterima'
+            && ubahHanya(['batal']) && request.resource.data.batal.status == 'diminta');
       allow delete: if isSuper();
     }
     // Permintaan barang antar cabang: dibuat cabang peminta (dari), dikirim/ditolak cabang pemilik barang (ke)

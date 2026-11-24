@@ -19,7 +19,8 @@ export function notaRows(t) {
   if (t.mekanik) r.push({ type: 'lr', l: 'Mekanik', r: t.mekanik });
   if (t.kasir) r.push({ type: 'lr', l: 'Kasir', r: String(t.kasir).slice(0, 26) });
   r.push({ type: 'line' });
-  if (t.items.length) { r.push({ type: 'head', l: 'SPAREPART' }); t.items.forEach(x => r.push({ type: 'item', l: x.nama, sub: x.qty + ' x ' + n(x.harga), r: n(x.qty * x.harga) })); }
+  // 5.31.0: kode part ikut tercetak di bawah nama part
+  if (t.items.length) { r.push({ type: 'head', l: 'SPAREPART' }); t.items.forEach(x => r.push({ type: 'item', l: x.nama || x.kode, kode: x.kode || '', sub: x.qty + ' x ' + n(x.harga), r: n(x.qty * x.harga) })); }
   if ((t.jasa || []).length) { r.push({ type: 'head', l: 'JASA' }); t.jasa.forEach(j => r.push({ type: 'lr', l: '  ' + j.nama, r: t.jenisServis === 'KSG' ? 'GRATIS' : n(j.harga) })); }
   if ((t.biaya || []).length) { r.push({ type: 'head', l: 'BIAYA LAIN' }); t.biaya.forEach(b => r.push({ type: 'lr', l: '  ' + b.ket, r: n(b.jumlah) })); }
   r.push({ type: 'line' }, { type: 'lr', l: 'Subtotal', r: n(t.total + (t.diskon || 0)) });
@@ -44,7 +45,7 @@ export function notaHTML(t) {
     if (x.type === 'line') return '<hr>';
     if (x.type === 'head') return `<div class="s-head">${esc(x.l)}</div>`;
     if (x.type === 'center') return `<div class="s-center${x.small ? ' small' : ''}">${esc(x.l)}</div>`;
-    if (x.type === 'item') return `<div class="s-item"><div>${esc(x.l)}</div><div class="s-lr"><span class="muted">${esc(x.sub)}</span><span>${esc(x.r)}</span></div></div>`;
+    if (x.type === 'item') return `<div class="s-item"><div>${esc(x.l)}</div>${x.kode ? `<div class="s-kode">Kode: ${esc(x.kode)}</div>` : ''}<div class="s-lr"><span class="muted">${esc(x.sub)}</span><span>${esc(x.r)}</span></div></div>`;
     return `<div class="s-lr${x.bold ? ' s-total' : ''}"><span>${esc(String(x.l).trim())}</span><span>${esc(x.r)}</span></div>`;
   }).join('')}</div>`;
 }
@@ -54,7 +55,7 @@ export function notaText(t) {
   const W = 38, line = '-'.repeat(W);
   const lr = (l, r) => { l = String(l); r = String(r); const sp = W - l.length - r.length; return sp > 0 ? l + ' '.repeat(sp) + r : l.slice(0, W - r.length - 1) + ' ' + r; };
   const c = s => ' '.repeat(Math.max(0, Math.floor((W - s.length) / 2))) + s;
-  return notaRows(t).flatMap(x => x.type === 'line' ? [line] : x.type === 'lr' ? [lr(x.l, x.r)] : x.type === 'item' ? [x.l.slice(0, W), lr('  ' + x.sub, x.r)] : x.type === 'head' ? [x.l + ':'] : [c(x.l.slice(0, W))]).join('\n');
+  return notaRows(t).flatMap(x => x.type === 'line' ? [line] : x.type === 'lr' ? [lr(x.l, x.r)] : x.type === 'item' ? [x.l.slice(0, W), ...(x.kode ? ['  Kode: ' + String(x.kode).slice(0, W - 8)] : []), lr('  ' + x.sub, x.r)] : x.type === 'head' ? [x.l + ':'] : [c(x.l.slice(0, W))]).join('\n');
 }
 
 // Link halaman cek servis konsumen (nopol sudah terisi)
@@ -113,7 +114,7 @@ function printNota() {
   const margin = options.orientasi === 'struk' ? '0' : '12mm';
   const pad = options.orientasi === 'struk' ? '3mm 3mm 2mm' : '0';
   const printScript = options.orientasi === 'struk' ? `<script>(function(){function cetak(){var box=document.querySelector('.struk'),pxPerMm=96/25.4,h=Math.ceil((box?box.getBoundingClientRect().height:document.body.scrollHeight)/pxPerMm)+2;h=Math.max(35,h);var s=document.createElement('style');s.textContent='@page{size:75mm '+h+'mm;margin:0}html,body{height:'+h+'mm!important;min-height:0!important;max-height:none!important;overflow:visible!important}';document.head.appendChild(s);setTimeout(function(){window.print();setTimeout(function(){window.close()},500)},120)}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(cetak)}else{setTimeout(cetak,120)}})();<\/script>` : '';
-  w.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Nota ${esc(current.no)}</title><style>@page{size:${page};margin:${margin}}*{box-sizing:border-box}html,body{margin:0;padding:0;min-height:0;height:auto}body{font-family:Arial,sans-serif;width:${options.orientasi === 'struk' ? '75mm' : 'auto'};max-width:100%;padding:${pad};color:#111;font-size:${12 * large}px;line-height:1.4}.struk{width:100%;max-width:100%;overflow:visible}.s-title{text-align:center;font-weight:700;font-size:${18 * large}px;margin-bottom:3px}.s-sub,.s-center{text-align:center;overflow-wrap:anywhere;word-break:break-word}.s-center.small{font-size:${10 * large}px;color:#555}.s-head{font-weight:700;margin-top:8px}.s-lr{display:grid;grid-template-columns:minmax(0,42%) minmax(0,58%);gap:0;min-width:0;width:100%}.s-lr>span{min-width:0;overflow-wrap:anywhere;word-break:break-word}.s-lr>span:last-child{text-align:right}.s-item{margin:6px 0;overflow-wrap:anywhere;word-break:break-word}.s-total{font-weight:700;font-size:${14 * large}px}.s-center{margin-top:5px}hr{border:0;border-top:1px dashed #555;margin:7px 0}.muted{color:#555}@media print{html,body{width:${options.orientasi === 'struk' ? '75mm' : 'auto'};max-width:100%;height:auto;min-height:0}body{margin:0;padding:${pad}}}</style></head><body>${content}</body></html>${printScript}`);
+  w.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Nota ${esc(current.no)}</title><style>@page{size:${page};margin:${margin}}*{box-sizing:border-box}html,body{margin:0;padding:0;min-height:0;height:auto}body{font-family:Arial,sans-serif;width:${options.orientasi === 'struk' ? '75mm' : 'auto'};max-width:100%;padding:${pad};color:#111;font-size:${12 * large}px;line-height:1.4}.struk{width:100%;max-width:100%;overflow:visible}.s-title{text-align:center;font-weight:700;font-size:${18 * large}px;margin-bottom:3px}.s-sub,.s-center{text-align:center;overflow-wrap:anywhere;word-break:break-word}.s-center.small{font-size:${10 * large}px;color:#555}.s-head{font-weight:700;margin-top:8px}.s-lr{display:grid;grid-template-columns:minmax(0,42%) minmax(0,58%);gap:0;min-width:0;width:100%}.s-lr>span{min-width:0;overflow-wrap:anywhere;word-break:break-word}.s-lr>span:last-child{text-align:right}.s-item{margin:6px 0;overflow-wrap:anywhere;word-break:break-word}.s-kode{font-family:Consolas,'Courier New',monospace;font-size:${10.5 * large}px;color:#333}.s-total{font-weight:700;font-size:${14 * large}px}.s-center{margin-top:5px}hr{border:0;border-top:1px dashed #555;margin:7px 0}.muted{color:#555}@media print{html,body{width:${options.orientasi === 'struk' ? '75mm' : 'auto'};max-width:100%;height:auto;min-height:0}body{margin:0;padding:${pad}}}</style></head><body>${content}</body></html>${printScript}`);
   w.document.close(); w.focus(); if (!printScript) setTimeout(() => { w.print(); w.close(); }, 250);
 }
 

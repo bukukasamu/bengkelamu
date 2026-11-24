@@ -1,10 +1,10 @@
-# Panduan Penggunaan AMU Service · versi 5.21.0
+# Panduan Penggunaan AMU Service · versi 5.31.0
 
 Aceh Mandiri Utama — Sparepart & Bengkel Yamaha. Dokumen ini sama dengan menu **Panduan Penggunaan** di dalam aplikasi (www.amuservice.id/pos). Di aplikasi, setiap pengguna hanya melihat topik untuk perannya; dokumen ini memuat seluruh topik.
 
 ## Daftar isi
 
-1. Apa yang baru — versi 5.21.0
+1. Apa yang baru — versi 5.31.0
 2. Umum — semua pengguna
 3. Tampilan, navigasi & kecepatan
 4. Fungsi setiap menu
@@ -21,79 +21,103 @@ Aceh Mandiri Utama — Sparepart & Bengkel Yamaha. Dokumen ini sama dengan menu 
 
 ---
 
-## 1. Apa yang baru — versi 5.21.0
+## 1. Apa yang baru — versi 5.31.0
 
-_Ringkasan lengkap perubahan 5.19.0–5.21.0: sidebar laci + pintasan bawah di HP, menu profil gaya medsos, KSG 12 kolom, PDF absensi pribadi, tampilan modern bergradasi, PDF modern, Chat gaya messenger dengan status Online/Sibuk/Offline, dan loading yang jauh lebih ringan. Baca bagian ini dulu setelah aplikasi diperbarui._
+_Versi 5.31.0: menu Riwayat Stok, label asal barang (Input sendiri / Dari transfer), deteksi & pencegahan stok dobel, pembatalan pembelian dan transfer tanpa menghapus data, serta kode part di nota. Di bawahnya ringkasan perubahan 5.19.0–5.21.0._
 
-### 1.1 Baru di 5.21.0 — menu HP: sidebar kiri + pintasan bawah
+### 1.1 Baru di 5.31.0 — ringkasan
+
+**1.** Menu baru **Riwayat Stok** (grup Sparepart). **2.** Setiap barang masuk diberi label asal: [Input sendiri] atau [Dari transfer], terlihat di Riwayat Stok, Kartu stok, dan kolom **Asal masuk** Stok Part. **3.** Tanda [⚠ dobel?] otomatis untuk barang kiriman yang tercatat lagi sebagai pembelian. **4.** Peringatan saat mencatat Pembelian / terima PO bila part yang sama sedang dikirim dari cabang lain. **5.** Kiriman yang belum diterima tampil di Stok Part, Pembelian, dan Riwayat Stok dengan angka di menu. **6.** Pembatalan pembelian dan transfer (dengan persetujuan Super Admin) tanpa menghapus data. **7.** Nota part mencantumkan **kode part**. **8.** Jendela info update muncul sekali di setiap perangkat setelah versi baru terpasang.
+
+### 1.2 Baru di 5.31.0 — kenapa stok bisa dobel
+
+Transfer stok berjalan dua langkah: cabang asal **Kirim** (stok asal berkurang), cabang tujuan **Terima** (stok tujuan bertambah). Bila petugas cabang tujuan mencatat barang kiriman itu di **Pembelian Stok** dan juga menekan **Terima**, stok bertambah dua kali. Selain stok lebih, muncul hutang supplier palsu dan harga beli rata-rata ikut berubah. Mulai 5.31.0 hal ini dicegah (peringatan), mudah dilihat (label asal + tanda dobel), dan bisa dikoreksi (pembatalan pembelian).
+
+### 1.3 Baru di 5.31.0 — menu Riwayat Stok
+
+Buka **Sparepart → Riwayat Stok**. Pilih periode (**Hari ini, 7 hari, 30 hari, Bulan ini, Bulan lalu, 90 hari, Pilih tanggal**). Tab **Barang masuk & keluar** menampilkan setiap catatan stok: **tanggal & hari** (mis. Sel, 24 Nov 2026 · 21.45), part (nama + kode), label asal, jenis, nomor dokumen (PB / TF, bisa diklik), jumlah masuk/keluar, dan petugas. Kotak ringkasan di atas (Input sendiri, Dari transfer, Transfer keluar, Kemungkinan dobel) bisa diklik untuk menyaring. Tab **Ringkasan per part** menjumlahkan per part selama periode. Tab **Transfer antar cabang** berisi seluruh transfer masuk/keluar dengan saringan status. Tombol **⬇ Excel** mengunduh tampilan yang sedang dibuka.
+
+### 1.4 Baru di 5.31.0 — kolom Asal masuk di Stok Part
+
+Di Stok Part (bila ada lebih dari satu cabang) muncul kolom **Asal masuk**: [Input 5] berarti 5 pcs pernah dicatat sendiri oleh cabang ini, [TF 10] berarti 10 pcs datang dari transfer, dan [⚠ dobel?] berarti perlu diperiksa. Klik isi kolom untuk membuka Kartu stok. Di tombol **Filter** ada pilihan **Asal masuk**: Ada input sendiri, Ada dari transfer, Input sendiri + transfer, atau ⚠ Kemungkinan dobel.
+
+### 1.5 Baru di 5.31.0 — kode part di nota
+
+Nota penjualan part dan nota servis kini mencetak **Kode: …** di bawah nama setiap part. Berlaku untuk tampilan nota, cetak struk 75 mm dan folio, PDF, kiriman WhatsApp, dan halaman cek servis konsumen.
+
+### 1.6 Baru di 5.31.0 — info update sekali tampil
+
+Setelah versi baru terpasang, jendela **Aplikasi sudah diperbarui** muncul satu kali di setiap perangkat (HP/PC) berisi ringkasan perubahan. Tekan **Mengerti** untuk menutup, atau **Baca tata cara lengkap** untuk membuka panduan ini. Jendela tidak muncul lagi sampai ada versi berikutnya.
+
+### 1.7 Baru di 5.21.0 — menu HP: sidebar kiri + pintasan bawah
 
 Di HP, menu kembali memakai **sidebar kiri** seperti di PC, dalam bentuk laci yang meluncur dari kiri. Cara membuka: tekan **☰** di kiri atas, tekan tombol **Menu** di bilah bawah, atau **geser jari dari tepi kiri layar** ke kanan. Cara menutup: geser laci ke kiri, ketuk area gelap di kanan, pilih salah satu menu, atau tekan tombol Kembali HP. Di bawah layar ada **bilah pintasan** berisi 4 menu yang paling sering dipakai sesuai peran, plus tombol **Menu**. Pintasan bawaan: Super Admin — Beranda, Persetujuan, Laporan, Chat; Admin — Beranda, Registrasi, Bayar, Laporan; Registrasi — Registrasi, Riwayat Kendaraan, Konsumen, Cek Stok; Sparepart — Order Sparepart, Stok Part, Cek Stok, Pesanan Part; Kasir — Bayar, Jual Part, Kas, Laporan; Mekanik — Performa Mekanik, Cek Stok, Absensi, Gaji; Service Advisor — Beranda, Mekanik, Riwayat, Laporan; Sales — Absensi, Gaji, Chat (bila diberi akses), Panduan. Menu yang tidak diizinkan Hak Akses otomatis diganti menu lain yang boleh dibuka. Angka kuning tampil di pintasan; angka di tombol Menu adalah jumlah untuk menu yang tidak ada di pintasan.
 
-### 1.2 Baru di 5.21.0 — mengganti pintasan sendiri
+### 1.8 Baru di 5.21.0 — mengganti pintasan sendiri
 
 Setiap pengguna dapat memilih 4 pintasan bawahnya sendiri. **Cara 1:** buka sidebar, **tekan lama** (±½ detik) sebuah menu, lalu pilih **★ Jadikan pintasan bawah** atau **✕ Hapus dari pintasan bawah**; bila pintasan sudah 4, jendela pengaturan terbuka untuk memilih mana yang diganti. **Cara 2:** tombol **★ Atur pintasan bawah** di bagian bawah sidebar, atau **Menu profil → Atur pintasan bawah**: tambah menu dengan tombol ＋, hapus dengan ✕, ubah urutan dengan ◀ ▶, lalu **Simpan**. **Kembalikan bawaan** memakai daftar bawaan peran. Menu yang menjadi pintasan ditandai bintang ★ kuning di sidebar. Pilihan disimpan untuk akun Anda di HP tersebut.
 
-### 1.3 Baru di 5.21.0 — menu profil gaya media sosial
+### 1.9 Baru di 5.21.0 — menu profil gaya media sosial
 
 Ketuk **foto profil** di kanan atas. Muncul menu profil (di HP sebagai lembar dari bawah, di PC sebagai kotak di bawah foto) berisi: kartu profil (foto, nama, peran & cabang, tombol **Lihat & ubah profil**; ketuk foto untuk menggantinya), pilihan status **Online / Sibuk / Offline**, lalu **Profil saya**, **Ganti foto profil**, **Ganti PIN** (akun PIN), **Atur pintasan bawah** (HP), **Mode gelap/terang**, **Update aplikasi** (beserta nomor versi), **Pasang aplikasi** (bila tersedia), **Panduan penggunaan**, dan **Keluar**. Tombol-tombol tersebut tidak lagi berada di bagian bawah sidebar.
 
-### 1.4 Baru di 5.21.0 — Profil saya (biodata)
+### 1.10 Baru di 5.21.0 — Profil saya (biodata)
 
 Di **Menu profil → Profil saya** setiap karyawan dapat mengisi: foto, nama panggilan, No. HP/WhatsApp, bio/tentang saya (maks. 300 huruf), tanggal lahir, jenis kelamin, kota/domisili, mulai bekerja, alamat, Instagram, dan hobi/minat, lalu menekan **Simpan profil**. Centang **Tampilkan No. HP** bila nomor boleh dilihat rekan kerja. Nama lengkap, peran, dan cabang tetap diatur Super Admin. Rekan kerja dapat melihat **kartu profil** Anda dengan mengetuk foto/inisial Anda di Chat (kepala percakapan atau di samping pesan): tampil foto, nama panggilan, peran & cabang, status, bio, ulang tahun (tanggal & bulan saja), domisili, mulai bekerja, hobi, Instagram, dan tombol WhatsApp bila No. HP ditampilkan. Alamat dan tanggal lahir lengkap hanya terlihat oleh pemilik dan Super Admin. Foto profil kini dapat diganti semua karyawan (sebelumnya penyimpanan foto oleh karyawan bisa ditolak server).
 
-### 1.5 Baru di 5.21.0 — tampilan lain
+### 1.11 Baru di 5.21.0 — tampilan lain
 
 **Huruf di HP** memakai huruf bawaan sistem (Roboto di Android, San Francisco di iPhone) agar terasa seperti aplikasi asli; di PC tetap Plus Jakarta Sans. **Label tombol F1/F2/F3/F8** (mis. "Simpan [F2]") dihapus dari semua tombol supaya bersih; di PC dengan keyboard, tombol F1/F2/F3/F8 tetap berfungsi. **Panel daftar tetap di tempat (PC):** di Registrasi Servis, Pembayaran, Order Sparepart, Pembelian, dan WO, panel kiri (mis. Motor masuk) tidak ikut tergulir ketika formulir di kanan digulir ke bawah; daftar yang panjang digulir di dalam panelnya sendiri. **Tombol Kembali HP** langsung kembali ke menu sebelumnya tanpa pertanyaan; konfirmasi hanya muncul saat akan keluar aplikasi. **Warna bilah status HP** mengikuti warna tema.
 
-### 1.6 Baru di 5.20.0 — layar HP tidak bergoyang
+### 1.12 Baru di 5.20.0 — layar HP tidak bergoyang
 
 Tampilan HP kini terkunci seperti aplikasi: halaman tidak bisa digeser ke samping, tidak memantul saat ditarik di ujung atas/bawah, tidak bisa dicubit untuk zoom, dan tidak membesar sendiri saat mengetik di kotak isian. Jendela dialog (konfirmasi, rincian, pratinjau) muncul dari bawah layar selebar HP. Tombol cepat di bawah judul hanya tampil bila berguna (mis. Cetak Nota Terakhir hanya di Bayar, Jual Part, dan Laporan). Di menu dengan daftar + rincian (Pembayaran, Order Sparepart), setelah memilih motor layar otomatis bergulir ke rincian. Tabel lebar tetap dapat digeser ke samping di dalam kotaknya.
 
-### 1.7 Baru di 5.20.0 — Tarif KSG 12 kolom
+### 1.13 Baru di 5.20.0 — Tarif KSG 12 kolom
 
 **Master Data → Tarif KSG** sekarang memiliki **12 kolom (KSG 1 s.d. KSG 12)** per tipe motor yang dapat diisi sendiri sesuai buku servis/ketentuan main dealer. Kolom yang dikosongkan berarti tidak ada klaim. Kolom tipe motor tetap terlihat saat tabel digeser ke samping. Di **Registrasi Servis**, pilihan **KSG ke-** kini 1 sampai 12; bila tipe motor sudah punya tarif, nomor yang belum diisi tarifnya ditandai _(tanpa tarif)_. Tarif lama KSG 1–4 tidak berubah.
 
-### 1.8 Baru di 5.20.0 — cetak absensi pribadi (PDF / pratinjau)
+### 1.14 Baru di 5.20.0 — cetak absensi pribadi (PDF / pratinjau)
 
 Semua karyawan dapat mencetak absensinya sendiri. Buka **Absensi Saya**, pilih bulan dengan tombol ‹ ›, lalu tekan **👁 Pratinjau** untuk melihat laporan di layar, atau **⬇ PDF absensi** untuk mengunduh PDF (dari pratinjau juga ada tombol **Unduh PDF**). Isi laporan: identitas (nama, jabatan, cabang, jam kerja), ringkasan (hari hadir & uang hadir, terlambat & potongan, tanpa scan pulang, pulang cepat, izin/sakit/alpa), rincian harian (tanggal, jam masuk, jam pulang, durasi kerja, keterangan), aturan uang hadir, dan kolom tanda tangan karyawan & manajemen. Super Admin dapat membuat laporan yang sama untuk setiap karyawan dari **Absensi Karyawan → Rekap bulanan** (tombol 👁 dan PDF di setiap baris).
 
-### 1.9 Baru di 5.19.2 — dokumen PDF modern
+### 1.15 Baru di 5.19.2 — dokumen PDF modern
 
 Semua dokumen PDF kini memakai desain baru yang seragam: pita kepala bergradasi sesuai tema dengan logo toko di plat putih, judul dokumen dan periode di kanan atas, kartu informasi berwarna lembut, judul bagian dengan garis warna, tabel dengan kepala berwarna dan baris belang tipis, serta kaki halaman berisi tanggal cetak dan nomor halaman. Berlaku untuk: **Slip gaji** dan **slip THR/bonus** (kotak **Penghasilan bersih** bergradasi, total pendapatan hijau, potongan merah), **Laporan penjualan PDF** (kartu ringkasan berwarna, halaman lanjutan memakai kepala ringkas), **BAST transfer stok PDF** (kartu tanggal + lencana status DITERIMA/DIKIRIM, rute cabang), **Data konsumen & kendaraan PDF**, serta **Nota PDF** (pita warna tipis atas-bawah, total dalam kotak lembut). Tampilan cetak **BAST kendaraan masuk** dan **BAST transfer stok** (Print / Simpan PDF) juga diperbarui. Warna dokumen mengikuti tema di Master Data → Tema Tampilan (tema Gelap/Kaca memakai biru agar terang saat dicetak).
 
-### 1.10 Baru di 5.19.2 — tampilan HP lebih rapi
+### 1.16 Baru di 5.19.2 — tampilan HP lebih rapi
 
 Di HP: ukuran huruf tidak lagi membesar sendiri; bilah atas selalu satu baris (judul panjang dipotong dengan tanda …, pilihan cabang ringkas, tombol status dan foto profil tidak keluar layar); halaman tidak bisa bergeser ke samping; tab (mis. Master Data, Registrasi) dan pilihan periode (Laporan) tampil satu baris yang dapat **digeser ke samping**; tombol cepat (Baru, Simpan, Cetak) satu baris yang dapat digeser; tabel yang berisi isian (mis. Petugas & PIN) dapat digeser di dalam kotaknya tanpa memotong isian; jarak dan ukuran kartu disesuaikan; dialog muncul dari bawah layar. Foto petugas di Master Data → Petugas & PIN kini berupa lingkaran yang tinggal diketuk (tombol "Choose File" disembunyikan).
 
-### 1.11 Perbaikan 5.19.1 — browser lama (Windows 7)
+### 1.17 Perbaikan 5.19.1 — browser lama (Windows 7)
 
 Pada komputer Windows 7 (Chrome versi 109 ke bawah) tampilan 5.19.0 sempat bermasalah: sisi kiri halaman login putih sehingga nama toko tidak terbaca, tombol **Masuk** tidak terlihat, dan bilah kiri/atas tidak bergradasi. Penyebabnya fungsi warna baru yang belum dikenal browser lama. Versi 5.19.1 memakai cara pewarnaan yang didukung browser lama maupun baru, tanpa mengubah fungsi apa pun. Jika masih melihat tampilan putih, tekan **Update aplikasi** sekali. Disarankan tetap memperbarui browser/perangkat bila memungkinkan, karena Chrome di Windows 7 sudah tidak mendapat pembaruan keamanan.
 
-### 1.12 Cara memastikan sudah memakai versi terbaru
+### 1.18 Cara memastikan sudah memakai versi terbaru
 
 Lihat tulisan kecil **versi 5.21.0** di bagian bawah bilah kiri (atau di halaman login sisi kiri bawah). Jika masih tertulis versi lama, tekan **Update aplikasi** di bilah kiri bawah (atau di layar login). Tombol ini sekarang mengosongkan salinan aplikasi lama di perangkat, mengambil versi terbaru, lalu memuat ulang halaman secara otomatis dalam ±3 detik. Data transaksi tidak ikut terhapus.
 
-### 1.13 Ringkasan perubahan
+### 1.19 Ringkasan perubahan
 
 **1. Tampilan baru "Aurora":** bilah kiri dan bilah atas memakai gradasi warna yang menyambung dari kiri ke kanan, kartu dan tombol lebih bulat, huruf Plus Jakarta Sans yang lebih mudah dibaca, ikon di setiap menu, dan kartu sapaan bergradasi di Beranda. **2. Chat Internal baru:** tampilan dua kolom seperti aplikasi pesan, status **Online (live) / Sibuk / Offline** setiap petugas, penanda pesan belum dibaca per percakapan, pemisah tanggal, Enter untuk kirim, dan bisa chat pribadi dengan Super Admin. **3. Loading lebih ringan:** aplikasi dibuka dari salinan di perangkat, data dimuat bersamaan, dan menu yang dibuka ulang tidak mengunduh data yang sama berkali-kali.
 
-### 1.14 Status Online/Sibuk/Offline
+### 1.20 Status Online/Sibuk/Offline
 
 Sejak 5.21.0 status diatur dari **menu profil** (ketuk foto profil di kanan atas → pilih Online, Sibuk, atau Offline). Titik kecil di sudut foto profil Anda menunjukkan status yang aktif. Lihat topik **Chat & Status** untuk penjelasan lengkap.
 
-### 1.15 Kartu sapaan di Beranda
+### 1.21 Kartu sapaan di Beranda
 
 Bagian paling atas Beranda menampilkan salam sesuai jam (pagi/siang/sore/malam), nama Anda, tanggal lengkap, ringkasan hari ini (omzet dan jumlah motor di bengkel, bila peran Anda boleh melihatnya), serta maksimal empat tombol pintas: **Motor masuk**, **Jual part**, **Pembayaran**, **Cek stok**, atau **Chat**. Tombol pintas hanya muncul untuk menu yang memang boleh Anda buka.
 
-### 1.16 Apa yang lebih cepat
+### 1.22 Apa yang lebih cepat
 
 **Membuka aplikasi:** file aplikasi tidak lagi diunduh satu per satu dari internet setiap kali dibuka; versi baru diunduh diam-diam di belakang layar. **Setelah login:** data cabang, hak akses, dan data petugas dibaca bersamaan. Aplikasi terbuka paling lama ±3,5 detik walau sinyal lemah; data yang belum datang akan langsung mengisi layar begitu tiba. **Menu yang sering dibuka:** daftar petugas dan data nota periode lama (Laporan, Performa Mekanik, Klaim KSG, Penghasilan) disimpan sementara 60 detik, sehingga berpindah menu lalu kembali terasa instan. **Chat:** pesan sudah terunduh sejak login, jadi Chat langsung tampil tanpa loading.
 
-### 1.17 Apakah ada yang berubah pada cara kerja transaksi?
+### 1.23 Apakah ada yang berubah pada cara kerja transaksi?
 
 Tidak. Registrasi, order part, pembayaran, stok, kas, retur, absensi, penghasilan, dan laporan bekerja sama seperti sebelumnya. Perubahan hanya pada tampilan, Chat, dan cara data dimuat. Semua tombol, menu, dan hak akses tetap di tempat yang sama.
 
-### 1.18 Yang perlu dilakukan Super Admin setelah update
+### 1.24 Yang perlu dilakukan Super Admin setelah update
 
 **1.** Publish ulang **firestore.rules** (berisi aturan baru koleksi `presence` untuk status Online/Sibuk/Offline). Tanpa ini aplikasi tetap jalan, tetapi semua petugas akan terlihat Offline. **2.** Deploy **firestore.indexes.json** (dua index baru untuk koleksi `chat`) supaya pesan selalu diambil dari yang terbaru. Tanpa index, Chat otomatis memakai cara lama sehingga tetap berfungsi. **3.** Minta semua perangkat menekan **Update aplikasi** sekali.
 
@@ -275,43 +299,47 @@ _Daftar lengkap seluruh menu aplikasi: kegunaan, peran yang biasanya dapat membu
 
 **Peran:** Admin, Sparepart. **Fungsi:** **+ Mulai opname**, menghitung fisik per part, **Ajukan ke super admin**; Super Admin dapat **Setujui & sesuaikan stok** atau **Tolak**.
 
-### 4.16 Pembelian Stok
+### 4.16 Riwayat Stok
+
+**Peran:** Admin, Sparepart (baru 5.31.0). **Fungsi:** semua barang masuk/keluar cabang dengan tanggal & hari, label asal **Input sendiri** / **Dari transfer**, deteksi **⚠ kemungkinan dobel**, ringkasan per part, riwayat transfer lengkap (terima, tolak, batal, BAST), dan export Excel.
+
+### 4.17 Pembelian Stok
 
 **Peran:** Admin, Sparepart. **Fungsi:** mencatat pembelian dari supplier, menambah stok, harga beli, dan riwayat pembelian per cabang.
 
-### 4.17 Laporan Penjualan
+### 4.18 Laporan Penjualan
 
 **Peran:** Admin, Kasir, Service Advisor. **Fungsi:** pilihan **Harian, Mingguan, Bulanan, Tahunan, Custom**; kotak Total omzet, Penjualan part, Jasa servis, Klaim KSG (klik untuk menyaring); omzet per cabang; part terlaris; daftar nota (buka nota untuk **Ajukan pembatalan**/retur sesuai hak akses); **Unduh laporan Excel** atau **PDF**.
 
-### 4.18 Kas & Pengeluaran
+### 4.19 Kas & Pengeluaran
 
 **Peran:** Admin, Kasir. **Fungsi:** tab **Kas harian** (uang laci awal, cash masuk, setor/tarik bank, saldo laci yang diharapkan, **Tutup kas** dan modal besok) dan tab **Pengeluaran** (pengeluaran tunai/transfer).
 
-### 4.19 Klaim KSG
+### 4.20 Klaim KSG
 
 **Peran:** Admin, Kasir. **Fungsi:** daftar servis KSG per bulan, nilai klaim ke main dealer, pencatatan pembayaran klaim.
 
-### 4.20 Insight Konsumen
+### 4.21 Insight Konsumen
 
 **Peran:** Admin. **Fungsi:** konsumen terbaik, kunjungan servis per hari/bulan, jenis servis, tipe motor, jenis kelamin, usia, wilayah (kabupaten/kecamatan), daftar perlu diingatkan servis, unduh Excel.
 
-### 4.21 Backup Data
+### 4.22 Backup Data
 
 **Peran:** Super Admin. **Fungsi:** **⬇ Backup sekarang** (file seluruh koleksi) dan **Pulihkan dari backup** untuk data terpilih. Lakukan minimal seminggu sekali.
 
-### 4.22 Master Data
+### 4.23 Master Data
 
 **Peran:** Admin (sebagian tab khusus Super Admin). **Tab:** Jasa Servis, Tarif KSG, Mekanik, Rekening, Tipe Motor, Petugas & PIN, Layar TV, Cabang, Insentif & Potongan, Logo, Tema Tampilan, Hak Akses Menu, Riwayat Perubahan Konsumen, Log Aktivitas.
 
-### 4.23 Absensi Saya / Absensi Karyawan
+### 4.24 Absensi Saya / Absensi Karyawan
 
 **Petugas:** tombol **Scan QR absen masuk/pulang**, selfie, riwayat absensi per bulan, **👁 Pratinjau** dan **⬇ PDF absensi** pribadi. **Super Admin (Absensi Karyawan):** tab Harian, Rekap bulanan (dengan pratinjau/PDF per karyawan), Layar QR, HP terdaftar, dan Pengaturan.
 
-### 4.24 Penghasilan Saya / Penghasilan Karyawan
+### 4.25 Penghasilan Saya / Penghasilan Karyawan
 
 **Petugas:** gaji pokok, insentif, uang hadir, potongan, slip gaji PDF, THR & bonus milik sendiri. **Super Admin:** rekap seluruh karyawan, **Kunci bulan** untuk menerbitkan slip, unduh Excel, THR & Bonus karyawan.
 
-### 4.25 Panduan Penggunaan
+### 4.26 Panduan Penggunaan
 
 **Peran:** semua (tidak dapat dimatikan). **Fungsi:** pusat bantuan ini, pencarian kata kunci lintas topik, dan tombol **Cetak**.
 
@@ -469,63 +497,67 @@ Buka **Pengingat Servis**. Tab **Perlu diingatkan** berisi motor yang sudah menc
 
 _Menerima pembayaran servis atau penjualan part, mencetak nota, mengelola kas, dan memantau klaim._
 
-### 7.1 Batas tugas Kasir
+### 7.1 Kode part di nota (5.31.0)
+
+Nota part dan nota servis mencetak **Kode: …** di bawah nama setiap part, sehingga konsumen dan gudang bisa mencocokkan barang dengan tepat. Tidak ada langkah tambahan — cukup cetak, unduh PDF, atau kirim WhatsApp seperti biasa.
+
+### 7.2 Batas tugas Kasir
 
 Kasir berfokus pada **klik bayar**: cash atau transfer. Tambahan biaya, jasa, part, diskon, jenis layanan, dan finalisasi pekerjaan dilakukan di Register sesuai alur bengkel. Kasir tidak menekan Selesai/Tunda untuk laporan mekanik.
 
-### 7.2 Membayar servis
+### 7.3 Membayar servis
 
 Buka **Pembayaran & Status Servis**, pilih motor berstatus **Selesai**, periksa nama konsumen, nomor polisi, rincian jasa, part, biaya lain, diskon, total, dan jenis KSG/KSB. Pilih **Cash** atau **Transfer**, pilih rekening bila transfer, masukkan nominal, tekan `F2`, periksa dialog konfirmasi, lalu setujui.
 
-### 7.3 KSG saat pembayaran
+### 7.4 KSG saat pembayaran
 
 Untuk KSG, jasa standar gratis untuk konsumen. Part dan biaya/jasa tambahan tetap masuk sesuai data Register. Periksa nilai total sebelum menerima uang. Jika jasa KSG masih muncul sebagai tagihan, hentikan pembayaran dan minta Register memperbaiki jenis servisnya.
 
-### 7.4 Nota pembayaran
+### 7.5 Nota pembayaran
 
 Setelah pembayaran berhasil, nota dapat dicetak, diunduh PDF, atau dikirim melalui WhatsApp. Periksa nomor nota, nama, nomor polisi, total, metode bayar, dan link cek servis sebelum menyerahkan nota.
 
-### 7.5 Pembayaran cash
+### 7.6 Pembayaran cash
 
 Hitung uang yang diterima, masukkan nominal sebenarnya, dan periksa kembalian. Jangan memasukkan nominal pas jika konsumen memberikan uang lebih. Uang cash setelah kembalian masuk perhitungan kas harian.
 
-### 7.6 Pembayaran transfer
+### 7.7 Pembayaran transfer
 
 Pastikan transfer benar-benar masuk ke rekening bengkel, pilih rekening yang sesuai, lalu simpan bukti bila prosedur cabang mewajibkan. Jangan menerima berdasarkan screenshot tanpa memeriksa mutasi atau konfirmasi yang sah.
 
-### 7.7 Pesanan part pribadi dari Sparepart
+### 7.8 Pesanan part pribadi dari Sparepart
 
 Bagian Sparepart membuka menu khusus **Pesanan Part Pribadi** (bukan Penjualan Sparepart milik Kasir). Menu ini hanya untuk input pesanan dan cetak cek; tidak menampilkan pilihan cash/transfer dan tidak dapat memproses pembayaran. Isi **Nama pemesan**, mengisi **Nama pemesan** dan **Nomor HP**, mencari part, memasukkan jumlah, lalu memeriksa harga dan stok. Tekan **Simpan pesanan & cetak cek**. Lembar cetak diberikan kepada konsumen untuk memeriksa nama part, jumlah, harga, dan total. Pesanan belum dibayar pada tahap ini; pembayaran dilakukan di menu Kasir.
 
-### 7.8 Pemeriksaan pesanan di Kasir
+### 7.9 Pemeriksaan pesanan di Kasir
 
 Kasir membuka menu khusus **Penjualan Sparepart**. Hanya menu ini yang menampilkan pembayaran. Kasir melihat bagian **Pesanan dari Sparepart** dan melihat bagian **Pesanan dari Sparepart**. Pilih **Periksa & bayar**, cocokkan barang fisik dengan lembar yang sudah dicek konsumen, lalu terima pembayaran cash atau transfer. Jika ada kesalahan, jangan bayar; tekan **Tidak sesuai**, isi alasan, dan pesanan kembali ke Sparepart untuk diperbaiki.
 
-### 7.9 Peringatan barang part pribadi
+### 7.10 Peringatan barang part pribadi
 
 Gunakan bahasa yang jelas kepada konsumen: **Harap periksa kembali barang pesanan, nama part, jumlah, dan harganya. Setelah pembayaran dilakukan, barang yang sudah dibeli tidak dapat dikembalikan atau ditukar.** Jangan melanjutkan pembayaran sebelum konsumen menyatakan pesanannya sesuai.
 
-### 7.10 Kesalahan sebelum pembayaran
+### 7.11 Kesalahan sebelum pembayaran
 
 Jangan membayar WO yang salah. Kembali ke Register untuk memperbaiki data, jasa, part, biaya, atau jenis layanan. Setelah diperbaiki, muat ulang daftar pembayaran dan periksa total lagi.
 
-### 7.11 Pembatalan nota
+### 7.12 Pembatalan nota
 
 Nota yang sudah dibayar tidak diedit langsung. Buka nota, pilih **Ajukan pembatalan**, tulis alasan rinci, lalu kirim untuk persetujuan super admin. Jangan membuat nota pengganti sebelum status pembatalan jelas.
 
-### 7.12 Kas harian dan pembelian
+### 7.13 Kas harian dan pembelian
 
 Pagi hari buka **Kas & Pengeluaran → Buka kas** dan isi uang awal. Setiap pembayaran servis dan part pribadi otomatis masuk ke transaksi kas: bagian **cash** menambah uang laci setelah memperhitungkan kembalian, sedangkan **transfer** langsung masuk rekening yang dipilih dan tidak menambah laci.
 
-### 7.13 Setor dan tarik uang bank
+### 7.14 Setor dan tarik uang bank
 
 Saat menyetor uang laci ke bank, gunakan **Setor ke bank** atau isi setoran saat **Tutup kas**. Sistem mencatat uang laci berkurang dan mutasi bank bertambah. Jika mengambil uang dari bank untuk laci, gunakan **Tarik dari bank**; sistem mencatat bank berkurang dan laci bertambah. Periksa tanggal, jumlah, dan keterangan sebelum menyimpan.
 
-### 7.14 Pengeluaran
+### 7.15 Pengeluaran
 
 Buka tab **Pengeluaran**, isi tanggal, kategori, keterangan, nominal, dan sumber dana. Pilih **Tunai** jika uang diambil dari laci; pilih **Transfer / rekening** jika dibayar dari bank. Pengeluaran tunai mengurangi uang yang seharusnya ada di laci, sedangkan pengeluaran transfer tidak melewati laci.
 
-### 7.15 Klaim KSG
+### 7.16 Klaim KSG
 
 Buka **Klaim KSG**, pilih periode, periksa WO/nota KSG, centang dokumen yang diajukan, lalu kirim pengajuan. Saat pembayaran dari main dealer diterima, tekan **Tandai dibayar**, isi tanggal dan jumlah diterima. Sistem menandai nota dan otomatis mencatat penerimaan klaim sebagai **mutasi masuk bank**, bukan uang laci.
 
@@ -635,27 +667,63 @@ Buka **Stok Part** untuk mencari kode/nama, melihat stok, harga beli, harga jual
 
 Di Stok Part pilih **Part baru**, isi kode unik, nama, kategori, harga beli, harga jual, dan stok awal bila diizinkan. Simpan dan tunggu pesan berhasil. Jika salah ketik, ubah data; penghapusan part hanya untuk super admin dengan verifikasi password dan masuk log aktivitas.
 
-### 10.9 Pembelian supplier
+### 10.9 Order supplier sebelum barang datang
+
+**Peran: Sparepart.** Buka **Order ke Supplier**. Gunakan **Isi dari stok menipis** untuk membuat saran sampai 2× stok minimum, atau tambahkan kampas rem, ban, oli, dan part baru sendiri. Satu PO boleh berisi beberapa supplier. Simpan draft lalu **Ajukan persetujuan**; hanya Super Admin yang menyetujui di menu Persetujuan sebelum order dikirim. Saat barang datang, Sparepart memilih **Terima barang datang**, mencentang jumlah yang benar-benar datang dan mengisi harga invoice. Aplikasi otomatis membuat Pembelian Stok dan menambah stok; sisa tetap tercatat di PO.
+
+### 10.10 Pembelian supplier
 
 Buka **Pembelian Stok → Invoice baru**. Isi tanggal, nomor invoice, supplier, status pembayaran, jatuh tempo, serta item dan harga beli. Simpan draft. Saat barang datang, buka **Preview & terima barang**, cocokkan fisik, lalu masukkan ke stok.
 
-### 10.10 Transfer antar cabang
+### 10.11 Transfer antar cabang (mengirim)
 
-Di **Stok Part → Transfer**, pilih cabang tujuan, tambahkan part dan jumlah, periksa, lalu kirim. Pengirim membuat BAST dari riwayat transfer; penerima memeriksa fisik kemudian menekan **Terima**.
+Di **Stok Part → Transfer stok**, tambahkan part dan jumlah, pilih cabang tujuan, isi catatan (mis. dibawa oleh siapa), lalu tekan **Kirim** dan setujui. Stok cabang pengirim langsung berkurang; transfer berstatus **Dikirim · belum diterima**. Cetak **BAST** untuk dibawa bersama barang.
 
-### 10.11 BAST transfer stok
+### 10.12 Menerima kiriman dari cabang lain
+
+Kiriman yang belum diterima tampil di kotak **📦 Kiriman dari cabang lain menunggu diterima** (Stok Part, Pembelian Stok, Riwayat Stok) dan sebagai angka kuning di menu. Cocokkan barang fisik dengan nomor TF/BAST, lalu tekan **Terima**. Stok cabang Anda bertambah dan tercatat sebagai [Dari transfer]. **JANGAN catat barang kiriman di Pembelian Stok** — itu membuat stok dobel.
+
+### 10.13 Menolak kiriman
+
+Bila barang tidak sampai, kurang, atau salah kirim, tekan **Tolak** dan tulis alasannya. Stok tidak berubah. Cabang pengirim akan melihat status **Ditolak penerima** lalu menekan **Kembalikan ke stok** setelah barangnya kembali.
+
+### 10.14 Membatalkan kiriman (cabang pengirim)
+
+Selama belum diterima, cabang pengirim bisa menekan **Batalkan kirim** (Riwayat Stok → Transfer, atau riwayat di jendela Transfer stok) dan mengisi alasan. Stok pengirim bertambah kembali, tercatat di kartu stok sebagai **Transfer dibatalkan (stok kembali)**. Bila transfer berasal dari permintaan barang, permintaannya ikut ditandai.
+
+### 10.15 Membatalkan transfer yang sudah diterima
+
+Tekan **Ajukan pembatalan** pada transfer berstatus Diterima dan tulis alasannya. Super Admin menyetujui di menu Persetujuan; stok cabang tujuan berkurang dan stok cabang asal bertambah. Pakai **hanya** bila barang benar-benar dikembalikan. Bila stok dobel karena barang kiriman juga dicatat di Pembelian, yang dibatalkan adalah **pembeliannya**, bukan transfernya.
+
+### 10.16 Membedakan barang input sendiri dan dari transfer
+
+**Cara 1 (semua part):** buka **Riwayat Stok**, pilih periode; kolom **Asal** menampilkan [Input sendiri] (Pembelian / terima PO / stok awal, nomor **PB-…**) atau [Dari transfer] (nomor **TF-…**, keterangan "dari [cabang]"). **Cara 2 (per part):** Stok Part → kolom **Asal masuk**, atau klik part → **Kartu stok**. Kartu stok menampilkan tanggal & hari, asal, jenis, nomor dokumen, saldo, dan petugas.
+
+### 10.17 Membereskan stok dobel
+
+**1.** Buka Riwayat Stok, pilih periode **90 hari**, klik kotak **⚠ Kemungkinan dobel**. **2.** Setiap baris menampilkan pasangannya (TF dan PB). Cocokkan dengan barang fisik dan BAST. **3.** Bila barang memang kiriman cabang lain, klik nomor **PB** lalu tekan **Ajukan pembatalan** dengan alasan (mis. "barang dari TF-xxx, salah input"). **4.** Setelah Super Admin menyetujui, stok berkurang kembali, hutang supplier invoice itu hilang, dan harga beli rata-rata dikembalikan. **5.** Bila sebagian barang sudah terjual sehingga stok tidak cukup untuk dibatalkan, koreksi lewat **Stok opname**. Tanda dobel hanya petunjuk: selalu cek fisik sebelum mengajukan.
+
+### 10.18 Peringatan saat mencatat pembelian
+
+Saat menekan **Preview & terima barang** di Pembelian Stok (atau terima barang dari PO), aplikasi memeriksa transfer ke cabang Anda yang berisi part yang sama (masih dikirim, atau diterima 14 hari terakhir). Bila ada, muncul kotak merah **⚠ Awas stok dobel!**. Bila barang itu kiriman cabang lain, tutup jendela dan tekan Terima di Stok Part. Centang **Saya sudah cek: barang ini dari supplier** hanya bila barang memang dibeli dari supplier (ada invoice).
+
+### 10.19 Membatalkan pembelian yang sudah masuk stok
+
+Buka pembelian (Pembelian Stok, atau klik nomor PB di Riwayat Stok), tekan **Ajukan pembatalan**, tulis alasannya. Pembelian bertanda **Pembatalan diajukan** sampai Super Admin menyetujui/menolak. Setelah disetujui statusnya **Dibatalkan**: stok dikurangi, tercatat di kartu stok sebagai **Batal pembelian**, tidak dihitung sebagai hutang/pembelian, dan nomor invoice boleh dipakai lagi. Draft yang belum masuk stok cukup dihapus dengan **Hapus draft**.
+
+### 10.20 BAST transfer stok
 
 Buka riwayat transfer, tekan **BAST**, periksa nomor transfer, cabang asal/tujuan, item, jumlah, pengirim, penerima, catatan, dan status. Tekan **Print / Simpan PDF** atau **Unduh PDF**. BAST dapat dipakai sebagai dokumen serah terima internal.
 
-### 10.12 Permintaan antar cabang
+### 10.21 Permintaan antar cabang
 
 Jika stok cabang sendiri kurang, gunakan **Cek Stok → Minta kirim**. Cabang pemilik membuka **Permintaan masuk**, lalu memilih Kirim atau Tolak dengan alasan. Setelah barang tiba, cabang peminta wajib menekan **Terima**.
 
-### 10.13 Stok opname
+### 10.22 Stok opname
 
 Buka **Stok Opname → Mulai opname**, hitung fisik per kode, isi jumlah sebenarnya, dan ajukan. Super admin memeriksa selisih lalu menyetujui atau menolak. Jangan mengubah stok manual untuk menutupi selisih.
 
-### 10.14 Export data stok
+### 10.23 Export data stok
 
 Gunakan **Export Excel** untuk analisis. File dapat berisi semua cabang, total per cabang, dan sheet masing-masing cabang. Filter Excel berdasarkan kolom cabang atau kategori.
 
@@ -687,39 +755,43 @@ Bila diberi akses Chat, gunakan ruang Umum untuk informasi bersama dan chat prib
 
 _Mengawasi operasional, memperbaiki data sesuai izin, memeriksa laporan, dan membantu semua bagian._
 
-### 12.1 Rutinitas awal hari
+### 12.1 Memeriksa stok dobel per cabang
+
+Pindah cabang di kanan atas, buka **Riwayat Stok**, periode 90 hari, klik **⚠ Kemungkinan dobel**. Minta Sparepart cabang memeriksa fisik dan mengajukan pembatalan pembelian bila barang ternyata kiriman. Admin juga dapat menerima, menolak, dan membatalkan transfer untuk semua cabang.
+
+### 12.2 Rutinitas awal hari
 
 Buka Beranda, periksa motor aktif, mekanik kosong/sibuk, stok menipis, permintaan transfer, kas, dan notifikasi persetujuan. Pastikan layar TV serta perangkat absensi aktif.
 
-### 12.2 Rutinitas akhir hari
+### 12.3 Rutinitas akhir hari
 
 Pastikan semua motor memiliki status yang benar, order part tersimpan, motor selesai sudah dilaporkan Register, pembayaran tidak tertinggal, kas ditutup, dan permintaan transfer ditindaklanjuti.
 
-### 12.3 Membantu Register
+### 12.4 Membantu Register
 
 Admin dapat membuka Registrasi, mencari WO, memeriksa data konsumen/kendaraan, memperbaiki data, mengatur tipe/mekanik, menerima laporan Selesai/Tunda, dan mencetak BAST. Untuk KM lebih kecil, wajib menulis catatan alasan.
 
-### 12.4 Membatalkan pendaftaran
+### 12.5 Membatalkan pendaftaran
 
 Gunakan hanya untuk pendaftaran ganda atau salah daftar yang belum dibayar. Periksa nomor WO, nomor antrean, part yang sudah dipesan, dan alasan. Konfirmasi penghapusan karena data servis, layar, dan cek konsumen ikut terpengaruh.
 
-### 12.5 Konsumen dan kendaraan
+### 12.6 Konsumen dan kendaraan
 
 Gunakan menu **Konsumen & Kendaraan** untuk mencari, memperbaiki, menggabungkan data konsumen ganda, memindahkan motor ke pemilik yang benar, melihat log perubahan, dan mencetak daftar konsumen. Selalu tulis alasan untuk koreksi kepemilikan.
 
-### 12.6 Persetujuan perangkat layar absensi
+### 12.7 Persetujuan perangkat layar absensi
 
 Jika ada perangkat baru, cocokkan kode yang tampil di perangkat dengan permintaan di menu **Persetujuan**. Setujui hanya perangkat milik cabang. Cabut perangkat yang hilang atau tidak dikenal.
 
-### 12.7 Master Data yang dikelola admin
+### 12.8 Master Data yang dikelola admin
 
 Admin biasanya mengatur tipe motor dan layar TV. Harga jasa, tarif KSG, rekening, mekanik, petugas, insentif, cabang, logo, tema, dan hak akses dapat dibatasi untuk super admin sesuai konfigurasi.
 
-### 12.8 Laporan dan Insight
+### 12.9 Laporan dan Insight
 
 Gunakan Laporan Penjualan untuk memeriksa omzet, nota, metode pembayaran, part terlaris, laba part, kasir, mekanik, dan cabang. Insight Konsumen membantu menemukan konsumen yang lama tidak datang.
 
-### 12.9 Backup dan perubahan versi
+### 12.10 Backup dan perubahan versi
 
 Sebelum perubahan besar, pastikan backup tersedia. Setelah rilis aplikasi baru, minta pengguna menekan **Update aplikasi** (bilah kiri bawah) bila tampilan lama masih terlihat; tombol ini mengosongkan salinan aplikasi di perangkat lalu memuat versi baru tanpa menghapus data. Jangan menghapus data Firebase untuk memperbaiki masalah tampilan.
 
@@ -729,59 +801,67 @@ Sebelum perubahan besar, pastikan backup tersedia. Setelah rilis aplikasi baru, 
 
 _Keamanan, master data, persetujuan, cabang, payroll, backup, dan audit._
 
-### 13.1 Keamanan akun utama
+### 13.1 Wajib setelah update 5.31.0
+
+**1.** Firebase Console → Firestore → **Rules**: tempel isi `firestore.rules` terbaru lalu **Publish** (aturan baru transfer: terima/tolak/batal kirim/ajukan pembatalan). Tanpa ini, tombol Tolak/Batalkan kirim/Ajukan pembatalan oleh Sparepart cabang akan ditolak. **2.** Deploy `firestore.indexes.json` (index baru `mutasi: cabang + tgl`) supaya Riwayat Stok cepat; sebelum index jadi, riwayat tetap tampil tetapi lebih lambat. **3.** Minta setiap perangkat menekan **Update aplikasi** bila belum versi 5.31.0. **4.** Periksa menu **Riwayat Stok** di setiap cabang (pindah cabang di kanan atas) dengan saringan **⚠ Kemungkinan dobel** periode 90 hari.
+
+### 13.2 Persetujuan pembatalan pembelian & transfer
+
+Menu **Persetujuan** memiliki dua bagian baru. **Pembatalan pembelian stok:** periksa nomor PB, supplier, barang, dan alasan; klik nomor PB untuk membuka detailnya. **Setujui** (catatan + password) → stok cabang berkurang, harga beli rata-rata dikembalikan, invoice berstatus Dibatalkan. Bila stok tidak cukup (sebagian sudah terjual), aplikasi menolak dan menyarankan stok opname. **Pembatalan transfer:** setujui hanya bila barang benar-benar kembali; stok tujuan berkurang dan stok asal bertambah. Super Admin juga dapat langsung menekan **Batalkan pembelian** / **Batalkan transfer** dari dokumennya.
+
+### 13.3 Keamanan akun utama
 
 Gunakan email dan password super admin hanya untuk pemilik/penanggung jawab. Jangan menyimpan password di komputer kasir. Setelah selesai, keluar akun. Tindakan sensitif harus dilakukan sendiri dan tidak didelegasikan dengan membagikan password.
 
-### 13.2 Master jasa dan harga
+### 13.4 Master jasa dan harga
 
 Buka **Master Data → Jasa Servis**. Tambahkan, ubah, aktifkan/nonaktifkan, atau hapus jasa sesuai kebijakan. Perubahan harga baru berlaku pada transaksi berikutnya; data lama menyimpan rincian harga saat transaksi.
 
-### 13.3 Master Tarif KSG
+### 13.5 Master Tarif KSG
 
 Buka **Master Data → Tarif KSG**. Isi nilai klaim per tipe motor untuk **KSG ke-1 sampai ke-12** (12 kolom, geser tabel ke samping untuk kolom berikutnya). Kosongkan kolom yang tidak ada klaimnya; kolom kosong di akhir tidak disimpan. Tekan **Simpan tarif KSG** atau F2. Pastikan tipe motor dan tarif sesuai dokumen main dealer karena nilai ini masuk laporan klaim dan penghasilan mekanik.
 
-### 13.4 Mekanik dan petugas
+### 13.6 Mekanik dan petugas
 
 Atur nama, peran, cabang, akun PIN, dan reset PIN. Jangan menggunakan nama yang sama untuk dua orang. Saat petugas keluar, nonaktifkan aksesnya dan jangan hanya mengganti nama akun lama tanpa mempertimbangkan histori.
 
-### 13.5 Rekening dan cabang
+### 13.7 Rekening dan cabang
 
 Isi rekening transfer yang benar dan data cabang, termasuk nama, alamat, nomor telepon/WA, serta pengaturan layar. Data cabang dipakai pada nota, laporan, transfer, dan komunikasi konsumen.
 
-### 13.6 Hak akses menu
+### 13.8 Hak akses menu
 
 Buka **Master Data → Hak Akses Menu**. Centang hanya menu yang diperlukan tiap peran. **Chat Internal** harus dicentang per peran agar muncul (bawaan tidak aktif). Kotak ringkasan Beranda per peran juga diatur di sini. Panduan selalu dapat dibuka dan tidak dapat dimatikan. Perubahan langsung berlaku di perangkat yang sedang login tanpa perlu keluar-masuk. Uji dengan akun peran terkait setelah menyimpan.
 
-### 13.7 Publish aturan & index versi 5.19.0
+### 13.9 Publish aturan & index versi 5.19.0
 
 Setelah update ke 5.21.0 publish ulang rules (berisi koleksi `presence` dan `profil`). Rincian sejak 5.19.0: **1.** Firebase Console → Firestore → Rules: tempel isi **firestore.rules** terbaru lalu Publish (menambah koleksi `presence` untuk status Online/Sibuk/Offline; setiap petugas hanya boleh menulis status miliknya dan wajib memakai jam server). **2.** Deploy **firestore.indexes.json** (index `chat`: ruang + tgl menurun, dan participantEmails + ruang + tgl menurun) melalui Firebase CLI `firebase deploy --only firestore:indexes` atau buat manual di Console → Indexes. Tunggu status index **Enabled**. Tanpa langkah 1, semua petugas tampil Offline; tanpa langkah 2, Chat tetap jalan memakai cara lama.
 
-### 13.8 Biaya baca/tulis status online
+### 13.10 Biaya baca/tulis status online
 
 Setiap perangkat yang membuka aplikasi menulis 1 dokumen status setiap 2,5 menit selama layar terlihat (±190 tulis per petugas per 8 jam kerja). Status orang lain hanya dibaca saat menu Chat sedang dibuka, sehingga beban baca tetap kecil. Jika kuota Firebase gratis mendekati batas, minta petugas menutup tab aplikasi yang tidak dipakai.
 
-### 13.9 Persetujuan pembatalan nota
+### 13.11 Persetujuan pembatalan nota
 
 Periksa nota, konsumen, total, metode bayar, alasan, dan dampak stok. Setujui hanya jika alasan sah. Jika menolak, pastikan kasir memahami koreksi yang harus dilakukan.
 
-### 13.10 Persetujuan stok opname
+### 13.12 Persetujuan stok opname
 
 Bandingkan hasil fisik, selisih, nilai rupiah, riwayat kartu stok, pembelian, transfer, dan transaksi. Setujui hanya setelah penyebab selisih dipahami. Persetujuan akan menyesuaikan stok.
 
-### 13.11 Absensi dan payroll
+### 13.13 Absensi dan payroll
 
 Menu Absensi Karyawan untuk rekap dan koreksi manual dengan catatan. Menu Penghasilan Karyawan untuk gaji, insentif, potongan, slip, dan penguncian periode. Setelah periode dikunci, koreksi harus terdokumentasi.
 
-### 13.12 THR dan bonus
+### 13.14 THR dan bonus
 
 Buat periode THR/bonus, atur persen dan tambahan, periksa masa kerja/pro-rata, tinjau per karyawan, lalu **Kunci & terbitkan**. Setelah terbit, slip muncul pada Penghasilan Saya dan total masuk pengeluaran sesuai alur.
 
-### 13.13 Backup data
+### 13.15 Backup data
 
 Buat backup JSON secara berkala dan simpan di lokasi aman yang tidak dapat diakses semua petugas. Uji bahwa file dapat dibaca. Pemulihan data adalah tindakan besar; lakukan hanya setelah memastikan file, periode, dan dampak pemulihan.
 
-### 13.14 Log aktivitas dan penghapusan part
+### 13.16 Log aktivitas dan penghapusan part
 
 Penghapusan part memerlukan verifikasi password super admin dan dicatat pada log aktivitas. Sebelum menghapus, pastikan part tidak dipakai WO, nota, pembelian, atau laporan. Lebih aman menonaktifkan data daripada menghapus jika masih memiliki histori.
 
@@ -791,95 +871,111 @@ Penghapusan part memerlukan verifikasi password super admin dan dicatat pada log
 
 _Langkah pemeriksaan sebelum meminta bantuan admin atau dukungan teknis._
 
-### 14.1 Aplikasi loading terus
+### 14.1 Stok cabang lebih banyak dari fisik (dobel)
+
+Biasanya barang kiriman cabang lain dicatat lagi di Pembelian Stok. Buka **Riwayat Stok → ⚠ Kemungkinan dobel**, cocokkan nomor TF dan PB, lalu ajukan pembatalan pembelian. Lihat topik Sparepart → **Membereskan stok dobel**.
+
+### 14.2 Tombol Tolak / Batalkan kirim / Ajukan pembatalan ditolak
+
+Pesan "Missing or insufficient permissions" berarti aturan Firestore belum diperbarui. Minta Super Admin publish ulang **firestore.rules** versi 5.31.0.
+
+### 14.3 Riwayat Stok memuat lama
+
+Bila muncul catatan _index mutasi (cabang, tgl) belum dipasang_, Super Admin perlu deploy **firestore.indexes.json**. Sementara itu pilih periode lebih pendek.
+
+### 14.4 Tidak bisa membatalkan pembelian: stok kurang
+
+Pembatalan mengurangi stok sejumlah pembelian. Bila sebagian sudah terjual, stok tidak cukup dan pembatalan ditolak. Koreksi selisihnya lewat **Stok opname**, lalu tandai hutang invoice sesuai kenyataan.
+
+### 14.5 Aplikasi loading terus
 
 Sejak 5.19.0 aplikasi terbuka paling lama ±3,5 detik setelah login walau sebagian data belum datang; data menyusul otomatis. Jika roda gigi tetap berputar lebih dari 15 detik: tekan **Update aplikasi** di layar login atau bilah kiri (mengosongkan salinan lama dan memuat ulang). Periksa koneksi internet, muat ulang sekali, lalu tunggu beberapa detik. Jika hanya /pos yang loading, buka dengan alamat resmi **www.amuservice.id/pos**, bukan file lama/bookmark lama. Jika masih gagal, catat jam, akun/peran, perangkat, dan screenshot error; jangan menghapus data browser sebelum data offline penting dipastikan tersinkron.
 
-### 14.2 Data tidak muncul setelah disimpan
+### 14.6 Data tidak muncul setelah disimpan
 
 Pastikan pesan berhasil muncul, periksa cabang aktif, hapus filter pencarian, dan muat ulang. Jika part/WO dibuat di cabang lain, gunakan filter atau pindah cabang sesuai hak akses. Jangan menyimpan berulang-ulang karena dapat membuat data ganda.
 
-### 14.3 Menu tertentu lama terbuka
+### 14.7 Menu tertentu lama terbuka
 
 Menu yang mengambil data periode lama (Laporan rentang panjang, Insight, Penghasilan, Klaim KSG, Performa Mekanik periode lalu) memang membaca data dari server pada pembukaan pertama. Pembukaan berikutnya dalam 60 detik memakai simpanan sementara sehingga instan. Pilih rentang tanggal secukupnya. Di Insight, tombol **Muat seluruh database kendaraan** memang berat; gunakan hanya bila perlu.
 
-### 14.4 Tampilan belum berubah setelah update
+### 14.8 Tampilan belum berubah setelah update
 
 Tekan **Update aplikasi** sekali dan tunggu halaman memuat ulang sendiri. Jika aplikasi dipasang di HP, tutup aplikasi sepenuhnya lalu buka lagi. Pastikan nomor versi di bilah kiri bawah (atau di bawah lembar Menu di HP) sudah **5.21.0**.
 
-### 14.5 Semua petugas tampil Offline di Chat
+### 14.9 Semua petugas tampil Offline di Chat
 
 Status Online membutuhkan aturan Firestore terbaru. Minta Super Admin publish ulang **firestore.rules** versi 5.19.0. Pastikan juga petugas lain sedang membuka aplikasi (status Offline otomatis bila tidak ada aktivitas lebih dari 6 menit) dan tidak memilih **Offline** di tombol status.
 
-### 14.6 Menu Chat tidak muncul atau pesan tidak tampil
+### 14.10 Menu Chat tidak muncul atau pesan tidak tampil
 
 Menu Chat hanya tampil bila peran Anda dicentang di **Master Data → Hak Akses Menu**. Jika menu ada tetapi pesan kosong, periksa koneksi internet lalu tekan Update aplikasi. Pesan yang gagal dikirim akan dikembalikan ke kotak tulisan sehingga bisa dikirim ulang.
 
-### 14.7 Tidak ada bunyi saat pesan masuk
+### 14.11 Tidak ada bunyi saat pesan masuk
 
 Pastikan **Bunyi notifikasi pesan baru** di Chat dicentang dan volume perangkat tidak senyap. Browser kadang menahan suara sampai Anda menyentuh/klik halaman sekali setelah dibuka. Bunyi hanya untuk pesan dari orang lain di ruang Umum atau chat pribadi Anda.
 
-### 14.8 Gagal memuat data atau query/index
+### 14.12 Gagal memuat data atau query/index
 
 Catat teks error lengkap dan URL yang tampil. Jangan menekan link indeks Firebase tanpa arahan super admin/developer. Sampaikan menu, peran, cabang, dan waktu kejadian agar query dapat diperbaiki dengan aman.
 
-### 14.9 Membatalkan pesanan sebelum bayar
+### 14.13 Membatalkan pesanan sebelum bayar
 
 Jika konsumen batal sebelum membayar, bagian Sparepart membuka menu **Pesanan Part Pribadi**, memilih pesanan, lalu menekan **Batal beli**. Alasan wajib diisi. Status berubah menjadi dibatalkan; tidak dibuat nota penjualan, tidak ada pengurangan kas, dan tidak ada pemotongan stok penjualan. Lembar cetak lama harus disimpan atau diberi tanda batal agar tidak dipakai ke Kasir.
 
-### 14.10 Retur setelah pembayaran
+### 14.14 Retur setelah pembayaran
 
 Jika barang sudah dibayar tetapi kemudian terbukti memang harus diretur, buka nota part di Kasir/Laporan lalu tekan **Ajukan retur**. Isi alasan, terima dan periksa barang, lalu kirim pengajuan. Nota asli tidak dihapus. Pengajuan menunggu pemeriksaan dan persetujuan super admin.
 
-### 14.11 Persetujuan retur dan pengembalian dana
+### 14.15 Persetujuan retur dan pengembalian dana
 
 Super admin memeriksa barang, nota, jumlah, alasan, dan bukti. Setelah yakin, pilih **Setujui & kembalikan dana**, isi catatan, dan konfirmasi password. Sistem mengembalikan stok, mencatat mutasi stok retur, mencatat pengurangan dana dari cash/bank sesuai metode pembayaran asli, menandai nota sebagai retur, dan mengeluarkan nota tersebut dari laporan omzet.
 
-### 14.12 Jika retur ditolak atau belum disetujui
+### 14.16 Jika retur ditolak atau belum disetujui
 
 Selama belum disetujui, stok dan kas/bank belum berubah. Jangan mengembalikan uang secara manual tanpa persetujuan karena saldo kas dan laporan akan berbeda. Simpan catatan pemeriksaan dan komunikasi dengan konsumen.
 
-### 14.13 Pesanan part tidak muncul di Kasir
+### 14.17 Pesanan part tidak muncul di Kasir
 
 Pastikan bagian Sparepart sudah menekan **Simpan pesanan & cetak cek** sampai ada pesan berhasil, cabang kedua perangkat sama, dan koneksi internet aktif. Kasir dapat menekan menu lain lalu kembali ke menu pesanan untuk memuat ulang. Jangan membuat pesanan kedua sebelum status pesanan pertama diperiksa.
 
-### 14.14 Pesanan part dikembalikan
+### 14.18 Pesanan part dikembalikan
 
 Jika Kasir menemukan perbedaan, Kasir menekan **Tidak sesuai** dan wajib menulis alasan. Bagian Sparepart membuka pesanan berstatus **Dikembalikan ke Sparepart**, memperbaiki item/jumlah, lalu menyimpan dan mencetak lembar cek baru.
 
-### 14.15 Kas atau bank tidak sesuai
+### 14.19 Kas atau bank tidak sesuai
 
 Periksa metode pembayaran pada nota, rekening transfer, kembalian, mutasi setor/tarik, dan pengeluaran pada tanggal yang sama. Jangan mencatat penerimaan penjualan sebagai pengeluaran. Jika kas sudah ditutup, jangan mengubah catatan; minta super admin membuka ulang sesuai prosedur.
 
-### 14.16 Part baru tidak terlihat
+### 14.20 Part baru tidak terlihat
 
 Pastikan kode part unik, simpan sampai pesan berhasil, cek filter kategori/cabang, lalu refresh. Jika part tersimpan tetapi tidak bisa dipakai di order, periksa apakah statusnya aktif dan stok cabang sudah benar.
 
-### 14.17 Nomor antrean tidak tampil di TV
+### 14.21 Nomor antrean tidak tampil di TV
 
 Pastikan layar TV membuka alamat layar yang benar, perangkat sudah disetujui, internet aktif, cabang layar sesuai, dan Register menekan Selesai. Refresh layar TV hanya setelah memastikan status WO sudah tersimpan.
 
-### 14.18 Tidak bisa memilih mekanik
+### 14.22 Tidak bisa memilih mekanik
 
 Mekanik mungkin sedang berstatus Dikerjakan pada motor lain, tidak aktif, berada di cabang berbeda, atau data belum termuat. Periksa daftar Performa Mekanik dan pilih mekanik yang kosong.
 
-### 14.19 Total pembayaran salah
+### 14.23 Total pembayaran salah
 
 Jangan lanjut bayar. Kembali ke Register dan periksa jenis KSB/KSG, KSG ke-berapa, jasa, part, biaya lainnya, diskon, dan status. Setelah diperbaiki, buka ulang halaman pembayaran.
 
-### 14.20 BAST tidak bisa dicetak
+### 14.24 BAST tidak bisa dicetak
 
 Lengkapi data konsumen, nomor polisi, tipe, jenis layanan, estimasi, tanggal, dan jam. Izinkan pop-up browser untuk domain aplikasi, kemudian tekan Preview BAST lagi. Pada dialog cetak pilih printer atau **Save as PDF**.
 
-### 14.21 QR absensi gagal
+### 14.25 QR absensi gagal
 
 Pastikan kamera diizinkan, QR belum kedaluwarsa, perangkat berada di lokasi, dan akun memakai HP yang terdaftar. Jika ganti HP atau kamera rusak, minta admin mereset perangkat.
 
-### 14.22 Pembayaran transfer belum masuk
+### 14.26 Pembayaran transfer belum masuk
 
 Jangan menganggap screenshot sebagai bukti final. Periksa rekening dan mutasi. Jika sudah terlanjur salah, jangan membuat nota kedua; catat nomor nota dan ajukan koreksi sesuai prosedur.
 
-### 14.23 Kapan meminta bantuan?
+### 14.27 Kapan meminta bantuan?
 
 Minta bantuan admin jika berkaitan dengan data konsumen, status WO, stok, kas, atau akses. Minta bantuan super admin jika berkaitan dengan password utama, pembatalan nota, penghapusan, persetujuan stok opname, hak akses, atau backup. Sertakan nomor WO/nota, cabang, waktu, langkah terakhir, dan pesan error.
 

@@ -101,6 +101,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "mutasi",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cabang",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tgl",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

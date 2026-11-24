@@ -49,6 +49,8 @@ export const can = menuId => {
   const a = S.akses?.[st.role];
   // Jika Super Admin sudah menyimpan checklist, daftar tersebut menjadi sumber izin penuh.
   // Ini memungkinkan menu diberikan ke peran lain walau bukan bawaan konfigurasi awal.
+  // Menu yang dibuat SETELAH checklist disimpan (tidak ada di _menu) mengikuti peran bawaannya.
+  if (Array.isArray(a) && Array.isArray(S.akses?._menu) && !S.akses._menu.includes(menuId)) return m.roles.includes(st.role) && menuId !== 'chat';
   if (Array.isArray(a)) return a.includes(menuId) || (menuId === 'konsumen' && a.includes('master'));
   if (!m.roles.includes(st.role)) return false;
   if (menuId === 'chat') return false;

@@ -68,6 +68,7 @@ function layout(pdf, rows, logo, draw, preset, ukuran) {
     if (r.type === 'item') {
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(body); const ls = pdf.splitTextToSize(r.l, W - 2 * M);
       if (draw) pdf.text(ls, M, y); y += ls.length * LH;
+      if (r.kode) { if (draw) { pdf.setFont('courier', 'normal'); pdf.setFontSize((preset.body - 1) * sc); pdf.setTextColor(70); pdf.text('   Kode: ' + r.kode, M, y); pdf.setTextColor(25); pdf.setFont('helvetica', 'normal'); } y += LH * 0.9; }   // 5.31.0
       if (draw) { pdf.setFontSize((preset.body - 0.5) * sc); pdf.text('   ' + r.sub, M, y); pdf.text(r.r, W - M, y, { align: 'right' }); } y += LH; continue;
     }
     pdf.setFont('helvetica', r.bold ? 'bold' : 'normal'); pdf.setFontSize((r.bold ? 10.5 : preset.body) * sc);

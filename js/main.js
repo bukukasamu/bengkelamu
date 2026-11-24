@@ -38,6 +38,9 @@ import './order.js';
 import './bayar.js';
 import './mekanik.js';
 import './stok.js';
+import './riwayat-stok.js';
+import { pantauTransferMasuk, segarkanBadgeTf } from './transfer.js';
+import { tampilkanInfoUpdate } from './update-info.js';
 import './pembelian.js';
 import './order-supplier.js';
 import './master.js';
@@ -55,6 +58,7 @@ function renderSidebar() {
     html += `<button class="sb-link" type="button" data-view="${m.id}">${esc(menuLabel(m))}</button>`;
   });
   $('#side-nav').innerHTML = html;
+  segarkanBadgeTf();
 }
 const isMobile = () => window.matchMedia('(max-width: 900px)').matches;
 function toggleSidebar() {
@@ -230,6 +234,7 @@ function subscribe() {
     st.loaded = true;
     if (parsial) console.warn('AMU POS dibuka dengan data parsial; sumber yang belum siap:', need.filter(n => !ready[n]));
     seedMaster(); go(st.view); cekAbsenTertunda(); pasangPenjaga();
+    setTimeout(() => tampilkanInfoUpdate(), 1500);   // 5.31.0: info update sekali per versi
   };
   // 5.19.0: setelah aplikasi terbuka, setiap data yang datang langsung memperbarui layar (digabung per ±60 ms
   // supaya beberapa sumber yang datang bersamaan hanya menggambar ulang sekali).
@@ -312,6 +317,7 @@ function subscribe() {
   }
   pantauPersetujuan(unsubs);
   pantauMinta(unsubs);
+  pantauTransferMasuk(unsubs);
   unsubs.push(watchCabang(() => { if (!cabangById(st.cabang)) st.cabang = CABANG_UTAMA; renderCabangBox(); if (st.loaded) { terapkanCabang(); refresh(); } }));
   // Pengaman 5.19.0: aplikasi dibuka paling lama 3,5 detik setelah login walaupun sebagian data masih di jalan
   // (dulu 8 detik). Data yang menyusul langsung mengisi layar lewat listener realtime.
