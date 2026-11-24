@@ -28,7 +28,7 @@ function renderPembelian() {
   const telat = hutang.filter(p => p.jatuhTempo && p.jatuhTempo < dkey(now));
   const bln = S.pembelian.filter(p => p.status === 'Diterima' && (p.tglInvoice || '') >= bulan);
   $('#view').innerHTML = `<div class="grid">${multiCabang() ? `<div id="pb-tf">${bannerTransferMasuk({ tombol: false })}</div>` : ''}
-   <div class="note small"><b>Pembelian Stok hanya untuk barang dari supplier (ada invoice).</b> Barang kiriman dari cabang lain cukup ditekan <b>Terima</b> di Stok Part — jangan dicatat di sini supaya stok tidak dobel. Barang yang dicatat di sini tampil sebagai <span class="pill p-warn">Input sendiri</span> di Riwayat Stok.</div>
+   <div class="note small"><b>Pembelian Stok hanya untuk barang dari supplier (ada invoice).</b> Barang kiriman dari cabang lain cukup ditekan <b>Terima</b> di Stok Part — jangan dicatat di sini supaya stok tidak dobel. Barang yang dicatat di sini tampil sebagai <span class="pill p-warn">Input sendiri</span> di Riwayat Stok. Salah input? <button class="link-btn" type="button" data-act="go-panduan-koreksi">Lihat alur koreksi</button>.</div>
    <div class="tiles">
     <button class="tile click" type="button" data-act="pb-filter" data-f="belum"><span class="lbl">Hutang ke supplier</span><span class="val" style="color:${hutang.length ? 'var(--bad)' : 'inherit'}">${rp(hutang.reduce((a, p) => a + p.total, 0))}</span><span class="sub">${hutang.length} invoice belum lunas${telat.length ? ` · ${telat.length} lewat jatuh tempo` : ''}</span></button>
     <div class="tile"><span class="lbl">Pembelian bulan ini</span><span class="val">${rp(bln.reduce((a, p) => a + p.total, 0))}</span><span class="sub">${bln.length} invoice masuk stok</span></div>
@@ -243,6 +243,8 @@ export async function setujuiBatalPembelian(p) {
       const ref = doc(db, 'pembelian', p.no), ps = await tx.get(ref), d = ps.data();
       if (!d || d.status !== 'Diterima') throw new Error('Hanya pembelian yang sudah masuk stok yang bisa dibatalkan (status sekarang: ' + (d?.status || 'tidak ada') + ')');
       const cab = cabangOf(d), items = d.items || [], refs = items.map(x => doc(db, 'parts', x.kode)), snaps = await Promise.all(refs.map(r => tx.get(r)));
+      // Pembelian dari "terima barang PO": jumlah datang di PO dikembalikan supaya sisa pesanan bisa diterima lagi
+      const poRef = d.po ? doc(db, 'orderSupplier', d.po) : null, poSnap = poRef ? await tx.get(poRef) : null;
       // part yang sama bisa muncul beberapa baris (harga berbeda): cek stok cukup per kode
       const perKode = {}; items.forEach(x => { perKode[x.kode] = (perKode[x.kode] || 0) + (+x.qty || 0); });
       snaps.forEach((s, i) => { if (!s.exists()) throw new Error('Part ' + items[i].kode + ' tidak ada di master'); const ada = stokOf(s.data(), cab); if (ada < perKode[items[i].kode]) throw new Error(`Stok ${s.data().nama} di ${namaCabang(cab)} tinggal ${ada}, kurang dari ${perKode[items[i].kode]}. Sebagian mungkin sudah terjual — koreksi lewat Stok opname.`); });
@@ -257,6 +259,13 @@ export async function setujuiBatalPembelian(p) {
         catatMutasi(tx, dataMutasi(cab, x.kode, cur.nama || x.nama, -q, 'batal-beli', d.no, (d.supplier || '') + ' ' + (d.noInvoice || '') + ': ' + catatan));
       });
       Object.entries(kini).forEach(([kode, cur]) => tx.update(doc(db, 'parts', kode), { [stokField(cab)]: stokOf(cur, cab), beli: cur.beli }));
+      if (poSnap?.exists()) {
+        const sisa = {}; items.forEach(x => { sisa[x.kode] = (sisa[x.kode] || 0) + (+x.qty || 0); });
+        const sup = String(d.supplier || '').trim();
+        const poItems = (poSnap.data().items || []).map(x => { if (!sisa[x.kode] || (sup && String(x.supplier || '').trim() !== sup)) return x; const kurang = Math.min(+x.datang || 0, sisa[x.kode]); sisa[x.kode] -= kurang; return { ...x, datang: (+x.datang || 0) - kurang }; });
+        const adaDatang = poItems.some(x => (+x.datang || 0) > 0), semua = poItems.every(x => (+x.datang || 0) >= (+x.qty || 0));
+        tx.update(poRef, { items: poItems, status: semua ? 'Selesai' : adaDatang ? 'Datang sebagian' : 'Dipesan', terakhirDatang: stamp(new Date()), catatanBatal: 'Pembelian ' + d.no + ' dibatalkan: ' + catatan });
+      }
       tx.update(ref, { status: 'Batal', batal: { ...(d.batal || {}), status: 'disetujui', catatanSuper: catatan, disetujuiOleh: namaPetugas(), tglSetuju: stamp(new Date()), alasan: d.batal?.alasan || catatan } });
     });
     toast('Pembelian ' + p.no + ' dibatalkan, stok dikurangi kembali'); lupakanAsal(); window.dispatchEvent(new CustomEvent('amu-stok-berubah'));

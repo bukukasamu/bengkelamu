@@ -29,6 +29,10 @@ Latar belakang: petugas cabang mencatat barang kiriman pusat di **Pembelian Stok
 **Info update**
 - `js/update-info.js`: jendela "Aplikasi sudah diperbarui" muncul **sekali per perangkat per versi** (localStorage `amu-info-update`), dengan tombol ke panduan & Riwayat Stok. Panduan (`js/panduan.js`, `PANDUAN.md`) diperbarui: topik Apa yang baru, Fungsi menu, Sparepart (8 langkah baru), Kasir, Admin, Super Admin, Masalah umum.
 
+**Alur salah input**
+- Topik Panduan baru **Salah input ✏️** (`koreksi`, terlihat semua peran): prinsip koreksi, langkah identifikasi, siapa melakukan apa, Kasus A–K (draft, pembelian masuk stok, dobel, transfer belum/sudah diterima, kelebihan/kurang sebagian, terlanjur Terima, PO, stok awal, selisih/opname, nota), pengajuan ditolak/tertunda, larangan, dan pemeriksaan setelah koreksi. Ditautkan dari popup update, Riwayat Stok, Pembelian, dan Kartu stok.
+- Pembatalan pembelian yang berasal dari **terima barang PO** kini mengembalikan jumlah `datang` di PO (status kembali Dipesan / Datang sebagian) supaya sisa pesanan bisa diterima ulang.
+
 **Perbaikan lain**
 - Pembelian: draft baru menyimpan `cabang` sejak awal (sebelumnya draft baru yang langsung diterima memakai cabang utama — stok bisa masuk ke Pusat atau ditolak rules di cabang). Penerimaan memakai cabang dari dokumen tersimpan.
 - Pembelian: part sama di beberapa baris (harga berbeda) tidak lagi saling menimpa stok saat diterima.
